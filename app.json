@@ -7,16 +7,42 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#07090d",
-    "splash": { "image": "./assets/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#07090d" },
-    "ios": { "supportsTablet": true, "requireFullScreen": true },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#07090d"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "requireFullScreen": true
+    },
     "android": {
-      "adaptiveIcon": { "backgroundColor": "#07090d", "foregroundImage": "./assets/android-icon-foreground.png", "backgroundImage": "./assets/android-icon-background.png", "monochromeImage": "./assets/android-icon-monochrome.png" },
+      "adaptiveIcon": {
+        "backgroundColor": "#07090d",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
       "package": "com.qidsen.esportsempire",
       "versionCode": 1
     },
-    "web": { "favicon": "./assets/favicon.png" },
-    "runtimeVersion": { "policy": "sdkVersion" },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "owner": "qidsen-studio",
-    "plugins": ["./plugins/arm64.js"]
+    "plugins": [
+      "./plugins/arm64.js"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7fec47d9-f4c6-4dbc-9056-e1b3311dec16"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7fec47d9-f4c6-4dbc-9056-e1b3311dec16"
+    }
   }
 }
