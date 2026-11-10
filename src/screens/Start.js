@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { newCareer, DISC_ORDER, FAKE, S, pack } from '../core/game';
 import { REAL_PATCH } from '../core/realPatch';
 import { UI, bump, save, openModal, closeModal } from '../ui/store';
-import { T, H, Panel, Btn, Seg, Logo, Row } from '../ui/kit';
+import { T, H, Panel, Btn, Seg, Logo, Row, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 
 const COLORS = ['#ff8a1f', '#ff3b5c', '#3fa9f5', '#3ddc84', '#a66cff', '#ffc94d', '#00d4c8', '#ff5fa2', '#e8e8e8', '#7cf75c'];
@@ -61,7 +61,7 @@ export default function Start() {
             return (
               <Pressable key={d} onPress={() => setDisc(d)} style={{ width: '48.5%' }}>
                 <LinearGradient colors={on ? [alpha(col, 0.35), alpha(col, 0.08)] : ['rgba(30,38,58,0.7)', 'rgba(16,22,36,0.7)']} style={{ borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: on ? col : C.line, height: cardH, justifyContent: 'center' }}>
-                  <Row gap={8}><Text style={{ fontSize: 22 * k }}>{FAKE[d].icon}</Text><View style={{ flex: 1 }}><T h s={13.5} n={1}>{SHORT[d]}</T><T mu s={10.5} n={1}>{FAKE[d].kind==='duel'?'1×1':FAKE[d].size+'×'+FAKE[d].size} · {KIND[FAKE[d].kind]}</T></View></Row>
+                  <Row gap={8}><GameIcon d={d} size={Math.round(30 * k)} uri={real ? (REAL_PATCH.disciplines[d] && REAL_PATCH.disciplines[d].icon) || null : null} /><View style={{ flex: 1 }}><T h s={13.5} n={1}>{SHORT[d]}</T><T mu s={10.5} n={1}>{FAKE[d].kind==='duel'?'1×1':FAKE[d].size+'×'+FAKE[d].size} · {KIND[FAKE[d].kind]}</T></View></Row>
                 </LinearGradient>
               </Pressable>
             );

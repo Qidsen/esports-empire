@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { S, userTeam, starters, ovr, pnick, pcc, FAKE, DISC_ORDER, pack, teamOvr, standings, staffOf, STAFF_TYPES, mapName, heroName, heroMeta, fmt, divCost, divRep, buyDivision, maxDivs } from '../core/game';
 import { UI, bump, toast, save } from '../ui/store';
-import { T, H, Panel, Btn, Seg, Chips, Row, Stat, Bar, Ovr, Flag, Tag, Role, TeamLogo } from '../ui/kit';
+import { T, H, Panel, Btn, Seg, Chips, Row, Stat, Bar, Ovr, Flag, Tag, Role, TeamLogo, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 import PlayerPanel from './PlayerPanel';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
-export function DiscChips({ all }) { return <Chips ac={UI.d && FAKE[UI.d].color} value={UI.d} onChange={d => { UI.d = d; UI.sel = null; UI.tier = null; bump(); }} items={DISC_ORDER.filter(d => all || S.divs[d]).map(d => [d, `${FAKE[d].icon} ${pack(d).game}${S.divs[d] ? '' : ' 🔒'}`, !S.divs[d]])} />; }
+export function DiscChips({ all }) { return <Chips ac={UI.d && FAKE[UI.d].color} value={UI.d} onChange={d => { UI.d = d; UI.sel = null; UI.tier = null; bump(); }} items={DISC_ORDER.filter(d => all || S.divs[d]).map(d => [d, `${pack(d).game}${S.divs[d] ? '' : ' 🔒'}`, !S.divs[d], d])} />; }
 export function PRow({ p, d, right, onPress }) {
   const sel = UI.sel === p.id;
   return (
@@ -27,7 +27,7 @@ export function UnlockCard({ d }) {
   const ok = S.rep >= divRep(d); const slots = Object.keys(S.divs).length < maxDivs();
   return (
     <Panel ac={FAKE[d].color} style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 40 }}>{FAKE[d].icon}</Text>
+      <GameIcon d={d} size={48} />
       <T h s={20}>{pack(d).game}</T>
       <T mu s={12} style={{ textAlign: 'center', marginVertical: 6 }}>{FAKE[d].size}×{FAKE[d].size} · старт в {pack(d).leagues[2]}{'\n'}Нужно: {money(divCost(d))}, репутация {divRep(d)} (у тебя {Math.round(S.rep)}), свободный слот офиса ({Object.keys(S.divs).length}/{maxDivs()})</T>
       <Btn kind="pri" ac={FAKE[d].color} disabled={!ok || !slots || S.money < divCost(d)} title="Открыть дивизион" onPress={() => { const e = buyDivision(d); if (e) toast(e); else { save(); toast('🎉 Новый дивизион!'); UI.d = d; } bump(); }} />

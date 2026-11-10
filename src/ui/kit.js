@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Defs, LinearGradient as SG, Stop, Text as ST } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient as SG, Stop, Text as ST, Circle, Rect, G } from 'react-native-svg';
 import { C, F, ovrColor, shade, alpha } from './theme';
-import { S, FLAG, ttag, ovr } from '../core/game';
+import { S, FLAG, ttag, ovr, FAKE } from '../core/game';
 
 export const T = ({ s, style, children, num, h, mu, n, ...rest }) => (
   <Text numberOfLines={n} style={[{ color: mu ? C.mu : C.tx, fontSize: s || 13, fontFamily: h ? F.h : num ? F.hm : F.b }, style]} {...rest}>{children}</Text>
@@ -54,11 +54,11 @@ export function Seg({ items, value, onChange, ac, style }) {
 export function Chips({ items, value, onChange, ac }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 36, marginBottom: 8 }} contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
-      {items.map(([k, n, dim]) => {
+      {items.map(([k, n, dim, ic]) => {
         const on = k === value;
         return (
           <Pressable key={String(k)} onPress={() => onChange(k)} style={[st.chip, on && { backgroundColor: ac || C.blue, borderColor: 'transparent' }, dim && !on && { opacity: 0.5 }]}>
-            <Text numberOfLines={1} style={{ color: on ? '#0a0d14' : C.mu, fontFamily: F.hm, fontSize: 12 }}>{n}</Text>
+            {ic ? <View style={{ marginRight: 5 }}><GameIcon d={ic} size={16} plain /></View> : null}<Text numberOfLines={1} style={{ color: on ? '#0a0d14' : C.mu, fontFamily: F.hm, fontSize: 12 }}>{n}</Text>
           </Pressable>
         );
       })}
@@ -111,3 +111,24 @@ const st = StyleSheet.create({
   stat: { flex: 1, backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 10, borderWidth: 1, borderColor: C.line, paddingVertical: 7, paddingHorizontal: 9 },
   role: { paddingHorizontal: 5, paddingVertical: 3, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.07)', width: 62, alignItems: 'center' },
 });
+
+// Иконка дисциплины. С патчем берёт картинку из patch.disciplines[d].icon (URL или data:URI), иначе — свой векторный значок.
+const GLYPH = {
+  cs: (w) => <G stroke={w} strokeWidth={2.4} fill="none" strokeLinecap="round"><Circle cx={16} cy={16} r={9} /><Path d="M16 3v7M16 22v7M3 16h7M22 16h7" /><Circle cx={16} cy={16} r={1.6} fill={w} stroke="none" /></G>,
+  dota: (w) => <G stroke={w} strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round"><Path d="M16 4l10 4v7c0 6.5-4.3 11-10 13-5.7-2-10-6.5-10-13V8z" /><Path d="M16 9v13M12 17.5h8" /></G>,
+  dl: (w) => <G stroke={w} strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round"><Path d="M10 14v-3a6 6 0 0 1 12 0v3" /><Rect x={7.5} y={14} width={17} height={12} rx={2.5} /><Path d="M16 18.5v3.5" /></G>,
+  rl: (w) => <G stroke={w} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round"><Path d="M3 23v-3.5l4.5-1.2 3.5-4.3h7.5l4.5 4.3 5 1.2V23z" /><Circle cx={9} cy={23.5} r={2.6} fill={w} stroke="none" /><Circle cx={22.5} cy={23.5} r={2.6} fill={w} stroke="none" /><Circle cx={23.5} cy={8} r={4} /></G>,
+  fc: (w) => <G stroke={w} strokeWidth={2.2} fill="none" strokeLinejoin="round"><Circle cx={16} cy={16} r={11} /><Path d="M16 11l4.3 3.1-1.6 5h-5.4l-1.6-5z" fill={w} /><Path d="M16 11V5M20.3 14.1l5.6-1.8M18.7 19.1l3.4 4.8M13.3 19.1l-3.4 4.8M11.7 14.1l-5.6-1.8" /></G>,
+};
+export function patchIcon(d) { const p = S && S.patchOn && S.patchData && S.patchData.disciplines && S.patchData.disciplines[d]; return p && typeof p.icon === 'string' && p.icon ? p.icon : null; }
+export function GameIcon({ d, size = 28, uri, plain }) {
+  const src = uri !== undefined ? uri : patchIcon(d); const col = (FAKE[d] && FAKE[d].color) || C.ac;
+  if (src) return <Image source={{ uri: src }} style={{ width: size, height: size, borderRadius: size * 0.22 }} resizeMode="contain" />;
+  const g = GLYPH[d] || GLYPH.cs;
+  return (
+    <View style={{ width: size, height: size, borderRadius: size * 0.26, overflow: 'hidden', borderWidth: plain ? 0 : 1, borderColor: alpha(col, 0.6) }}>
+      {plain ? null : <LinearGradient colors={[alpha(col, 0.45), alpha(col, 0.12)]} style={StyleSheet.absoluteFill} />}
+      <Svg width={size} height={size} viewBox="0 0 32 32">{g(plain ? col : '#fff')}</Svg>
+    </View>
+  );
+}

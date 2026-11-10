@@ -42,7 +42,7 @@ export function preMatch(d, m) {
   );
   openModal(() => (
     <View>
-      <T mu s={11} style={{ textAlign: 'center', letterSpacing: 2, fontFamily: F.hm }}>{FAKE[d].icon} {pack(d).game.toUpperCase()}</T>
+      <T mu s={11} style={{ textAlign: 'center', letterSpacing: 2, fontFamily: F.hm }}>{pack(d).game.toUpperCase()}</T>
       <T s={12} mu style={{ textAlign: 'center' }}>{lbl} · BO{seriesBo(d, m.bo)}</T>
       <Row style={{ marginVertical: 14 }}>{side(A)}<T h s={26} mu>VS</T>{side(B)}</Row>
       <Row>

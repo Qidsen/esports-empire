@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ScrollView } from 'react-native';
-import { S, userTeam, ovr, pnick, FAKE, potView, feeFor, signDemand, fmt, T as TT, ttag, tname, teamOf, isLoanable, loanInCost, respondOffer, refreshAcademy } from '../core/game';
+import { S, userTeam, ovr, pnick, FAKE, potView, feeFor, signDemand, fmt, T as TT, ttag, tname, teamOf, isLoanable, loanInCost, respondOffer, refreshAcademy, pack } from '../core/game';
 import { UI, bump, toast, save } from '../ui/store';
 import { T, H, Panel, Btn, Seg, Chips, Row, Stars, Tag } from '../ui/kit';
 import { C } from '../ui/theme';
@@ -34,7 +34,7 @@ export default function Market() {
               <Panel key={o.id} ac={FAKE[p.d].color}>
                 <Row>
                   <View style={{ flex: 1 }}>
-                    <T h s={15}>{pnick(p)} <T mu s={11}>· {FAKE[p.d].roles[p.role]} · OVR {ovr(p)} · {FAKE[p.d].icon}</T></T>
+                    <T h s={15}>{pnick(p)} <T mu s={11}>· {FAKE[p.d].roles[p.role]} · OVR {ovr(p)} · {pack(p.d).game}</T></T>
                     <T mu s={12}>{tname(tm)} предлагают <T h s={14} style={{ color: C.gold }}>{money(o.fee)}</T> · истекает через {o.weeks} нед.{p.transferReq ? ' · игрок хочет уйти' : ''}</T>
                   </View>
                   <Btn small kind="good" title="Продать" onPress={() => { const r = respondOffer(o.id, 'accept'); if (r) toast(r); else toast('💰 Сделка закрыта'); save(); bump(); }} />
