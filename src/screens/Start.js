@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { newCareer, DISC_ORDER, FAKE, S, pack } from '../core/game';
 import { REAL_PATCH } from '../core/realPatch';
@@ -8,7 +9,7 @@ import { T, H, Panel, Btn, Seg, Logo, Row } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 
 const COLORS = ['#ff8a1f', '#ff3b5c', '#3fa9f5', '#3ddc84', '#a66cff', '#ffc94d', '#00d4c8', '#ff5fa2', '#e8e8e8', '#7cf75c'];
-const KIND = { fps: 'Тактический шутер', moba: 'MOBA', ball: 'Авто-футбол', duel: 'Футбол 1×1' };
+const KIND = { fps: 'Шутер', moba: 'MOBA', ball: 'Авто-футбол', duel: 'Футбол' };
 export default function Start() {
   const [name, setName] = useState(''); const [tag, setTag] = useState(''); const [c1, setC1] = useState('#ff8a1f'); const [disc, setDisc] = useState('cs'); const [real, setReal] = useState(true);
   const gameName = d => real && REAL_PATCH.disciplines[d] ? REAL_PATCH.disciplines[d].game : FAKE[d].game;
@@ -25,45 +26,52 @@ export default function Start() {
       </View>
     )), 300);
   };
+  const ins = useSafeAreaInsets(); const { height: H0 } = useWindowDimensions();
+  const k = Math.max(0.78, Math.min(1.15, H0 / 400)); // scale to screen height
+  const cardH = Math.round(62 * k);
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1, flexDirection: 'row', padding: 18, gap: 16 }}>
-      <View style={{ width: 300 }}>
-        <T mu s={10} style={{ letterSpacing: 3, fontFamily: F.hm }}>ESPORTS MANAGER SIMULATOR</T>
-        <Text style={{ color: C.tx, fontFamily: F.hx, fontSize: 34, letterSpacing: 1 }}>ESPORTS EMPIRE</Text>
-        <T mu s={12} style={{ marginBottom: 12 }}>Своя киберспортивная организация · 5 дисциплин · матчи в 3D</T>
-        <Row style={{ marginBottom: 12 }} gap={14}>
-          <Logo c1={c1} c2="#05070b" tag={(tag || 'ORG').toUpperCase()} size={96} />
-          <View style={{ flex: 1, gap: 8 }}>
+    <View style={{ flex: 1, flexDirection: 'row', paddingLeft: Math.max(ins.left, 14) + 4, paddingRight: Math.max(ins.right, 14) + 4, paddingTop: Math.max(ins.top, 10), paddingBottom: Math.max(ins.bottom, 10), gap: 18 }}>
+      <View style={{ width: 290 * Math.min(1, k + 0.1), justifyContent: 'space-between' }}>
+        <View>
+          <T mu s={9} style={{ letterSpacing: 2.5, fontFamily: F.hm }}>ESPORTS MANAGER SIMULATOR</T>
+          <Text style={{ color: C.tx, fontFamily: F.hx, fontSize: Math.round(26 * k), letterSpacing: 0.5, lineHeight: Math.round(30 * k) }}>ESPORTS EMPIRE</Text>
+          <T mu s={11} n={1}>Своя организация · 5 дисциплин · матчи в 3D</T>
+        </View>
+        <Row gap={10}>
+          <Logo c1={c1} c2="#05070b" tag={(tag || 'ORG').toUpperCase()} size={Math.round(64 * k)} />
+          <View style={{ flex: 1, gap: 6 }}>
             <TextInput value={name} onChangeText={setName} placeholder="Название организации" placeholderTextColor={C.mu2} maxLength={24} style={inp} />
             <TextInput value={tag} onChangeText={t => setTag(t.toUpperCase())} placeholder="Тег (2–4 буквы)" placeholderTextColor={C.mu2} maxLength={4} autoCapitalize="characters" style={inp} />
           </View>
         </Row>
-        <H>Цвет организации</H>
-        <Row gap={8} style={{ flexWrap: 'wrap', marginBottom: 14 }}>{COLORS.map(c => <Pressable key={c} onPress={() => setC1(c)} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c, borderWidth: 2, borderColor: c1 === c ? '#fff' : 'transparent' }} />)}</Row>
-        <H>Данные мира</H>
-        <Seg ac={c1} value={real} onChange={setReal} items={[[false, 'Вымышленный'], [true, 'Реальный (патч 2026)']]} />
-        <T mu s={11} style={{ marginTop: 6 }}>{real ? 'Реальные игры, карты, герои, команды и игроки (сверено 11.11.2026).' : 'Случайные названия. Патч можно включить позже в разделе «Клуб».'}</T>
+        <View>
+          <T mu s={10} style={{ fontFamily: F.h, letterSpacing: 1.4, marginBottom: 5 }}>ЦВЕТ</T>
+          <Row gap={6}>{COLORS.map(c => <Pressable key={c} onPress={() => setC1(c)} style={{ flex: 1, aspectRatio: 1, maxWidth: 26, borderRadius: 13, backgroundColor: c, borderWidth: 2, borderColor: c1 === c ? '#fff' : 'transparent' }} />)}</Row>
+        </View>
+        <View>
+          <Seg ac={c1} value={real} onChange={setReal} items={[[false, 'Вымышленный мир'], [true, 'Реальный (патч 2026)']]} />
+          <T mu s={10} n={2} style={{ marginTop: 4 }}>{real ? 'Реальные игры, карты, герои, команды и игроки (сверено 11.11.2026).' : 'Случайные названия. Патч можно включить позже в «Клубе».'}</T>
+        </View>
       </View>
-      <View style={{ flex: 1 }}>
-        <H>Стартовая дисциплина</H>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      <View style={{ flex: 1, justifyContent: 'space-between' }}>
+        <T mu s={10} style={{ fontFamily: F.h, letterSpacing: 1.4 }}>СТАРТОВАЯ ДИСЦИПЛИНА</T>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {DISC_ORDER.map(d => {
             const on = disc === d; const col = FAKE[d].color;
             return (
-              <Pressable key={d} onPress={() => setDisc(d)} style={{ width: '31.5%', minWidth: 150 }}>
-                <LinearGradient colors={on ? [alpha(col, 0.35), alpha(col, 0.08)] : ['rgba(30,38,58,0.7)', 'rgba(16,22,36,0.7)']} style={{ borderRadius: 14, padding: 12, borderWidth: 1, borderColor: on ? col : C.line, height: 108 }}>
-                  <Text style={{ fontSize: 26 }}>{FAKE[d].icon}</Text>
-                  <T h s={15} style={{ marginTop: 4 }} n={1}>{gameName(d)}</T>
-                  <T mu s={11}>{FAKE[d].size}×{FAKE[d].size} · {KIND[FAKE[d].kind]}</T>
+              <Pressable key={d} onPress={() => setDisc(d)} style={{ width: '48.5%' }}>
+                <LinearGradient colors={on ? [alpha(col, 0.35), alpha(col, 0.08)] : ['rgba(30,38,58,0.7)', 'rgba(16,22,36,0.7)']} style={{ borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: on ? col : C.line, height: cardH, justifyContent: 'center' }}>
+                  <Row gap={8}><Text style={{ fontSize: 22 * k }}>{FAKE[d].icon}</Text><View style={{ flex: 1 }}><T h s={13.5} n={1}>{SHORT[d]}</T><T mu s={10.5} n={1}>{FAKE[d].kind==='duel'?'1×1':FAKE[d].size+'×'+FAKE[d].size} · {KIND[FAKE[d].kind]}</T></View></Row>
                 </LinearGradient>
               </Pressable>
             );
           })}
         </View>
-        <T mu s={11} style={{ marginVertical: 10 }}>Остальные дисциплины открываются позже, когда расширишь офис.</T>
-        <Btn kind="pri" ac={c1} title="Основать организацию" onPress={go} style={{ marginTop: 'auto' }} />
+        <T mu s={10.5} n={1}>Остальные дисциплины откроются, когда расширишь офис.</T>
+        <Btn kind="pri" ac={c1} title="Основать организацию" onPress={go} />
       </View>
-    </ScrollView>
+    </View>
   );
 }
-const inp = { backgroundColor: 'rgba(0,0,0,0.35)', borderWidth: 1, borderColor: C.line2, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, color: C.tx, fontSize: 14 };
+const SHORT = { cs: 'CS2', dota: 'Dota 2', dl: 'Deadlock', rl: 'Rocket League', fc: 'EA FC 27' };
+const inp = { backgroundColor: 'rgba(0,0,0,0.35)', borderWidth: 1, borderColor: C.line2, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 7, color: C.tx, fontSize: 13 };

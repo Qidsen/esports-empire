@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { S, teamOf, teamCtx, FAKE, seriesBo, vetoOrder, aiVetoChoice, newDraft, draftOrder, draftApply, aiDraftChoice, draftTaken, autoDraft, heroList, heroMeta, prof, FpsMap, MobaGame, BallGame, DuelGame, fcPair, mergeStats, seriesFinalize, applyResult, tname, ttag, pnick, pcc, mapName, pack, fpsRating, fmt, shuffle, ovr } from '../core/game';
 import { UI, bump, save, toast } from '../ui/store';
 import { T, Btn, Seg, Row, TeamLogo, Flag, Tag } from '../ui/kit';
@@ -23,6 +24,7 @@ export default function Live() {
     Lr.current = { d, m, A, B, cA, cB, kind, bo, need: Math.ceil(bo / 2), us: A.user ? 'A' : 'B', sa: 0, sb: 0, maps: [], acc: {}, speed: 1, phase: '', feed: [], cur: null, g: 0, sel: null, hrole: -1, viz, ready: false, shown: [0, 0], board: false, tm: null };
   }
   const L = Lr.current;
+  const ins = useSafeAreaInsets(); const padL = Math.max(ins.left, 10), padR = Math.max(ins.right, 10);
   const clear = () => { if (L.tm) { clearTimeout(L.tm); L.tm = null; } };
   const sched = (fn, ms) => { clear(); L.tm = setTimeout(fn, ms / L.speed); };
   const usC = () => L.us === 'A' ? L.cA : L.cB;
@@ -71,7 +73,7 @@ export default function Live() {
       <LinearGradient colors={['rgba(0,0,0,0.65)', 'rgba(0,0,0,0)']} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 90 }} pointerEvents="none" />
       <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80 }} pointerEvents="none" />
       <LinearGradient colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']} locations={[0, 0.18, 0.82, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
-      <Scoreboard L={L} sub={sub} />
+      <View style={[StyleSheet.absoluteFill, { left: padL - 10, right: padR - 10 }]} pointerEvents="box-none"><Scoreboard L={L} sub={sub} />
       {L.phase === 'veto' ? <Veto L={L} onPick={mp => { clear(); vetoApply(mp); }} onSkip={finishFast} /> : null}
       {L.phase === 'draft' ? <Draft L={L} rr={rr} onPick={h => { clear(); draftApply(L.d, L.draft, L.cA, L.cB, h); L.sel = null; draftNext(); }} onAuto={() => { clear(); draftApply(L.d, L.draft, L.cA, L.cB, aiDraftChoice(L.d, L.draft, L.cA, L.cB)); L.sel = null; draftNext(); }} onSkip={finishFast} /> : null}
       {L.phase === 'between' ? <View pointerEvents="none" style={st.center}><View style={st.banner}><T h s={20} style={{ textAlign: 'center' }}>{L.msg || 'Подготовка…'}</T><T mu style={{ textAlign: 'center', marginTop: 4 }}>Серия {L.sa}:{L.sb}</T></View></View> : null}
@@ -88,6 +90,7 @@ export default function Live() {
         </View>
       </> : null}
       {L.phase === 'end' ? <End L={L} onClose={close} /> : null}
+      </View>
     </View>
   );
 }
