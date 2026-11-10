@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Esports Empire",
+    "slug": "esports-empire",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#07090d",
+    "splash": { "image": "./assets/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#07090d" },
+    "ios": { "supportsTablet": true, "requireFullScreen": true },
+    "android": {
+      "adaptiveIcon": { "backgroundColor": "#07090d", "foregroundImage": "./assets/android-icon-foreground.png", "backgroundImage": "./assets/android-icon-background.png", "monochromeImage": "./assets/android-icon-monochrome.png" },
+      "package": "com.qidsen.esportsempire",
+      "versionCode": 1
+    },
+    "web": { "favicon": "./assets/favicon.png" },
+    "runtimeVersion": { "policy": "sdkVersion" },
+    "owner": "qidsen-studio",
+    "plugins": ["./plugins/arm64.js"]
+  }
+}
