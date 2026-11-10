@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Defs, LinearGradient as SG, Stop, Text as ST, Circle, Rect, G } from 'react-native-svg';
 import { C, F, ovrColor, shade, alpha } from './theme';
 import { S, FLAG, ttag, ovr, FAKE } from '../core/game';
+import { PATCH_ICONS } from '../core/patchIcons';
 
 export const T = ({ s, style, children, num, h, mu, n, ...rest }) => (
   <Text numberOfLines={n} style={[{ color: mu ? C.mu : C.tx, fontSize: s || 13, fontFamily: h ? F.h : num ? F.hm : F.b }, style]} {...rest}>{children}</Text>
@@ -107,7 +108,7 @@ const st = StyleSheet.create({
   btnSm: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 },
   seg: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 3, gap: 3, borderWidth: 1, borderColor: C.line },
   segI: { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 7, borderWidth: 1, borderColor: 'transparent' },
-  chip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: C.glass2, borderWidth: 1, borderColor: C.line },
+  chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: C.glass2, borderWidth: 1, borderColor: C.line },
   stat: { flex: 1, backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 10, borderWidth: 1, borderColor: C.line, paddingVertical: 7, paddingHorizontal: 9 },
   role: { paddingHorizontal: 5, paddingVertical: 3, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.07)', width: 62, alignItems: 'center' },
 });
@@ -120,7 +121,7 @@ const GLYPH = {
   rl: (w) => <G stroke={w} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round"><Path d="M3 23v-3.5l4.5-1.2 3.5-4.3h7.5l4.5 4.3 5 1.2V23z" /><Circle cx={9} cy={23.5} r={2.6} fill={w} stroke="none" /><Circle cx={22.5} cy={23.5} r={2.6} fill={w} stroke="none" /><Circle cx={23.5} cy={8} r={4} /></G>,
   fc: (w) => <G stroke={w} strokeWidth={2.2} fill="none" strokeLinejoin="round"><Circle cx={16} cy={16} r={11} /><Path d="M16 11l4.3 3.1-1.6 5h-5.4l-1.6-5z" fill={w} /><Path d="M16 11V5M20.3 14.1l5.6-1.8M18.7 19.1l3.4 4.8M13.3 19.1l-3.4 4.8M11.7 14.1l-5.6-1.8" /></G>,
 };
-export function patchIcon(d) { const p = S && S.patchOn && S.patchData && S.patchData.disciplines && S.patchData.disciplines[d]; return p && typeof p.icon === 'string' && p.icon ? p.icon : null; }
+export function patchIcon(d) { const p = S && S.patchOn && S.patchData && S.patchData.disciplines && S.patchData.disciplines[d]; if (p && typeof p.icon === 'string' && p.icon) return p.icon; return S && S.patchOn ? PATCH_ICONS[d] || null : null; }
 export function GameIcon({ d, size = 28, uri, plain }) {
   const src = uri !== undefined ? uri : patchIcon(d); const col = (FAKE[d] && FAKE[d].color) || C.ac;
   if (src) return <Image source={{ uri: src }} style={{ width: size, height: size, borderRadius: size * 0.22 }} resizeMode="contain" />;

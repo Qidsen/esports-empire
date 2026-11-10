@@ -27,6 +27,8 @@
 Пуш в `main` → GitHub Action публикует обновление в Expo, ссылка для Expo Go появляется в `EXPO_LINK.md`.
 
 ## Иконки игр в патче
+Реальный патч уже содержит логотипы CS2, Dota 2, Deadlock, Rocket League и EA SPORTS FC (`src/core/patchIcons.js`, PNG-копии в `assets/game-icons/`). Источники: simple-icons (CC0) для CS2 и Dota 2, открытые GitHub-репозитории для остальных. Товарные знаки принадлежат Valve, Psyonix/Epic и EA.
+
 У каждой дисциплины в патче может быть поле `icon` — ссылка на картинку или `data:image/png;base64,...`:
 ```json
 { "disciplines": { "cs": { "game": "Counter-Strike 2", "icon": "https://.../cs2.png" } } }

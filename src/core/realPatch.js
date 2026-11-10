@@ -1,3 +1,4 @@
+import { PATCH_ICONS } from './patchIcons';
 // Real data patch. Verified 2026-11-11.
 export const REAL_PATCH = {
  "name": "Real Esports 2026",
@@ -1313,3 +1314,5 @@ export const REAL_PATCH = {
   }
  }
 };
+
+for (const d of Object.keys(PATCH_ICONS)) if (REAL_PATCH.disciplines[d]) REAL_PATCH.disciplines[d].icon = PATCH_ICONS[d];
