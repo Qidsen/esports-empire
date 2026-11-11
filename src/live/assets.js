@@ -26,6 +26,12 @@ const MODS = {
   props: require('../../assets/models/props.glb'),
   soldier: require('../../assets/models/Character_Soldier.glb'),
   enemy: require('../../assets/models/Character_Enemy.glb'),
+  knight: require('../../assets/models/knight.glb'),
+  cyber: require('../../assets/models/cyber.glb'),
+  robot: require('../../assets/models/robot.glb'),
+  moba: require('../../assets/models/moba.glb'),
+  city: require('../../assets/models/city.glb'),
+  car: require('../../assets/models/car.glb'),
 };
 const cache = {};
 
@@ -47,8 +53,8 @@ export function loadModel(key) {
 }
 
 // Пропсы: словарь имя → шаблон, клонируем с общими геометриями/материалами.
-export async function loadProps() {
-  const g = await loadModel('props'); const out = {};
+export async function loadProps(key = 'props') {
+  const g = await loadModel(key); const out = {};
   g.scene.children.forEach(n => { n.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); out[n.name] = n; });
   return out;
 }
@@ -98,4 +104,41 @@ export function makeFighter(gltf, { main, accent, gun = 'AK', scale = 0.95 }) {
     setGun(g) { root.traverse(o => { if (GUNS.includes(o.name)) o.visible = o.name === g; }); },
   };
   return wrap;
+}
+
+// Универсальный актёр: клон скелета, перекраска материалов по регуляркам, скрытие узлов, нормировка роста, анимации.
+export function makeActor(gltf, { tint = [], hide = [], height = 1.8 } = {}) {
+  const root = skClone(gltf.scene); const mats = {};
+  root.traverse(o => {
+    if (hide.some(h => h.test(o.name))) o.visible = false;
+    if (o.isMesh) {
+      o.castShadow = true; o.frustumCulled = false;
+      const list = Array.isArray(o.material) ? o.material : [o.material];
+      const nl = list.map(m => { if (!mats[m.name]) { const c = m.clone(); tint.forEach(([re, col]) => { if (re.test(m.name)) c.color.set(col); }); mats[m.name] = c; } return mats[m.name]; });
+      o.material = Array.isArray(o.material) ? nl : nl[0];
+    }
+  });
+  root.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(root); const hgt = Math.max(0.01, bb.max.y - bb.min.y);
+  root.scale.multiplyScalar(height / hgt); root.position.y = -bb.min.y * (height / hgt);
+  const wrap = new THREE.Group(); wrap.add(root);
+  const mixer = new THREE.AnimationMixer(root); const acts = {}; gltf.animations.forEach(a => { acts[a.name] = mixer.clipAction(a); });
+  ['Death', 'Kick_Left', 'Kick_Right', 'Sword_Slash', 'Run_swordAttack', 'Roll', 'Attack', 'Shoot', 'Gun_Shoot'].forEach(n => { if (acts[n] && n === 'Death') { acts[n].setLoop(THREE.LoopOnce); acts[n].clampWhenFinished = true; } });
+  let cur = null;
+  wrap.userData.fighter = { mixer, acts, play(name, fade = 0.18, speed = 1) { const a = acts[name]; if (!a) return; a.timeScale = speed; if (cur === a) return; a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.play(); if (cur) cur.crossFadeTo(a, fade, false); cur = a; wrap.userData.anim = name; }, setGun() { } };
+  return wrap;
+}
+
+// Много копий одного шаблона за пару draw call: InstancedMesh на каждый меш шаблона.
+export function instanceTemplate(tpl, matrices, parent, { shadow = true, tint } = {}) {
+  tpl.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(tpl.matrixWorld).invert();
+  const out = []; const m = new THREE.Matrix4(); const local = new THREE.Matrix4();
+  tpl.traverse(o => {
+    if (!o.isMesh) return;
+    local.multiplyMatrices(inv, o.matrixWorld);
+    let mat = o.material; if (tint && tint[mat.name]) { mat = mat.clone(); mat.color.set(tint[mat.name]); }
+    const im = new THREE.InstancedMesh(o.geometry, mat, matrices.length);
+    matrices.forEach((M, i) => { m.multiplyMatrices(M, local); im.setMatrixAt(i, m); });
+    im.castShadow = shadow; im.receiveShadow = true; parent.add(im); out.push(im);
+  });
+  return out;
 }

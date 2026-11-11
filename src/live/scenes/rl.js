@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { loadModel } from '../assets';
 import { std, box, cyl, sph, lights, makeCar, Bursts, glowSprite, stripeTex, hash, rng, camOrbit } from './common';
 
 const W = 20, Lh = 30, GOAL = 5;
@@ -40,7 +41,12 @@ export function createRl(scene, cam, viz) {
   const ball = sph(1.0, std('#dfe6ef', { r: 0.35, m: 0.4 }), 24); ball.castShadow = true; scene.add(ball); const bglow = glowSprite('#ffffff', 3.2, 0.25); scene.add(bglow);
   const B = { p: new THREE.Vector3(0, 1, 0), v: new THREE.Vector3() };
   // cars
-  const cars = {}; const ensure = () => { [...viz.pa.map((p, i) => [p, 'A', i]), ...viz.pb.map((p, i) => [p, 'B', i])].forEach(([p, side, i]) => { if (!cars[p.id]) { const m = makeCar(side === 'A' ? viz.ca : viz.cb); scene.add(m); cars[p.id] = { m, side, role: p.role, i, p: new THREE.Vector3(), h: 0, s: 0, dead: 0 }; kickoffCar(cars[p.id]); } }); };
+  let carTpl = null; loadModel('car').then(g => { carTpl = g.scene; Object.values(cars).forEach(c => skin(c)); }).catch(e => { viz.glError = 'rl models: ' + (e && e.message || e); });
+  const skin = c => { if (!carTpl || c.skinned) return; c.skinned = true; const m = c.m; m.children.slice(0, 4).forEach(x => { x.visible = false; }); (m.userData.wheels || []).forEach(w => { w.visible = false; });
+    const col = c.side === 'A' ? viz.ca : viz.cb; const t = carTpl.clone(true); const mats = {};
+    t.traverse(o => { if (o.isMesh) { o.castShadow = true; const nm = o.parent && /wheel/.test(o.parent.name) || /wheel/.test(o.name); const k = (nm ? 'w' : 'b') + o.material.uuid; if (!mats[k]) { const mm = o.material.clone(); mm.vertexColors = true; if (!nm) { mm.color = new THREE.Color(col).lerp(new THREE.Color('#ffffff'), 0.2); mm.emissive = new THREE.Color(col).multiplyScalar(0.35); } mm.metalness = 0.2; mm.roughness = 0.5; mats[k] = mm; } o.material = mats[k]; } });
+    t.scale.setScalar(1.05); m.add(t); c.model = t; c.wheelNodes = []; t.traverse(o => { if (/wheel/.test(o.name)) c.wheelNodes.push(o); }); };
+  const cars = {}; const ensure = () => { [...viz.pa.map((p, i) => [p, 'A', i]), ...viz.pb.map((p, i) => [p, 'B', i])].forEach(([p, side, i]) => { if (!cars[p.id]) { const m = makeCar(side === 'A' ? viz.ca : viz.cb); scene.add(m); cars[p.id] = { m, side, role: p.role, i, p: new THREE.Vector3(), h: 0, s: 0, dead: 0 }; kickoffCar(cars[p.id]); skin(cars[p.id]); } }); };
   function kickoffCar(c) { const sgn = c.side === 'A' ? 1 : -1; const spots = [[0, 12], [-8, 18], [8, 22]]; const [x, z] = spots[c.i % 3]; c.p.set(x, 0, sgn * z); c.h = c.side === 'A' ? Math.PI : 0; c.s = 0; }
   const S = { seq: -1, queue: [], script: null, freeze: 0, ang: 0, focus: new THREE.Vector3() };
   function kickoff() { B.p.set(0, 1, 0); B.v.set(0, 0, 0); Object.values(cars).forEach(kickoffCar); }
@@ -75,12 +81,13 @@ export function createRl(scene, cam, viz) {
         tgt.y = 0; const to = tgt.clone().sub(c.p); const dist = to.length(); const want = Math.atan2(to.x, to.z); let dh = want - c.h; while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2; c.h += Math.max(-dt * 3.5, Math.min(dt * 3.5, dh));
         const target = dist > 2 ? (dist > 12 ? 20 : 12) : 3; c.s += (target - c.s) * dt * 2; c.p.x += Math.sin(c.h) * c.s * dt; c.p.z += Math.cos(c.h) * c.s * dt; c.p.x = Math.max(-W + 1.2, Math.min(W - 1.2, c.p.x)); c.p.z = Math.max(-Lh + 1.5, Math.min(Lh - 1.5, c.p.z));
         if (!S.script && S.freeze <= 0 && c.p.distanceTo(new THREE.Vector3(B.p.x, 0, B.p.z)) < 2.2 && B.p.y < 3) { const dir = new THREE.Vector3(B.p.x - c.p.x, 0, B.p.z - c.p.z).normalize(); const toGoal = new THREE.Vector3(-B.p.x * 0.3, 0, c.side === 'A' ? -1 : 1).normalize(); dir.lerp(toGoal, 0.4).normalize(); B.v.copy(dir.multiplyScalar(18 + c.s)); B.v.y = 4 + Math.random() * 6; }
-        c.m.position.copy(c.p); c.m.rotation.y = c.h; c.m.userData.wheels.forEach(w => w.rotation.x += c.s * dt); const boost = c.s > 14; c.m.userData.flame.visible = boost; c.m.userData.fglow.visible = boost; c.m.userData.flame.scale.y = 0.7 + Math.random() * 0.6;
+        c.m.position.copy(c.p); c.m.rotation.y = c.h; c.m.userData.wheels.forEach(w => w.rotation.x += c.s * dt); if (c.wheelNodes) c.wheelNodes.forEach(w => { w.rotation.x += c.s * dt; }); const boost = c.s > 14; c.m.userData.flame.visible = boost; c.m.userData.fglow.visible = boost; c.m.userData.flame.scale.y = 0.7 + Math.random() * 0.6;
       });
       pads.forEach((p, i) => p.material.opacity = 0.45 + Math.sin(now / 300 + i) * 0.2);
       bursts.update(dt);
       S.focus.lerp(new THREE.Vector3(B.p.x * 0.4, 0, B.p.z * 0.55), dt * 1.5);
-      S.ang += dt * 0.05; camOrbit(cam, S.focus, 30, 26, Math.PI * 0.5 * (Math.sin(S.ang) > 0 ? 0 : 0) + Math.sin(S.ang) * 0.25);
+      S.cx = (S.cx === undefined ? 0 : S.cx) + (S.focus.z - (S.cx || 0)) * Math.min(1, dt * 1.6);
+      cam.position.set(S.focus.x * 0.25 + 25, 15, S.cx * 0.85); cam.lookAt(S.focus.x * 0.4, 1, S.cx * 0.92);
       L.sun.target.position.copy(S.focus);
     },
   };

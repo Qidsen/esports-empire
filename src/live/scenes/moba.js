@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { loadModel, loadProps, makeActor, instanceTemplate } from '../assets';
 import { std, box, cyl, sph, lights, makeHero, Bursts, Tracers, glowSprite, gridTex, hash, rng, lerp, ease, camOrbit } from './common';
 
 // lane geometry helpers
@@ -30,10 +31,11 @@ export function createMoba(scene, cam, viz) {
     const it = new THREE.InstancedMesh(trunk, tm, spots.length), ic = new THREE.InstancedMesh(crown, cm, spots.length); const m4 = new THREE.Matrix4();
     spots.forEach((p, i) => { const s = 0.8 + hash(i) * 0.6; m4.compose(new THREE.Vector3(p.x, 0.5 * s, p.z), new THREE.Quaternion(), new THREE.Vector3(s, s, s)); it.setMatrixAt(i, m4); m4.compose(new THREE.Vector3(p.x, 2.1 * s, p.z), new THREE.Quaternion(), new THREE.Vector3(s, s, s)); ic.setMatrixAt(i, m4); });
     ic.castShadow = true; it.castShadow = true; scene.add(it, ic);
+    S.treeSpots = spots; S.treePrim = [it, ic];
   } else {
     // city blocks
     const bm = [std('#2a3042', { r: 0.6, m: 0.3, e: '#1b2a55', ei: 0.4 }), std('#3a3346', { r: 0.6, m: 0.3, e: '#3a1b45', ei: 0.35 }), std('#24323a', { r: 0.5, m: 0.4, e: '#0f3a3a', ei: 0.4 })];
-    const R = rng(7); for (let i = 0; i < 90; i++) { const x = -32 + R() * 64, z = -30 + R() * 60; const r1 = R(), r2 = R(), r3 = R(); if ([-18, 0, 18].some(lx => Math.abs(x - lx) < 5.5)) continue; if (V(x, z).distanceTo(baseA) < 8 || V(x, z).distanceTo(baseB) < 8) continue; const w = 2.5 + r1 * 4, d = 2.5 + r2 * 4, h = 3 + r3 * 9; scene.add(box(w, h, d, bm[i % 3], x, h / 2, z)); const win = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.8, h * 0.8), new THREE.MeshBasicMaterial({ color: ['#ffd27a', '#7ad7ff', '#ff7ad1'][i % 3], transparent: true, opacity: 0.12 })); win.position.set(x, h / 2, z + d / 2 + 0.01); scene.add(win); }
+    S.cityBoxes = []; const R = rng(7); for (let i = 0; i < 90; i++) { const x = -32 + R() * 64, z = -30 + R() * 60; const r1 = R(), r2 = R(), r3 = R(); if ([-18, 0, 18].some(lx => Math.abs(x - lx) < 5.5)) continue; if (V(x, z).distanceTo(baseA) < 8 || V(x, z).distanceTo(baseB) < 8) continue; const w = 2.5 + r1 * 4, d = 2.5 + r2 * 4, h = 3 + r3 * 9; const bx = box(w, h, d, bm[i % 3], x, h / 2, z); scene.add(bx); S.cityBoxes.push([bx, x, z, w, d, h]); const win = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.8, h * 0.8), new THREE.MeshBasicMaterial({ color: ['#ffd27a', '#7ad7ff', '#ff7ad1'][i % 3], transparent: true, opacity: 0.12 })); win.position.set(x, h / 2, z + d / 2 + 0.01); scene.add(win); S.cityBoxes[S.cityBoxes.length - 1].push(win); }
     for (let i = 0; i < 8; i++) { const pl = new THREE.PointLight(['#7ad7ff', '#ff7ad1', '#ffd27a'][i % 3], 25, 22); pl.position.set(-28 + i * 8, 6, (i % 2 ? -10 : 10)); scene.add(pl); }
   }
   // --- bases ---
@@ -56,6 +58,38 @@ export function createMoba(scene, cam, viz) {
     list.push(mkTower(b.clone().add(V(-4, dz)), col, dl ? 'shrine' : 'tower')); list.push(mkTower(b.clone().add(V(4, dz)), col, dl ? 'shrine' : 'tower'));
     S.towers[side] = list;
   });
+  // ---- 3D-модели (Quaternius, CC0): деревья, здания, башни, герои ----
+  Promise.all([loadModel(dl ? 'cyber' : 'knight'), loadProps(dl ? 'city' : 'moba')]).then(([hero, P]) => {
+    S.heroTpl = hero; S.props = P;
+    const m4 = new THREE.Matrix4(); const q = new THREE.Quaternion(); const up = new THREE.Vector3(0, 1, 0);
+    if (!dl && S.treeSpots) {
+      S.treePrim.forEach(x => { x.visible = false; });
+      const kinds = ['Tree1', 'Pine1', 'Tree2', 'Pine2']; const by = kinds.map(() => []);
+      S.treeSpots.forEach((p, i) => { const s = 1.0 + hash(i * 3) * 0.7; q.setFromAxisAngle(up, hash(i) * Math.PI * 2); m4.compose(new THREE.Vector3(p.x, 0, p.z), q, new THREE.Vector3(s, s, s)); by[i % kinds.length].push(m4.clone()); });
+      kinds.forEach((k, n) => { if (P[k] && by[n].length) instanceTemplate(P[k], by[n], scene); });
+      const rocks = []; const R2 = rng(77); for (let i = 0; i < 40; i++) { const x = -30 + R2() * 60, z = -30 + R2() * 60; if (Math.abs(x - z) < 8) continue; q.setFromAxisAngle(up, R2() * 6); const s = 1 + R2() * 1.5; m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(s, s, s)); rocks.push(m4.clone()); }
+      if (P.Rock1) instanceTemplate(P.Rock1, rocks, scene);
+      // башни: модель сторожевой башни под кристаллом
+      ['A', 'B'].forEach(side => S.towers[side].forEach(tw => { tw.children.forEach(c => { if (c.isMesh && c !== tw.userData.cr) c.visible = false; }); const t = P.Tower.clone(true); t.scale.setScalar(2.4); tw.add(t); tw.userData.cr.position.y = 4.6; }));
+      [[bA, viz.ca], [bB, viz.cb]].forEach(([b]) => { const t = P.Ancient.clone(true); t.scale.setScalar(4.2); t.position.y = 0.4; b.add(t); });
+    }
+    if (dl && S.cityBoxes) {
+      const kinds = ['B4', 'B6', 'B3', 'B2']; const by = kinds.map(() => []);
+      S.cityBoxes.forEach(([bx, x, z, w, d, h, win], i) => { bx.visible = false; if (win) win.visible = false; const k = h > 9 ? 1 : h > 6 ? 0 : h > 4.5 ? 2 : 3; const s = Math.min(w, d) / 2.2; q.setFromAxisAngle(up, Math.round(hash(i) * 4) * Math.PI / 2); m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(s, s, s)); by[k].push(m4.clone()); });
+      kinds.forEach((k, n) => { if (P[k] && by[n].length) instanceTemplate(P[k], by[n], scene, { tint: { Main: ['#3a4a6a', '#5a3a5a', '#2f5a5a', '#6a5a3a'][n] } }); });
+      const lamps = []; for (let i = 0; i < 24; i++) { const lx = [-18, 0, 18][i % 3] + (i % 2 ? 3.2 : -3.2), lz = -28 + Math.floor(i / 3) * 8; m4.compose(new THREE.Vector3(lx, 0, lz), q.identity(), new THREE.Vector3(3, 3, 3)); lamps.push(m4.clone()); }
+      if (P.Lamp) instanceTemplate(P.Lamp, lamps, scene);
+    }
+    Object.values(S.heroes).forEach(h => skinHero(h));
+  }).catch(e => { viz.glError = 'moba models: ' + (e && e.message || e); });
+  function skinHero(h) {
+    if (!S.heroTpl || h.userData.actor) return;
+    const col = h.userData.side === 'A' ? viz.ca : viz.cb;
+    const a = dl ? makeActor(S.heroTpl, { tint: [[/^Main$/, col], [/^Accent$/, '#e8ecf4'], [/Accent_Dark/, '#1b1f27']], hide: [/^Sword$/], height: 2.7 })
+      : makeActor(S.heroTpl, { tint: [[/Armor/, col], [/Boots/, new THREE.Color(col).multiplyScalar(0.45).getStyle()]], height: 2.7 });
+    h.children.forEach(c => { if (c.isMesh) c.visible = false; }); if (h.userData.crest) h.userData.crest.visible = false;
+    h.add(a); h.userData.actor = a; a.userData.fighter.play(dl ? 'Idle_Gun_Pointing' : 'Idle', 0);
+  }
   // boss
   const bossPos = dl ? V(8, 0) : V(-10, -10);
   const pit = new THREE.Mesh(new THREE.CircleGeometry(3.2, 32), std('#1a1a22', { r: 1 })); pit.rotation.x = -Math.PI / 2; pit.position.copy(bossPos).setY(0.05); scene.add(pit);
@@ -63,7 +97,7 @@ export function createMoba(scene, cam, viz) {
   // creeps (instanced)
   const creepGeo = new THREE.BoxGeometry(0.45, 0.6, 0.45); const cA = new THREE.InstancedMesh(creepGeo, std(viz.ca, { e: viz.ca, ei: 0.3 }), 36), cB = new THREE.InstancedMesh(creepGeo, std(viz.cb, { e: viz.cb, ei: 0.3 }), 36); scene.add(cA, cB);
   // heroes
-  const ensure = () => { [...viz.pa.map(p => [p, 'A']), ...viz.pb.map(p => [p, 'B'])].forEach(([p, side], i) => { if (!S.heroes[p.id]) { const h = makeHero(side === 'A' ? viz.ca : viz.cb, p.role + (side === 'A' ? 0 : 1), 0.95); h.userData.side = side; h.userData.role = p.role; scene.add(h); S.heroes[p.id] = h; const b = side === 'A' ? baseA : baseB; h.position.copy(b).add(V((i % 3 - 1) * 1.5, 0)); S.targets[p.id] = h.position.clone(); S.prevPos[p.id] = h.position.clone(); } }); };
+  const ensure = () => { [...viz.pa.map(p => [p, 'A']), ...viz.pb.map(p => [p, 'B'])].forEach(([p, side], i) => { if (!S.heroes[p.id]) { const h = makeHero(side === 'A' ? viz.ca : viz.cb, p.role + (side === 'A' ? 0 : 1), 0.95); h.userData.side = side; h.userData.role = p.role; scene.add(h); S.heroes[p.id] = h; skinHero(h); const b = side === 'A' ? baseA : baseB; h.position.copy(b).add(V((i % 3 - 1) * 1.5, 0)); S.targets[p.id] = h.position.clone(); S.prevPos[p.id] = h.position.clone(); } }); };
   function laneOfRole(side, role) { if (dl) return [0, 1, 2, 0, 1, 2][role]; const safe = side === 'A' ? 2 : 0, off = side === 'A' ? 0 : 2; return [safe, 1, off, off, safe][role]; }
   function frontF(lead) { return Math.max(0.2, Math.min(0.8, 0.5 + lead / 30000)); } // fraction from A end
   function retarget(g) {
@@ -102,7 +136,11 @@ export function createMoba(scene, cam, viz) {
         const prev = h.position.clone(); h.position.lerpVectors(a, b, ease(u)); h.position.y = Math.abs(Math.sin(now / 260 + +id)) * 0.08;
         const dead = S.dead[id] && g && S.dead[id] > g.t; h.visible = true; h.userData.mat.opacity = 1;
         h.scale.setScalar(dead ? 0.95 * Math.max(0.15, 1 - u * 1.5) : 0.95);
+        const mv = h.position.distanceTo(prev) / Math.max(dt, 0.001);
         if (h.position.distanceTo(prev) > 0.002) h.rotation.y = Math.atan2(h.position.x - prev.x, h.position.z - prev.z);
+        const act = h.userData.actor; if (act) { const fd = act.userData.fighter; const fighting = S.fightAt && now - S.fightAt.t0 < (viz.tickDur || 600) && S.fightAt.pt && h.position.distanceTo(S.fightAt.pt) < 10;
+          if (dead) fd.play('Death', 0.1); else if (fighting) fd.play(dl ? (mv > 0.5 ? 'Run_Shoot' : 'Gun_Shoot') : 'Run_swordAttack', 0.12); else if (mv > 0.4) fd.play('Run', 0.2, Math.min(1.5, Math.max(0.6, mv / 4))); else fd.play(dl ? 'Idle_Gun_Pointing' : 'Idle', 0.25);
+          fd.mixer.update(dt); h.scale.setScalar(1); }
         h.userData.crest.rotation.y += dt * 2;
       });
       // fight fx
@@ -116,8 +154,11 @@ export function createMoba(scene, cam, viz) {
       const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
       [[cA, 'A'], [cB, 'B']].forEach(([im, side]) => { let k = 0; const front = frontF(g ? g.lead : 0); for (let li = 0; li < 3; li++) for (let w = 0; w < 3; w++) for (let c = 0; c < 4; c++) { const ph = ((now / 9000 + w / 3 + li * 0.13) % 1); const f = side === 'A' ? 0.08 + ph * (front - 0.08) : 0.92 - ph * (0.92 - front); const p = polyPoint(lanes[li], f).add(V((c % 2 - 0.5) * 0.9, (Math.floor(c / 2) - 0.5) * 0.9)); p.y = 0.3; m4.compose(p, q, new THREE.Vector3(1, 1, 1)); im.setMatrixAt(k++, m4); } im.count = k; im.instanceMatrix.needsUpdate = true; });
       S.tracers.update(dt); S.bursts.update(dt);
-      S.ang += dt * 0.04; S.focus.lerp(V(0, 0), dt * 0.15);
-      camOrbit(cam, S.focus, dl ? 30 : 32, dl ? 38 : 40, Math.PI * (dl ? 0.5 : 0.75) + Math.sin(S.ang) * 0.35);
+      // камера: ведёт центр событий — последнюю драку, иначе центр героев; ракурс постоянный
+      let tgt; if (S.fightAt && now - S.fightAt.t0 < 4000) tgt = S.fightAt.pt.clone(); else { const hs = Object.values(S.heroes); tgt = hs.reduce((a, h) => a.add(h.position), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, hs.length)); }
+      tgt.y = 0; S.focus.lerp(tgt, Math.min(1, dt * 0.9));
+      const yaw = dl ? Math.PI * 0.5 : Math.PI * 0.75;
+      cam.position.set(S.focus.x + Math.cos(yaw) * 14, 24, S.focus.z + Math.sin(yaw) * 14); cam.lookAt(S.focus);
       L.sun.target.position.copy(S.focus);
     },
   };

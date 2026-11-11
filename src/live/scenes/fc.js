@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { loadModel, makeActor } from '../assets';
 import { std, box, cyl, sph, lights, makeSoldier, animWalk, Bursts, glowSprite, stripeTex, hash, rng, camOrbit, ease } from './common';
 
 const PW = 17, PL = 26;
@@ -28,11 +29,12 @@ export function createFc(scene, cam, viz) {
   const ball = sph(0.32, std('#ffffff', { r: 0.4 }), 16); scene.add(ball);
   const team = { A: [], B: [] };
   ['A', 'B'].forEach(side => { for (let i = 0; i < 11; i++) { const g = makeSoldier(i === 0 ? '#e8d23a' : (side === 'A' ? viz.ca : viz.cb), i === 0 ? '#333' : '#f2f2f2'); g.children.forEach(c => { if (c.geometry && c.geometry.type === 'BoxGeometry' && c.geometry.parameters.depth > 0.8) c.visible = false; }); g.scale.setScalar(0.9); scene.add(g); const [fx, fz] = F442[i]; const sgn = side === 'A' ? 1 : -1; team[side].push({ g, home: new THREE.Vector3(fx * PW * 0.9, 0, sgn * fz * (PL - 1)), p: new THREE.Vector3(fx * PW * 0.9, 0, sgn * fz * (PL - 1)) }); } });
+  loadModel('cyber').then(gl => { ['A', 'B'].forEach(side => team[side].forEach((x, i) => { const col = i === 0 ? '#e8d23a' : (side === 'A' ? viz.ca : viz.cb); const a = makeActor(gl, { tint: [[/^Main$/, col], [/^Accent$/, i === 0 ? '#333333' : '#f2f2f2'], [/Accent_Dark/, '#1b1f27']], hide: [/^Sword$/, /Cube\.009/], height: 1.85 }); scene.remove(x.g); x.g = a; scene.add(a); a.position.copy(x.p); a.userData.fighter.play('Idle_Neutral', 0); })); }).catch(e => { viz.glError = 'fc models: ' + (e && e.message || e); });
   const S = { seq: -1, queue: [], poss: 'A', holder: 9, ball: new THREE.Vector3(), pass: null, script: null, freeze: 0, t: 0, ang: 0, focus: new THREE.Vector3() };
   S.ball.copy(team.A[9].p);
-  function nextPass() { const tm = team[S.poss]; const sgn = S.poss === 'A' ? -1 : 1; const cand = tm.map((x, i) => i).filter(i => i !== S.holder && i !== 0); let best = cand[Math.floor(Math.random() * cand.length)]; if (Math.random() < 0.6) { best = cand.sort((a, b) => sgn * (tm[a].p.z - tm[b].p.z))[0 + Math.floor(Math.random() * 3)]; } const from = S.ball.clone(); S.pass = { from, to: tm[best].p.clone().add(new THREE.Vector3(0, 0, sgn * 1)), t: 0, dur: 0.5 + from.distanceTo(tm[best].p) / 30, i: best }; }
+  function nextPass() { const tm = team[S.poss]; if (tm[S.holder]) tm[S.holder].kick = 0.35; const sgn = S.poss === 'A' ? -1 : 1; const cand = tm.map((x, i) => i).filter(i => i !== S.holder && i !== 0); let best = cand[Math.floor(Math.random() * cand.length)]; if (Math.random() < 0.6) { best = cand.sort((a, b) => sgn * (tm[a].p.z - tm[b].p.z))[0 + Math.floor(Math.random() * 3)]; } const from = S.ball.clone(); S.pass = { from, to: tm[best].p.clone().add(new THREE.Vector3(0, 0, sgn * 1)), t: 0, dur: 0.5 + from.distanceTo(tm[best].p) / 30, i: best }; }
   function startScript(e) {
-    if (e.type === 'goal' || e.type === 'chance') { S.poss = e.side; const sgn = e.side === 'A' ? -1 : 1; const tm = team[e.side]; S.holder = 9 + Math.floor(Math.random() * 2); S.ball.copy(tm[S.holder].p); tm[S.holder].p.set((Math.random() - 0.5) * 12, 0, sgn * (PL - 9)); S.ball.copy(tm[S.holder].p); const goal = e.type === 'goal'; S.script = { type: e.type, side: e.side, from: S.ball.clone(), to: goal ? new THREE.Vector3((Math.random() - 0.5) * 6, 0.4 + Math.random() * 1.6, sgn * (PL + 0.6)) : new THREE.Vector3((Math.random() - 0.5) * 4, 1, sgn * (PL - 0.8)), t: 0, dur: 0.55, sgn }; S.pass = null; }
+    if (e.type === 'goal' || e.type === 'chance') { S.poss = e.side; const sgn = e.side === 'A' ? -1 : 1; const tm = team[e.side]; S.holder = 9 + Math.floor(Math.random() * 2); S.ball.copy(tm[S.holder].p); tm[S.holder].p.set((Math.random() - 0.5) * 12, 0, sgn * (PL - 9)); S.ball.copy(tm[S.holder].p); const goal = e.type === 'goal'; tm[S.holder].kick = 0.45; S.script = { type: e.type, side: e.side, from: S.ball.clone(), to: goal ? new THREE.Vector3((Math.random() - 0.5) * 6, 0.4 + Math.random() * 1.6, sgn * (PL + 0.6)) : new THREE.Vector3((Math.random() - 0.5) * 4, 1, sgn * (PL - 0.8)), t: 0, dur: 0.55, sgn }; S.pass = null; }
   }
   return {
     update(dt, now) {
@@ -46,11 +48,13 @@ export function createFc(scene, cam, viz) {
       }
       ball.position.copy(S.ball); ball.position.y = Math.max(0.32, S.ball.y); ball.rotation.x += dt * 8;
       // formation drift with ball
-      ['A', 'B'].forEach(side => { const att = S.poss === side; const sgn = side === 'A' ? -1 : 1; team[side].forEach((x, i) => { let tgt; if (S.celebrate === side && S.freeze > 0 && i > 0) tgt = new THREE.Vector3(S.ball.x + (i % 3 - 1) * 1.5, 0, S.ball.z - sgn * (3 + i * 0.3)); else { tgt = x.home.clone(); if (i > 0) { tgt.z += sgn * (att ? 8 : 2) + (S.ball.z - tgt.z) * 0.25; tgt.x += (S.ball.x - tgt.x) * 0.2; } else tgt.x = S.ball.x * 0.2; if (!att && i > 0 && x.p.distanceTo(S.ball) < 9 && i >= 5) tgt.lerp(S.ball, 0.6); } tgt.y = 0; const prev = x.p.clone(); x.p.lerp(tgt, dt * 1.6); x.g.position.copy(x.p); const v = prev.distanceTo(x.p) / Math.max(dt, 0.001); const look = S.ball.clone().sub(x.p); x.g.rotation.y = Math.atan2(look.x, look.z); animWalk(x.g, v / 3, now / 1000 + i); }); });
+      ['A', 'B'].forEach(side => { const att = S.poss === side; const sgn = side === 'A' ? -1 : 1; team[side].forEach((x, i) => { let tgt; if (S.celebrate === side && S.freeze > 0 && i > 0) tgt = new THREE.Vector3(S.ball.x + (i % 3 - 1) * 1.5, 0, S.ball.z - sgn * (3 + i * 0.3)); else { tgt = x.home.clone(); if (i > 0) { tgt.z += sgn * (att ? 8 : 2) + (S.ball.z - tgt.z) * 0.25; tgt.x += (S.ball.x - tgt.x) * 0.2; } else tgt.x = S.ball.x * 0.2; if (!att && i > 0 && x.p.distanceTo(S.ball) < 9 && i >= 5) tgt.lerp(S.ball, 0.6); } tgt.y = 0; const prev = x.p.clone(); x.p.lerp(tgt, dt * 1.6); x.g.position.copy(x.p); const v = prev.distanceTo(x.p) / Math.max(dt, 0.001); const look = S.ball.clone().sub(x.p); x.g.rotation.y = Math.atan2(look.x, look.z); const fd = x.g.userData.fighter; if (fd) { if (x.kick > 0) { x.kick -= dt; fd.play('Kick_Right', 0.08); } else if (S.celebrate === side && S.freeze > 0) fd.play('Wave', 0.2); else if (v > 0.5) fd.play('Run', 0.2, Math.min(1.4, Math.max(0.6, v / 4))); else fd.play('Idle_Neutral', 0.25); fd.mixer.update(dt); } else animWalk(x.g, v / 3, now / 1000 + i); }); });
       if (S.freeze <= 0) S.celebrate = null;
       bursts.update(dt);
       S.focus.lerp(new THREE.Vector3(S.ball.x * 0.3, 0, S.ball.z * 0.7), dt * 1.2);
-      S.ang += dt * 0.04; camOrbit(cam, S.focus, 30, 22, Math.sin(S.ang) * 0.18);
+      // ТВ-ракурс с боковой трибуны: камера ходит вдоль бровки за мячом
+      S.cx = (S.cx === undefined ? 0 : S.cx) + (S.ball.z - (S.cx || 0)) * Math.min(1, dt * 1.5);
+      cam.position.set(PW + 17, 14, S.cx * 0.85); cam.lookAt(S.ball.x * 0.35, 0, S.cx * 0.9);
       L.sun.target.position.copy(S.focus);
     },
   };

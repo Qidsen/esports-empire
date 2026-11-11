@@ -40,3 +40,6 @@
 
 ## Карты CS2
 Раскладки семи карт (Ancient, Anubis, Cache, Dust II, Inferno, Mirage, Nuke) построены из навигационных сеток awpy-data (MIT, github.com/pnxenopoulos/awpy-data), названия зон — из awpy 1.3 (MIT). Бойцы ходят по реальным маршрутам (A* по сетке).
+
+## 3D других дисциплин
+Герои Dota 2 — Quaternius Knight (CC0), Deadlock и футболисты — Quaternius Cyberpunk Character (CC0), деревья/башни/здания — Quaternius Nature, RTS и Buildings (CC0). Машины Rocket League — Kenney Car Kit «race-future» (CC0/MIT, текстура запечена в цвета вершин).
