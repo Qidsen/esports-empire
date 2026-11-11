@@ -9,7 +9,7 @@ import { UI, bump, save, wipe, openModal, closeModal } from '../ui/store';
 import { T, Btn, Row, Seg, OrgLogo, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 import { SET, LANGS, GFX_OPTS, saveSettings } from '../ui/settings';
-import { sfx, buzz, applyMusicVolume } from '../ui/audio';
+import { sfx, buzz, applyMusicVolume, TRACKS, restartMusic } from '../ui/audio';
 
 // Логотип игры: щит с крыльями, короной-клинками и объёмной «E»
 export function GameLogo({ size = 120 }) {
@@ -89,6 +89,10 @@ export function confirmNewCareer() {
 export function openSettings() {
   openModal(() => <SettingsBody />);
 }
+function TrackPick({ label, k, up }) {
+  const items = [['rand', 'Случайно'], ...TRACKS.map(([id, n]) => [id, n.split(' — ')[1]])];
+  return <View><T mu s={11} style={{ marginBottom: 4 }}>{label}</T><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>{items.map(([id, n]) => { const on = SET[k] === id; return <Pressable key={id} onPress={() => { SET[k] = id; up(); restartMusic(); }} style={{ paddingHorizontal: 11, height: 30, borderRadius: 8, justifyContent: 'center', borderWidth: 1, borderColor: on ? '#ff8a1f' : C.line, backgroundColor: on ? 'rgba(255,138,31,0.18)' : 'rgba(255,255,255,0.03)' }}><Text style={{ fontFamily: F.hm, fontSize: 11.5, color: on ? C.tx : C.mu }}>{n}</Text></Pressable>; })}</ScrollView></View>;
+}
 function SettingsBody() {
   const [, f] = useState(0); const up = () => { saveSettings(); f(x => x + 1); };
   return (
@@ -101,6 +105,8 @@ function SettingsBody() {
         <View style={{ flex: 1 }}><T mu s={11} style={{ marginBottom: 4 }}>Звуки</T><Seg ac="#ff8a1f" value={SET.sfx} onChange={v => { SET.sfx = v; up(); sfx('ui_click'); }} items={[[0, 'Выкл'], [0.45, 'Тихо'], [0.9, 'Норм'], [1.3, 'Громко']]} /></View>
         <View style={{ width: 130 }}><T mu s={11} style={{ marginBottom: 4 }}>Вибрация</T><Seg ac="#ff8a1f" value={SET.haptics ? 1 : 0} onChange={v => { SET.haptics = !!v; up(); buzz('light'); }} items={[[1, 'Вкл'], [0, 'Выкл']]} /></View>
       </Row>
+      <TrackPick label="Музыка в меню" k="trackMenu" up={up} />
+      <TrackPick label="Музыка в штабе" k="trackHub" up={up} />
       <View><T mu s={11} style={{ marginBottom: 4 }}>Скорость матчей по умолчанию</T><Seg ac="#ff8a1f" value={SET.speed} onChange={v => { SET.speed = v; up(); }} items={[[1, '1×'], [2, '2×'], [4, '4×']]} /></View>
       {S ? <Btn title="Показать подсказки снова" onPress={() => { S.tips = {}; S.tipsOff = false; save(); closeModal(); }} /> : null}
       {S ? <Btn title="Патч реальных данных и сохранение" onPress={() => { closeModal(); UI.title = false; UI.tab = 'org'; UI.org = 'set'; bump(); }} /> : null}
@@ -113,7 +119,7 @@ function openAbout() {
     <View style={{ gap: 6 }}>
       <Row gap={12}><GameLogo size={64} /><View style={{ flex: 1 }}><T h s={18}>Esports Empire</T><T mu s={11}>Симулятор киберспортивного менеджера · 5 дисциплин</T></View></Row>
       <T s={12}>CS2, Dota 2, Deadlock, Rocket League и EA SPORTS FC 27: собери организацию, нанимай игроков и персонал, веди переговоры, выигрывай лиги и мейджоры.</T>
-      <T mu s={10.5}>3D-модели: Quaternius (CC0). Звуки интерфейса: Kenney (CC0); остальные звуки и музыка синтезированы для игры. Иконки: game-icons.net (CC BY 3.0) — Lorc, Delapouite, Skoll, Sbed, Carl Olsen, DarkZaitzev, Zeromancer. Логотипы игр и команд принадлежат их владельцам и используются только в патче реальных данных.</T>
+      <T mu s={10.5}>3D-модели: Quaternius (CC0). Музыка: Komiku и Soft and Furious (CC0). Звуки интерфейса: Kenney (CC0); остальные звуки синтезированы для игры. Иконки: game-icons.net (CC BY 3.0) — Lorc, Delapouite, Skoll, Sbed, Carl Olsen, DarkZaitzev, Zeromancer. Логотипы игр и команд принадлежат их владельцам и используются только в патче реальных данных.</T>
       <Btn kind="pri" ac="#ff8a1f" title="Закрыть" onPress={closeModal} />
     </View>
   ));
