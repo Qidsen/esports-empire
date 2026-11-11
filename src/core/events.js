@@ -1,5 +1,5 @@
 // События с выбором: карточка между неделями, у каждого ответа свои последствия.
-import { S, userTeam, starters, pnick, clamp, news, fmt, pack, ri, pick, rnd, ovr, staffSk } from './game';
+import { S, userTeam, starters, pnick, clamp, news, fmt, pack, ri, pick, rnd, ovr, staffSk, pairVal, pairAdd, traitOf } from './game';
 
 const cl = (v, a = 0, b = 100) => clamp(v, a, b);
 const mor = (p, n) => { p.mor = cl(p.mor + n); };
@@ -15,9 +15,9 @@ export const EVENT_DEFS = [
     id: 'fight', ic: '💢', title: 'Ссора в составе', need2: true,
     text: c => `${pnick(c.p)} и ${pnick(c.p2)} сцепились после скрима — орали на весь геймхаус. Остальные ждут, что скажет менеджер.`,
     opts: [
-      { t: 'Собрать обоих и помирить', sub: 'Шанс выше с психологом', f: c => { const ok = rnd() < 0.65 + c.psych * 0.03; if (ok) { mor(c.p, 4); mor(c.p2, 4); chem(c.t, 3); return 'Пожали руки. Химия +3, мораль обоих +4'; } chem(c.t, -3); return 'Не вышло — затаили обиду. Химия −3'; } },
-      { t: 'Встать на сторону {p}', sub: 'Один доволен, другой — нет', f: c => { mor(c.p, 10); mor(c.p2, -14); chem(c.t, -2); return `${pnick(c.p)} мораль +10, ${pnick(c.p2)} −14, химия −2`; } },
-      { t: 'Пусть разбираются сами', sub: 'Риск, что станет хуже', f: c => { if (rnd() < 0.4) { chem(c.t, 1); return 'Остыли сами. Химия +1'; } chem(c.t, -7); return 'Конфликт затянулся. Химия −7'; } },
+      { t: 'Собрать обоих и помирить', sub: 'Шанс выше с психологом', f: c => { const ok = rnd() < 0.65 + c.psych * 0.03; if (ok) { mor(c.p, 4); mor(c.p2, 4); chem(c.t, 3); pairAdd(c.p, c.p2, 6); return 'Пожали руки. Связка +6, химия +3, мораль обоих +4'; } chem(c.t, -3); pairAdd(c.p, c.p2, -3); return 'Не вышло — затаили обиду. Связка −3, химия −3'; } },
+      { t: 'Встать на сторону {p}', sub: 'Один доволен, другой — нет', f: c => { mor(c.p, 10); mor(c.p2, -14); chem(c.t, -2); pairAdd(c.p, c.p2, -8); return `${pnick(c.p)} мораль +10, ${pnick(c.p2)} −14, связка −8, химия −2`; } },
+      { t: 'Пусть разбираются сами', sub: 'Риск, что станет хуже', f: c => { if (rnd() < 0.4) { pairAdd(c.p, c.p2, 2); return 'Остыли сами. Связка +2'; } chem(c.t, -5); pairAdd(c.p, c.p2, -6); return 'Конфликт затянулся. Связка −6, химия −5'; } },
     ],
   },
   {
@@ -153,7 +153,8 @@ export function rollEvent(force) {
   const cand = EVENT_DEFS.filter(e => !recent.includes(e.id) && (!e.cond || e.cond(ctx)));
   if (!cand.length) return null;
   const e = pick(cand);
-  const rec = { id: e.id, d, p: p.id, p2: p2.id, b: bench ? bench.id : null, w: S.week, s: S.season };
+  if (e.id === 'fight') { let w = 1e9; for (let i = 0; i < sp.length; i++) for (let j = i + 1; j < sp.length; j++) { const v = pairVal(sp[i], sp[j]) - (traitOf(sp[i]) === 'toxic' || traitOf(sp[j]) === 'toxic' ? 5 : 0) + rnd() * 3; if (v < w) { w = v; ctx.p = sp[i]; ctx.p2 = sp[j]; } } }
+  const rec = { id: e.id, d, p: ctx.p.id, p2: ctx.p2.id, b: bench ? bench.id : null, w: S.week, s: S.season };
   if (e.pre) e.pre(ctx); rec.fee = ctx.fee; rec.raise = ctx.raise;
   S.evq.push(rec); S.evHist = recent.concat(e.id);
   return rec;

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { S, teamOf, teamCtx, FAKE, seriesBo, vetoOrder, aiVetoChoice, newDraft, draftOrder, draftApply, aiDraftChoice, draftTaken, autoDraft, heroList, heroMeta, prof, FpsMap, MobaGame, BallGame, DuelGame, fcPair, mergeStats, seriesFinalize, applyResult, tname, ttag, pnick, pcc, mapName, pack, fpsRating, fmt, shuffle, ovr, staffSk, heroName } from '../core/game';
+import { S, teamOf, teamCtx, FAKE, seriesBo, vetoOrder, aiVetoChoice, newDraft, draftOrder, draftApply, aiDraftChoice, draftTaken, autoDraft, heroList, heroMeta, prof, FpsMap, MobaGame, BallGame, DuelGame, fcPair, mergeStats, seriesFinalize, applyResult, tname, ttag, pnick, pcc, mapName, pack, fpsRating, fmt, shuffle, ovr, staffSk, heroName, mobaRating } from '../core/game';
 import { UI, bump, save, toast, openModal, closeModal } from '../ui/store';
 import { T, Btn, Seg, Row, TeamLogo, Flag, Tag } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
@@ -15,6 +15,23 @@ const STEP = { fps: 16000, moba: 1000, ball: 1150, duel: 650 };
 function styleOpts(d) { const k = FAKE[d].kind; if (k === 'moba') return [['agr', 'Давление'], ['bal', 'Баланс'], ['farm', 'Фарм']]; if (k === 'ball') return [['agr', 'Прессинг'], ['bal', 'Ротации'], ['pas', 'Оборона']]; if (k === 'duel') return [['agr', 'Атака'], ['bal', 'Баланс'], ['pas', 'Контратаки']]; return [['agr', 'Агрессия'], ['bal', 'Стандарт'], ['pas', 'Осторожно']]; }
 function colorDist(a, b) { const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; const x = p(a), y = p(b); return Math.abs(x[0] - y[0]) + Math.abs(x[1] - y[1]) + Math.abs(x[2] - y[2]); }
 
+// Хайлайты: эйсы, клатчи, большие тимфайты, голы в овертайме
+function csHighlight(rec) {
+  const cnt = {}; rec.ev.forEach(e => { if (e.A === rec.A) cnt[e.k] = (cnt[e.k] || 0) + 1; });
+  const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+  let aliveW = 5, aliveL = 5, clutchN = 0; rec.ev.forEach(e => { if (e.A === rec.A) aliveL--; else { aliveW--; if (aliveW === 1 && !clutchN) clutchN = aliveL; } });
+  if (rec.how === 'clutch' && clutchN >= 2) return { p: +rec.ev[rec.ev.length - 1].k, t: 'КЛАТЧ 1v' + clutchN, ic: '🧊', side: rec.A ? 'A' : 'B', big: clutchN >= 3 };
+  if (top && top[1] >= 5) return { p: +top[0], t: 'ЭЙС', ic: '🔥', side: rec.A ? 'A' : 'B', big: true };
+  if (top && top[1] >= 4) return { p: +top[0], t: '4 УБИЙСТВА', ic: '💥', side: rec.A ? 'A' : 'B' };
+  return null;
+}
+function mapMvp(L, g) {
+  const ps = L.kind === 'duel' ? [g.pA, g.pB] : [...L.cA.players, ...L.cB.players]; const R = Math.max(1, g.round || 1);
+  const sc = p => { const s = g.stats[p.id] || {}; const won = (L.cA.players.includes(p) || p === g.pA) === (g.winner === 'A'); if (L.kind === 'fps') return fpsRating(s, R) + (won ? 0.15 : 0); if (L.kind === 'moba') return mobaRating(s, won); return (s.k || 0) * 2 + (s.a || 0) + (won ? 1.5 : 0); };
+  const best = ps.slice().sort((a, b) => sc(b) - sc(a))[0]; if (!best) return null; const s = g.stats[best.id] || {};
+  const line = L.kind === 'fps' ? `${s.k}/${s.d} · рейтинг ${fpsRating(s, R).toFixed(2)}` : L.kind === 'moba' ? `${s.k}/${s.d}/${s.a}${s.h != null ? ' · ' + heroName(L.d, s.h) : ''}` : `${s.k || 0} гол.${s.a ? ' · ' + s.a + ' пас.' : ''}`;
+  return { id: best.id, line };
+}
 export default function Live() {
   const [, setV] = useState(0); const rr = () => setV(v => v + 1);
   const Lr = useRef(null);
@@ -22,7 +39,7 @@ export default function Live() {
     const { d, m } = UI.live; const A = teamOf(d, m.a), B = teamOf(d, m.b); const cA = teamCtx(A, d), cB = teamCtx(B, d); const kind = FAKE[d].kind; const bo = seriesBo(d, m.bo);
     let ca = A.user ? S.org.c1 : A.color, cb = B.user ? S.org.c1 : B.color; if (colorDist(ca, cb) < 120) cb = colorDist(ca, '#e8e8e8') > 200 ? '#e8e8e8' : '#3fa9f5';
     const viz = { kind, d, ca, cb, pa: cA.players.map(p => ({ id: p.id, role: p.role })), pb: cB.players.map(p => ({ id: p.id, role: p.role })), map: 0, evSeq: 0, events: [] };
-    Lr.current = { d, m, A, B, cA, cB, kind, bo, need: Math.ceil(bo / 2), us: A.user ? 'A' : 'B', sa: 0, sb: 0, maps: [], acc: {}, speed: SET.speed || 1, phase: '', feed: [], cur: null, g: 0, sel: null, hrole: -1, viz, ready: false, shown: [0, 0], board: false, tm: null };
+    Lr.current = { d, m, A, B, cA, cB, kind, bo, need: Math.ceil(bo / 2), us: A.user ? 'A' : 'B', sa: 0, sb: 0, maps: [], acc: {}, speed: SET.speed || 1, phase: '', feed: [], cur: null, g: 0, sel: null, hrole: -1, viz, ready: false, shown: [0, 0], board: false, tm: null, hls: [], mvps: [] };
   }
   const L = Lr.current;
   const ins = useSafeAreaInsets(); const padL = Math.max(ins.left, 10), padR = Math.max(ins.right, 10);
@@ -40,8 +57,8 @@ export default function Live() {
     if (L.phase !== 'play') return; const g = L.cur; const v = L.viz; const now = Date.now(); let delay = STEP[L.kind];
     // мяч/футбол: ждём, пока сцена доиграет текущий эпизод (гол, удар), чтобы счёт не убегал вперёд картинки
     if ((L.kind === 'duel' || L.kind === 'ball') && v.busy && (!v.busySince || now - v.busySince < 15000)) { if (!v.busySince) v.busySince = now; L.shown = [Math.min(g.sa, (v.vg || {}).A || 0), Math.min(g.sb, (v.vg || {}).B || 0)]; rr(); L.tm = setTimeout(step, 120); return; } v.busySince = 0;
-    if (L.kind === 'fps') { const r = g.nextRound(); if (r) { L.feed.unshift(r); if (L.feed.length > 6) L.feed.length = 6; v.round = r; v.roundT0 = now; v.roundDur = STEP.fps / L.speed; } }
-    else { const ev = g.tick(); v.events = ev; v.evSeq++; v.tickT0 = now; v.tickDur = STEP[L.kind] / L.speed; ev.forEach(e => L.feed.unshift(e)); if (L.feed.length > 8) L.feed.length = 8; if (ev.some(e => e.type === 'goal')) delay += 300; }
+    if (L.kind === 'fps') { const r = g.nextRound(); if (r) { const hl = csHighlight(r); r.hl = hl; if (hl) L.hls.push({ ...hl, g: L.g + 1, at: 'раунд ' + r.n }); L.feed.unshift(r); if (L.feed.length > 6) L.feed.length = 6; v.round = r; v.roundT0 = now; v.roundDur = STEP.fps / L.speed; } }
+    else { const ev = g.tick(); v.events = ev; v.evSeq++; v.tickT0 = now; v.tickDur = STEP[L.kind] / L.speed; ev.forEach(e => { L.feed.unshift(e); if (e.type === 'fight' && e.kw >= 4 && e.kl <= 1) L.hls.push({ p: e.killer, t: 'ТИМФАЙТ ' + e.kw + ':' + e.kl, ic: '⚔️', side: e.side, g: L.g + 1, at: e.t + ' мин' }); if (e.type === 'boss' && e.stolen) L.hls.push({ p: null, t: 'УКРАДЕН ' + pack(L.d).boss.toUpperCase(), ic: '🐉', side: e.side, g: L.g + 1, at: e.t + ' мин' }); if (e.type === 'goal' && e.ot) L.hls.push({ p: e.p, t: 'ЗОЛОТОЙ ГОЛ', ic: '🏆', side: e.side, g: L.g + 1, at: 'овертайм' }); }); if (L.feed.length > 8) L.feed.length = 8; if (ev.some(e => e.type === 'goal')) delay += 300; }
     if (L.kind === 'moba') L.shown = [g.kA, g.kB]; else if (L.kind !== 'fps') L.shown = [Math.min(g.sa, (v.vg || {}).A || 0), Math.min(g.sb, (v.vg || {}).B || 0)];
     rr();
     if (g.done) { const t0 = Date.now(); const fin = () => { if ((L.kind === 'duel' || L.kind === 'ball') && v.busy && Date.now() - t0 < 20000) { L.shown = [Math.min(g.sa, (v.vg || {}).A || 0), Math.min(g.sb, (v.vg || {}).B || 0)]; rr(); L.tm = setTimeout(fin, 150); return; } L.shown = [g.kA !== undefined ? g.kA : g.sa, g.kB !== undefined ? g.kB : g.sb]; mapDone(); }; L.tm = setTimeout(fin, (L.kind === 'fps' ? STEP.fps : 2500) / L.speed); return; }
@@ -49,7 +66,7 @@ export default function Live() {
   };
   const recordGame = () => { const g = L.cur; const aW = g.winner === 'A'; if (aW) L.sa++; else L.sb++; const wset = L.kind === 'duel' ? new Set([aW ? g.pA.id : g.pB.id]) : new Set((aW ? L.cA : L.cB).players.map(p => p.id)); mergeStats(L.acc, g.stats, wset); L.maps.push(L.kind === 'fps' ? { map: g.map, sa: g.sa, sb: g.sb } : L.kind === 'moba' ? { t: g.t, kA: g.kA, kB: g.kB, w: g.winner } : L.kind === 'ball' ? { map: g.arena, sa: g.sa, sb: g.sb, ot: g.ot } : { pa: g.pA.id, pb: g.pB.id, sa: g.sa, sb: g.sb, pens: g.pens }); L.g++; L.cur = null; L.ready = false; };
   const over = () => L.sa >= L.need || L.sb >= L.need;
-  const mapDone = () => { const g = L.cur; recordGame(); if (over()) { endSeries(); return; } L.phase = 'between'; const last = L.maps[L.maps.length - 1]; const aW = (last.w || (last.sa > last.sb ? 'A' : 'B')) === 'A'; L.msg = `${tname(aW ? L.A : L.B)} берёт ${L.kind === 'fps' ? 'карту ' + mapName(L.d, last.map) : 'игру'}${L.kind !== 'moba' ? ` (${last.sa}:${last.sb}${last.pens ? ', пен. ' + last.pens.join(':') : ''})` : ''}`; rr(); sched(() => { if (L.kind === 'moba') startDraft(); else startGame(); }, 2600); };
+  const mapDone = () => { const g = L.cur; L.mapMvp = mapMvp(L, g); if (L.mapMvp) L.mvps.push(L.mapMvp.id); if (L.kind === 'ball' || L.kind === 'duel') Object.entries(g.stats).forEach(([id, st]) => { if ((st.k || 0) >= 3) L.hls.push({ p: +id, t: 'ХЕТ-ТРИК', ic: '🎩', side: L.cA.players.some(x => x.id === +id) ? 'A' : 'B', g: L.g + 1, at: '' }); }); recordGame(); if (over()) { endSeries(); return; } L.phase = 'between'; const last = L.maps[L.maps.length - 1]; const aW = (last.w || (last.sa > last.sb ? 'A' : 'B')) === 'A'; L.msg = `${tname(aW ? L.A : L.B)} берёт ${L.kind === 'fps' ? 'карту ' + mapName(L.d, last.map) : 'игру'}${L.kind !== 'moba' ? ` (${last.sa}:${last.sb}${last.pens ? ', пен. ' + last.pens.join(':') : ''})` : ''}`; rr(); sched(() => { if (L.kind === 'moba') startDraft(); else startGame(); }, 2600); };
   const endSeries = () => { clear(); const { d, m, A, B, cA, cB } = L; const res = { win: L.sa > L.sb ? A.id : B.id, sa: L.sa, sb: L.sb, maps: L.maps }; seriesFinalize(L.acc, res, cA, cB); const m0 = S.money; m.res = res; applyResult(d, m); L.prize = S.money - m0; L.phase = 'end'; save(); rr(); };
   const startGameSilent = () => { L.cur = makeGame(); };
   const finishFast = () => {
@@ -79,7 +96,7 @@ export default function Live() {
       <View style={[StyleSheet.absoluteFill, { left: padL - 10, right: padR - 10 }]} pointerEvents="box-none">{L.kind === 'fps' && L.phase === 'play' ? <CsHud L={L} /> : L.kind === 'moba' && L.phase === 'play' && L.cur ? <MobaHud L={L} /> : <Scoreboard L={L} sub={sub} />}
       {L.phase === 'veto' ? <Veto L={L} onPick={mp => { clear(); vetoApply(mp); }} onSkip={finishFast} /> : null}
       {L.phase === 'draft' ? <Draft L={L} rr={rr} onPick={h => { clear(); draftApply(L.d, L.draft, L.cA, L.cB, h); L.sel = null; draftNext(); }} onAuto={() => { clear(); draftApply(L.d, L.draft, L.cA, L.cB, aiDraftChoice(L.d, L.draft, L.cA, L.cB)); L.sel = null; draftNext(); }} onSkip={finishFast} /> : null}
-      {L.phase === 'between' ? <View pointerEvents="none" style={st.center}><View style={st.banner}><T h s={20} style={{ textAlign: 'center' }}>{L.msg || 'Подготовка…'}</T><T mu style={{ textAlign: 'center', marginTop: 4 }}>Серия {L.sa}:{L.sb}</T></View></View> : null}
+      {L.phase === 'between' ? <View pointerEvents="none" style={st.center}><View style={st.banner}><T h s={20} style={{ textAlign: 'center' }}>{L.msg || 'Подготовка…'}</T><T mu style={{ textAlign: 'center', marginTop: 4 }}>Серия {L.sa}:{L.sb}</T>{L.mapMvp && L.maps.length ? <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.line, alignItems: 'center' }}><Text style={{ fontFamily: F.h, fontSize: 10, letterSpacing: 1.6, color: C.gold }}>⭐ MVP КАРТЫ</Text><Row gap={6}><Flag cc={pcc(S.players[L.mapMvp.id])} /><T h s={17}>{pnick(S.players[L.mapMvp.id])}</T></Row><T mu s={11.5}>{L.mapMvp.line}</T></View> : null}</View></View> : null}
       {L.phase === 'play' ? <>
         {L.kind !== 'fps' && L.kind !== 'moba' ? <Feed L={L} /> : null}
         {L.board ? <Board L={L} /> : null}
@@ -296,7 +313,7 @@ function CsHud({ L }) {
             {k.place ? <Text numberOfLines={1} style={hs.place}>{k.place}</Text> : null}
           </View>); })}
       </View>
-      {h.end && rec ? <View style={hs.banner} pointerEvents="none"><LinearGradient colors={[alpha(rec.A ? ca : cb, 0), alpha(rec.A ? ca : cb, 0.9), alpha(rec.A ? ca : cb, 0)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={hs.bannerIn}><Text style={hs.bannerT}>{ttag(rec.A ? L.A : L.B)} ВЫИГРЫВАЮТ РАУНД</Text><Text style={hs.bannerS}>{HOW[rec.how] || ''}</Text></LinearGradient></View> : null}
+      {h.end && rec ? <View style={hs.banner} pointerEvents="none"><LinearGradient colors={[alpha(rec.A ? ca : cb, 0), alpha(rec.A ? ca : cb, 0.9), alpha(rec.A ? ca : cb, 0)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={hs.bannerIn}>{rec.hl ? <Text style={[hs.bannerT, { fontSize: rec.hl.big ? 22 : 18, color: '#fff' }]}>{rec.hl.ic} {rec.hl.t} · {S.players[rec.hl.p] ? pnick(S.players[rec.hl.p]) : ''}</Text> : null}<Text style={rec.hl ? hs.bannerS : hs.bannerT}>{ttag(rec.A ? L.A : L.B)} ВЫИГРЫВАЮТ РАУНД</Text>{!rec.hl ? <Text style={hs.bannerS}>{HOW[rec.how] || ''}</Text> : null}</LinearGradient></View> : null}
       {strips('A')}{strips('B')}
     </>
   );
@@ -436,6 +453,7 @@ function End({ L, onClose }) {
           <Btn kind="pri" ac={S.org.c1} title="Продолжить" onPress={onClose} style={{ marginTop: 10 }} />
         </View>
         <ScrollView style={{ flex: 1, maxHeight: 280 }}>
+          {L.hls.length ? <View style={{ marginBottom: 8, padding: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: C.line }}><T mu s={10} style={{ fontFamily: F.hm, letterSpacing: 1.2, marginBottom: 3 }}>МОМЕНТЫ СЕРИИ</T>{L.hls.slice().sort((a, b) => (b.big ? 1 : 0) - (a.big ? 1 : 0)).slice(0, 5).map((h, i) => <Row key={i} gap={6} style={{ paddingVertical: 2 }}><T s={13}>{h.ic}</T><T s={11.5} n={1} style={{ flex: 1 }}><Text style={{ fontFamily: F.h, color: h.side === L.us ? S.org.c1 : C.tx }}>{h.t}</Text>{h.p && S.players[h.p] ? ' · ' + pnick(S.players[h.p]) : ' · ' + ttag(h.side === 'A' ? L.A : L.B)}</T><T mu s={10}>игра {h.g}{h.at ? ' · ' + h.at : ''}</T></Row>)}</View> : null}
           {['A', 'B'].map(s => { const c = s === 'A' ? L.cA : L.cB; return <View key={s} style={{ marginBottom: 6 }}><T h s={12} style={{ color: s === L.us ? S.org.c1 : C.mu, marginBottom: 2 }}>{tname(s === 'A' ? L.A : L.B)}</T><Row><T mu s={10} style={{ flex: 1 }}>ИГРОК</T>{lb.filter(Boolean).map(x => <T key={x} mu s={10} style={{ width: 28, textAlign: 'right' }}>{x}</T>)}<T mu s={10} style={{ width: 40, textAlign: 'right' }}>РЕЙТ.</T></Row>{c.players.map(p => { const x = r.ps.find(y => y.id === p.id); if (!x) return null; return <Row key={p.id} style={{ paddingVertical: 2 }}><T s={11.5} n={1} style={{ flex: 1 }}>{pnick(p)}{x.mvp ? ' ⭐' : ''}</T><T num s={11.5} style={{ width: 28, textAlign: 'right' }}>{x.k}</T><T num s={11.5} style={{ width: 28, textAlign: 'right' }}>{x.d}</T>{lb[2] ? <T num s={11.5} style={{ width: 28, textAlign: 'right' }}>{x.a}</T> : null}<T num s={11.5} style={{ width: 40, textAlign: 'right' }}>{(x.rt / Math.max(1, x.mp)).toFixed(2)}</T></Row>; })}</View>; })}
         </ScrollView>
       </View>

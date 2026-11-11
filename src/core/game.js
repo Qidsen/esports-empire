@@ -379,6 +379,37 @@ function offlineGain() {
 }
 
 // ---- training ----
+// ---- характеры и связки игроков ----
+const TRAITS = {
+  leader: { n: 'Лидер', i: '👑', d: 'Сплачивает команду: +1 химии в неделю, связки с ним растут быстрее, в матче +сила всем' },
+  work: { n: 'Трудяга', i: '💪', d: 'Растёт на 25% быстрее' },
+  quiet: { n: 'Тихоня', i: '🤫', d: 'Почти ни с кем не конфликтует, мораль стабильнее' },
+  show: { n: 'Шоумен', i: '🎤', d: 'Приводит фанатов каждую неделю, но форма скачет сильнее' },
+  hot: { n: 'Вспыльчивый', i: '🔥', d: 'В хорошем настроении сильнее, в плохом — слабее; мораль скачет' },
+  toxic: { n: 'Токсик', i: '☠️', d: 'Сам по себе сильнее (+2), но портит связки и химию' },
+};
+const TRAIT_W = [['quiet', 3], ['work', 3], ['leader', 1.1], ['show', 1.6], ['hot', 1.6], ['toxic', 1.1]];
+function traitOf(p) { if (!p) return 'quiet'; if (!p.tr) { const h = Math.abs(Math.sin(p.id * 91.7 + 3.3) * 43758.5453) % 1; let r = h * TRAIT_W.reduce((a, x) => a + x[1], 0); p.tr = TRAIT_W[TRAIT_W.length - 1][0]; for (const [k, w] of TRAIT_W) { r -= w; if (r <= 0) { p.tr = k; break; } } } return p.tr; }
+function pairKey(a, b) { const x = a.id || a, y = b.id || b; return x < y ? x + '-' + y : y + '-' + x; }
+function pairVal(a, b) { return (S.pairs && S.pairs[pairKey(a, b)]) || 0; }
+function pairAdd(a, b, n) { S.pairs = S.pairs || {}; const k = pairKey(a, b); S.pairs[k] = clamp((S.pairs[k] || 0) + n, -20, 20); }
+// насколько хорошо двое сыгрываются за неделю вместе
+function pairDelta(a, b) {
+  const ta = traitOf(a), tb = traitOf(b); let v = 0.6;
+  if (ta === 'leader' || tb === 'leader') v += 0.6;
+  if (ta === 'toxic') v -= tb === 'quiet' ? 0.4 : 1.3; if (tb === 'toxic') v -= ta === 'quiet' ? 0.4 : 1.3;
+  if (ta === 'hot' && tb === 'hot') v -= 0.9; if ((ta === 'hot' && tb === 'toxic') || (tb === 'hot' && ta === 'toxic')) v -= 0.6;
+  if (ta === 'show' && tb === 'show') v -= 0.5;
+  if (a.cc === b.cc) v += 0.4;
+  return v;
+}
+function teamPairs(t) { const sp = starters(t); let sum = 0, n = 0; for (let i = 0; i < sp.length; i++) for (let j = i + 1; j < sp.length; j++) { sum += pairVal(sp[i], sp[j]); n++; } return n ? sum / n : 0; }
+function pairsWeekly() {
+  Object.keys(S.divs).forEach(d => { const t = userTeam(d); const sp = starters(t);
+    for (let i = 0; i < sp.length; i++) for (let j = i + 1; j < sp.length; j++) pairAdd(sp[i], sp[j], pairDelta(sp[i], sp[j]) * (0.6 + rnd() * 0.8));
+    sp.forEach(p => { const tr = traitOf(p); if (tr === 'leader') t.chem = clamp(t.chem + 1, 0, 100); if (tr === 'toxic') t.chem = clamp(t.chem - 1, 0, 100); if (tr === 'show') S.fans += Math.round(25 + S.fans * 0.002); });
+  });
+}
 const ATTRS = [['mech', 'Механика'], ['iq', 'Игровой IQ'], ['tw', 'Командная игра'], ['cl', 'Клатч'], ['con', 'Стабильность']];
 function upCost(p, a) { return Math.round(6 * Math.pow(1.075, p[a] - 40)); }
 function canUp(p, a) { return p[a] < 99 && ovr(p) < p.pot + 1 && S.tp >= upCost(p, a); }
@@ -387,12 +418,13 @@ function weeklyGrowth(p, d, isUser) {
   const coach = isUser ? staffSk('coach', d) : (teamOf(d, p.team) || { coach: 8 }).coach;
   const house = isUser ? S.fac.house : 3;
   const tr = isUser ? S.divs[d].train : 'bal';
-  const gap = p.pot - ovr(p);
+  const gap = p.pot - ovr(p); const trt = traitOf(p);
   let g = 0;
   if (p.age <= 23) g = 0.55; else if (p.age <= 26) g = 0.3; else if (p.age <= 28) g = 0.05; else g = -0.25 + staffSk('fitness') * 0.01;
   g *= (1 + coach * 0.04 + house * 0.04);
   if (gap <= 0 && g > 0) g *= 0.1;
   if (tr === 'rest') g *= 0.4;
+  if (trt === 'work' && g > 0) g *= 1.25;
   const focus = tr === 'mech' ? ['mech', 'cl'] : tr === 'tac' ? ['iq', 'tw'] : tr === 'rest' ? [] : ['mech', 'iq', 'tw', 'cl', 'con'];
   ATTRS.forEach(([a]) => {
     let inc = g * (focus.includes(a) ? (tr === 'bal' ? 1 : 1.8) : (tr === 'bal' ? 1 : 0.4)) * (0.5 + rnd());
@@ -405,9 +437,9 @@ function weeklyGrowth(p, d, isUser) {
   // form & morale
   const psy = isUser ? staffSk('psych') : 8;
   const fstab = (p.con - 50) / 100 + psy * 0.01;
-  p.form = clamp(Math.round(p.form * 0.6 + gauss() * (6 - fstab * 4)), -10, 10);
+  p.form = clamp(Math.round(p.form * 0.6 + gauss() * (6 - fstab * 4) * (trt === 'show' ? 1.3 : 1)), -10, 10);
   const target = 65 + psy + (isUser ? S.fac.wellness * 2 : 5);
-  p.mor = clamp(Math.round(p.mor + (target - p.mor) * (0.15 + (tr === 'rest' ? 0.2 : 0)) + gauss() * 3), 5, 100);
+  p.mor = clamp(Math.round(p.mor + (target - p.mor) * (0.15 + (tr === 'rest' ? 0.2 : 0)) + gauss() * 3 * (trt === 'quiet' ? 0.5 : trt === 'hot' ? 1.7 : 1)), 5, 100);
 }
 
 // ---- strength for match ----
@@ -420,11 +452,12 @@ function teamCtx(t, d) {
     coach: isU ? staffSk('coach', d) : t.coach,
     analyst: isU ? staffSk('analyst', d) : Math.round(t.coach * 0.7),
     chem: t.chem, style: isU ? S.divs[d].style : t.str || 'bal', prac: t.prac,
-    mor: sp.reduce((a, p) => a + p.mor, 0) / Math.max(1, sp.length)
+    mor: sp.reduce((a, p) => a + p.mor, 0) / Math.max(1, sp.length),
+    pair: isU ? teamPairs(t) : 4, lead: sp.some(p => traitOf(p) === 'leader') ? 1 : 0
   };
 }
-function baseMod(c) { return (c.coach - 8) * 0.25 + (c.chem - 50) * 0.05 + (c.mor - 60) * 0.04; }
-function pSkill(p) { return ovr(p) + p.form * 0.6; }
+function baseMod(c) { return (c.coach - 8) * 0.25 + (c.chem - 50) * 0.05 + (c.mor - 60) * 0.04 + (c.pair || 0) * 0.12 + (c.lead || 0) * 0.8; }
+function pSkill(p) { const tr = traitOf(p); return ovr(p) + p.form * 0.6 + (tr === 'toxic' ? 2 : 0) + (tr === 'hot' ? (p.mor - 60) * 0.06 : 0); }
 
 // ---- weekly flow ----
 function userMatchesThisWeek() { const out = []; Object.keys(S.divs).forEach(d => { const ut = userTeam(d); weekMatches(d).forEach(m => { if (!m.res && (m.a === ut.id || m.b === ut.id)) out.push({ d, m }); }); }); return out; }
@@ -450,6 +483,7 @@ function finishWeek() {
   // growth
   Object.values(S.players).forEach(p => { if (p.team) weeklyGrowth(p, p.d, isUserPlayer(p)); });
   weeklyManagement();
+  pairsWeekly();
   // practice & chemistry
   Object.keys(S.divs).forEach(d => {
     const t = userTeam(d); const a = staffSk('analyst', d); const dv = S.divs[d];
@@ -1145,4 +1179,5 @@ export { mediaWeekly, tpWeekly };
 export { leagueWeekly };
 export { leaguePosFactor, weeksToPayday, goalProgress, makeGoal };
 export { raiseTarget };
+export { TRAITS, traitOf, pairVal, pairAdd, pairDelta, teamPairs };
 export { ATTRS,BallGame,CC_WEIGHTED,COUNTRIES,CREATOR_TYPES,DISC_ORDER,DRAFT_ORDER_5,DRAFT_ORDER_6,DW,DuelGame,ENTRY_ROLE,EVENTS,FACILITIES,FAKE,FIRST,FLAG,FpsMap,H,KW,LAST,MobaGame,NICK_A,NICK_SUF,NWS,PRIZE,RL_SHOOT,SEASON_WEEKS,SPONSOR_NAMES,STAFF_TYPES,T,TEAM_A,TEAM_B,TEAM_COLORS,acceptCounter,advanceWC,agentDisc,aiDraftChoice,aiTransfer,aiVetoChoice,alignOvr,applyPatchNames,applyResult,autoDraft,autoVeto,avgR,baseMod,bestPlayerFor,buildFac,buildWorld,buyChance,buyDivision,buyWithBid,canUp,clamp,divCost,divRep,doUp,draftApply,draftOrder,draftTaken,draftValue,ensureFive,extendDemand,facCost,fcPair,feeFor,finishWeek,fmt,fpsRating,gauss,genNick,genOffers,genPlayer,genPool,genStaff,genStaffMarket,genTeamName,heroList,heroMeta,heroName,hireCreator,hireStaff,idleTick,isLoanable,isUserPlayer,loanIn,loanInCost,loanOut,loanOutTarget,makeSchedule,mapName,maxDivs,mergeStats,metaShift,mobaRating,moodFactors,negKey,newCareer,newDraft,newPS,newSeason,newStats,news,nid,offlineCapH,offlineGain,ovr,pSkill,pack,passiveRate,pcc,phaseOf,pick,pnick,potView,prof,promoteYouth,quickSeries,randomEvent,refreshAcademy,releasePlayer,releaseYouth,respondOffer,ri,rnd,salaryFor,scaleCurve,scrim,seasonManagement,sellPlayer,seriesBo,seriesFinalize,setupFinals,setupPlayoffs,setupWC,shuffle,sig,signDemand,signPlayer,signYouth,sponsorSlots,staffOf,staffSk,standings,starters,stream,talk,teamColor,teamCtx,teamOf,teamOvr,tname,tpRate,ttag,unlockDivision,upCost,userMatchesThisWeek,userTeam,userTeamIds,validatePatch,valueOf,vetoOrder,weekMatches,weeklyCosts,weeklyGrowth,weeklyManagement,weeklySponsor,wpick };
