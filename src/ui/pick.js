@@ -1,16 +1,21 @@
 import { Platform } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
-// Выбор картинки PNG/JPG/WebP → data URI. Возвращает null при отмене, бросает строку-ошибку.
-export async function pickImageDataUri(maxBytes = 400000) {
-  const r = await DocumentPicker.getDocumentAsync({ type: ['image/png', 'image/jpeg', 'image/webp'], copyToCacheDirectory: true });
+import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+
+// Выбор картинки из галереи (раздел «Фото») → уменьшенный PNG data URI (до 256 px, прозрачность сохраняется).
+// Возвращает null при отмене, бросает строку-ошибку.
+export async function pickImageDataUri(maxBytes = 400000, maxSide = 256) {
+  if (Platform.OS !== 'web') {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) throw 'Нет доступа к фото — разреши его в настройках iPhone';
+  }
+  const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: false, quality: 1 });
   if (r.canceled || !r.assets?.length) return null;
   const a = r.assets[0];
-  if (a.size && a.size > maxBytes) throw 'Картинка больше ' + Math.round(maxBytes / 1000) + ' КБ — возьми поменьше';
-  const mime = a.mimeType || (/\.png$/i.test(a.name || '') ? 'image/png' : /\.webp$/i.test(a.name || '') ? 'image/webp' : 'image/jpeg');
-  if (Platform.OS === 'web') {
-    const blob = a.file || await (await fetch(a.uri)).blob();
-    return await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
-  }
-  const { File } = require('expo-file-system');
-  return 'data:' + mime + ';base64,' + await new File(a.uri).base64();
+  const w = a.width || maxSide, h = a.height || maxSide;
+  const resize = Math.max(w, h) > maxSide ? (w >= h ? { width: maxSide } : { height: maxSide }) : null;
+  const out = await manipulateAsync(a.uri, resize ? [{ resize }] : [], { format: SaveFormat.PNG, base64: true });
+  const uri = 'data:image/png;base64,' + out.base64;
+  if (uri.length * 0.75 > maxBytes) throw 'Картинка слишком тяжёлая — возьми попроще';
+  return uri;
 }
