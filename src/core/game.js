@@ -185,7 +185,7 @@ function genStaff(type, d, lvl) {
 function teamColor() { return pick(TEAM_COLORS); }
 
 function newCareer(opts) {
-  S = { v: 3, nextId: 1, org: { name: opts.name, tag: opts.tag.toUpperCase().slice(0, 4), c1: opts.c1, c2: opts.c2 }, money: 60000, fans: 800, rep: 5, season: 1, week: 1, created: Date.now(), lastTick: Date.now(), tp: 50, patchOn: !!opts.patchOn, patchData: opts.patchData || null,
+  S = { v: 3, nextId: 1, org: { name: opts.name, tag: opts.tag.toUpperCase().slice(0, 4), c1: opts.c1, c2: opts.c2, logo: opts.logo || null }, money: 60000, fans: 800, rep: 5, season: 1, week: 1, created: Date.now(), lastTick: Date.now(), tp: 50, patchOn: !!opts.patchOn, patchData: opts.patchData || null,
     divs: {}, world: {}, players: {}, staff: {}, fac: { house: 0, studio: 0, analytics: 0, marketing: 0, wellness: 0, server: 0, academy: 0, office: 1 }, tOffers: [], inbox: [], negot: {}, sponsors: [], offers: [], staffMarket: [], news: [], trophies: [], fin: [], auto: false, cd: { scrim: 0, stream: 0 }, creators: [], events: [], weekLog: null, meta: {}, stats: { wins: 0, losses: 0, maps: 0 } };
   DISC_ORDER.forEach(d => buildWorld(d));
   unlockDivision(opts.disc, true);

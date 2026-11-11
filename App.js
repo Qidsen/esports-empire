@@ -7,8 +7,9 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { useFonts, Exo2_500Medium, Exo2_600SemiBold, Exo2_700Bold, Exo2_800ExtraBold } from '@expo-google-fonts/exo-2';
 import { S, idleTick, offlineCapH, fmt, phaseOf, FAKE, userMatchesThisWeek, quickSeries, applyResult, finishWeek, offlineGain } from './src/core/game';
 import { C, F, alpha } from './src/ui/theme';
-import { Logo, T, Btn } from './src/ui/kit';
+import { Logo, OrgLogo, T, Btn } from './src/ui/kit';
 import { UI, bump, useBump, useToasts, registerModal, closeModal, openModal, save, load, toast } from './src/ui/store';
+import Title, { openGameMenu } from './src/screens/Title';
 import Start from './src/screens/Start';
 import Home from './src/screens/Home';
 import Roster from './src/screens/Roster';
@@ -43,7 +44,7 @@ function TopBar() {
 function SideNav() {
   return (
     <View style={st.side}>
-      <View style={{ alignItems: 'center', marginBottom: 10 }}><Logo c1={S.org.c1} c2={S.org.c2} tag={S.org.tag} size={44} /></View>
+      <View style={{ alignItems: 'center', marginBottom: 10 }}><OrgLogo size={44} /></View>
       {TABS.map(([k, i, n]) => {
         const on = UI.tab === k;
         return (
@@ -53,6 +54,11 @@ function SideNav() {
           </Pressable>
         );
       })}
+      <View style={{ flex: 1 }} />
+      <Pressable onPress={openGameMenu} style={st.nav}>
+        <Text style={{ fontSize: 17, color: C.mu }}>☰</Text>
+        <Text style={{ fontSize: 9.5, color: C.mu, fontFamily: F.hm, marginTop: 1 }}>Меню</Text>
+      </Pressable>
     </View>
   );
 }
@@ -80,6 +86,7 @@ function Shell() {
   useBump();
   const ins = useSafeAreaInsets();
   if (!S) return <Start />;
+  if (UI.title) return <Title />;
   const Scr = { home: Home, roster: Roster, market: Market, comp: Comp, org: Org }[UI.tab];
   return (
     <View style={{ flex: 1, flexDirection: 'row', paddingLeft: ins.left, paddingRight: ins.right }}>
@@ -120,7 +127,7 @@ export default function App() {
       if (ok) {
         S.cd = S.cd || { scrim: 0, stream: 0 }; S.creators = S.creators || []; S.tOffers = S.tOffers || []; S.negot = S.negot || {}; S.fac.office = S.fac.office || 1;
         Object.values(S.divs).forEach(dv => { dv.youth = dv.youth || []; dv.out = dv.out || []; });
-        UI.d = Object.keys(S.divs)[0];
+        UI.d = Object.keys(S.divs)[0]; UI.title = true;
         const g = offlineGain();
         if (g) setTimeout(() => openModal(() => (
           <View>

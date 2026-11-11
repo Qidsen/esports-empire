@@ -4,18 +4,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { newCareer, DISC_ORDER, FAKE, S, pack } from '../core/game';
 import { REAL_PATCH } from '../core/realPatch';
-import { UI, bump, save, openModal, closeModal } from '../ui/store';
-import { T, H, Panel, Btn, Seg, Logo, Row, GameIcon } from '../ui/kit';
+import { pickImageDataUri } from '../ui/pick';
+import { UI, bump, save, openModal, closeModal, toast } from '../ui/store';
+import { T, H, Panel, Btn, Seg, Logo, Row, GameIcon, ImgLogo } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 
 const COLORS = ['#ff8a1f', '#ff3b5c', '#3fa9f5', '#3ddc84', '#a66cff', '#ffc94d', '#00d4c8', '#ff5fa2', '#e8e8e8', '#7cf75c'];
 const KIND = { fps: 'Шутер', moba: 'MOBA', ball: 'Авто-футбол', duel: 'Футбол' };
 export default function Start() {
-  const [name, setName] = useState(''); const [tag, setTag] = useState(''); const [c1, setC1] = useState('#ff8a1f'); const [disc, setDisc] = useState('cs'); const [real, setReal] = useState(true);
+  const [name, setName] = useState(''); const [tag, setTag] = useState(''); const [c1, setC1] = useState('#ff8a1f'); const [disc, setDisc] = useState('cs'); const [real, setReal] = useState(true); const [logo, setLogo] = useState(null);
   const gameName = d => real && REAL_PATCH.disciplines[d] ? REAL_PATCH.disciplines[d].game : FAKE[d].game;
   const go = () => {
     const nm = name.trim() || 'Kyiv Phantoms'; const tg = (tag.trim() || nm.replace(/[^A-Za-zА-Яа-яІіЇїЄє]/g, '').slice(0, 3) || 'ORG').toUpperCase().slice(0, 4);
-    newCareer({ name: nm, tag: tg, c1, c2: '#05070b', disc, patchOn: real, patchData: real ? REAL_PATCH : null });
+    newCareer({ name: nm, tag: tg, c1, c2: '#05070b', disc, patchOn: real, patchData: real ? REAL_PATCH : null, logo });
     UI.d = disc; UI.tab = 'home'; save(); bump();
     setTimeout(() => openModal(() => (
       <View>
@@ -38,7 +39,7 @@ export default function Start() {
           <T mu s={11} n={1}>Своя организация · 5 дисциплин · матчи в 3D</T>
         </View>
         <Row gap={10}>
-          <Logo c1={c1} c2="#05070b" tag={(tag || 'ORG').toUpperCase()} size={Math.round(64 * k)} />
+          <Pressable onPress={async () => { try { const u = await pickImageDataUri(300000); if (u) setLogo(u); } catch (e) { toast('⚠️ ' + e); } }} onLongPress={() => setLogo(null)} style={{ alignItems: 'center' }}>{logo ? <ImgLogo uri={logo} size={Math.round(64 * k)} /> : <Logo c1={c1} c2="#05070b" tag={(tag || 'ORG').toUpperCase()} size={Math.round(64 * k)} />}<T mu s={9} style={{ marginTop: 2 }}>{logo ? 'сменить' : '+ свой логотип'}</T></Pressable>
           <View style={{ flex: 1, gap: 6 }}>
             <TextInput value={name} onChangeText={setName} placeholder="Название организации" placeholderTextColor={C.mu2} maxLength={24} style={inp} />
             <TextInput value={tag} onChangeText={t => setTag(t.toUpperCase())} placeholder="Тег (2–4 буквы)" placeholderTextColor={C.mu2} maxLength={4} autoCapitalize="characters" style={inp} />

@@ -5,6 +5,7 @@ import Svg, { Path, Defs, LinearGradient as SG, Stop, Text as ST, Circle, Rect, 
 import { C, F, ovrColor, shade, alpha } from './theme';
 import { S, FLAG, ttag, ovr, FAKE } from '../core/game';
 import { PATCH_ICONS } from '../core/patchIcons';
+import { TEAM_LOGOS } from '../core/teamLogos';
 
 export const T = ({ s, style, children, num, h, mu, n, ...rest }) => (
   <Text numberOfLines={n} style={[{ color: mu ? C.mu : C.tx, fontSize: s || 13, fontFamily: h ? F.h : num ? F.hm : F.b }, style]} {...rest}>{children}</Text>
@@ -97,7 +98,17 @@ export function Logo({ c1, c2, tag, size = 40 }) {
     </Svg>
   );
 }
-export const TeamLogo = ({ t, size }) => t.user ? <Logo c1={S.org.c1} c2={S.org.c2} tag={S.org.tag} size={size} /> : <Logo c1={t.color} c2="#05070b" tag={ttag(t)} size={size} />;
+// Картинка-логотип (круг) — для реальных команд и загруженного логотипа клуба.
+export const ImgLogo = ({ uri, size }) => <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} resizeMode="contain" />;
+let _pl = null, _plSrc = null;
+function patchLogo(name) {
+  const P = S && S.patchData; if (!P || !P.disciplines) return null;
+  if (_plSrc !== P) { _plSrc = P; _pl = {}; Object.values(P.disciplines).forEach(dd => (dd.teams || []).forEach(t => { if (t.name && t.logo) _pl[t.name] = t.logo; })); }
+  return _pl[name] || null;
+}
+export function teamLogoUri(t) { if (!t) return null; if (t.user) return S.org.logo || null; if (S.patchOn && t.real && t.real.name) return patchLogo(t.real.name) || TEAM_LOGOS[t.real.name] || null; return null; }
+export const OrgLogo = ({ size = 40 }) => S.org.logo ? <ImgLogo uri={S.org.logo} size={size} /> : <Logo c1={S.org.c1} c2={S.org.c2} tag={S.org.tag} size={size} />;
+export const TeamLogo = ({ t, size }) => { const u = teamLogoUri(t); if (u) return <ImgLogo uri={u} size={size} />; return t.user ? <Logo c1={S.org.c1} c2={S.org.c2} tag={S.org.tag} size={size} /> : <Logo c1={t.color} c2="#05070b" tag={ttag(t)} size={size} />; };
 export function Stars({ lo, hi }) { const f = v => Math.max(1, Math.min(5, Math.round((v - 40) / 12))); const a = f(lo), b = f(hi); return <Text style={{ fontSize: 11, color: C.gold }}>{'★'.repeat(a)}<Text style={{ opacity: 0.45 }}>{'★'.repeat(b - a)}</Text><Text style={{ opacity: 0.15 }}>{'★'.repeat(5 - b)}</Text></Text>; }
 export const Row = ({ children, style, gap = 8 }) => <View style={[{ flexDirection: 'row', alignItems: 'center', gap }, style]}>{children}</View>;
 export const Sep = () => <View style={{ height: 1, backgroundColor: C.line, marginVertical: 6 }} />;

@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { S, teamOf, teamCtx, FAKE, seriesBo, vetoOrder, aiVetoChoice, newDraft, draftOrder, draftApply, aiDraftChoice, draftTaken, autoDraft, heroList, heroMeta, prof, FpsMap, MobaGame, BallGame, DuelGame, fcPair, mergeStats, seriesFinalize, applyResult, tname, ttag, pnick, pcc, mapName, pack, fpsRating, fmt, shuffle, ovr } from '../core/game';
-import { UI, bump, save, toast } from '../ui/store';
+import { UI, bump, save, toast, openModal, closeModal } from '../ui/store';
 import { T, Btn, Seg, Row, TeamLogo, Flag, Tag } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 import Scene3D from './Scene3D';
@@ -89,6 +89,15 @@ export default function Live() {
           <Btn small title="⏩ Серия" onPress={finishFast} />
         </View>
       </> : null}
+      {L.phase !== 'end' ? <Pressable onPress={() => openModal(() => (
+        <View style={{ gap: 8 }}>
+          <T h s={18}>Пауза</T>
+          <T mu s={12}>Матч нельзя бросить — можно досчитать результат и выйти.</T>
+          <Btn kind="pri" ac={S.org.c1} title="Продолжить смотреть" onPress={closeModal} />
+          <Btn title="Досчитать серию и показать итог" onPress={() => { closeModal(); finishFast(); }} />
+          <Btn title="Досчитать и выйти в штаб" onPress={() => { closeModal(); finishFast(); close(); }} />
+        </View>
+      ))} style={st.menuBtn}><Text style={{ color: '#fff', fontSize: 16 }}>☰</Text></Pressable> : null}
       {L.phase === 'end' ? <End L={L} onClose={close} /> : null}
       </View>
     </View>
@@ -126,7 +135,7 @@ function CsHud({ L }) {
     return (
       <View style={[hs.strips, right ? { right: 10, alignItems: 'flex-end' } : { left: 10 }]} pointerEvents="none">
         {ps.map(p => { const dead = h.dead && h.dead[p.id]; const k = ((g && g.stats[p.id] && g.stats[p.id].k) || 0) - (pend.k[p.id] || 0); const d = ((g && g.stats[p.id] && g.stats[p.id].d) || 0) - (pend.d[p.id] || 0); return (
-          <View key={p.id} style={[hs.strip, right ? { flexDirection: 'row-reverse' } : null, dead ? { opacity: 0.38 } : null]}>
+          <View key={p.id} style={[hs.strip, right ? [{ flexDirection: 'row-reverse' }, hs.stripR] : null, dead ? { opacity: 0.38 } : null]}>
             <View style={{ width: 3, alignSelf: 'stretch', backgroundColor: col }} />
             <Text numberOfLines={1} style={[hs.pn, { textAlign: right ? 'right' : 'left' }]}>{dead ? '✕ ' : ''}{pnick(p)}</Text>
             <Text style={hs.kd}>{k}-{d}</Text>
@@ -182,6 +191,7 @@ const hs = StyleSheet.create({
   bannerS: { fontFamily: F.h, fontSize: 10, color: 'rgba(255,255,255,0.85)', letterSpacing: 1.5 },
   strips: { position: 'absolute', bottom: 62, gap: 2 },
   strip: { flexDirection: 'row', alignItems: 'center', gap: 6, width: 150, height: 19, backgroundColor: 'rgba(6,9,15,0.72)', paddingRight: 6 },
+  stripR: { paddingRight: 0, paddingLeft: 6 },
   pn: { flex: 1, fontFamily: F.hm, fontSize: 11, color: '#fff', paddingHorizontal: 4 },
   kd: { fontFamily: F.hx, fontSize: 10, color: 'rgba(255,255,255,0.8)' },
 });
@@ -297,6 +307,7 @@ const st = StyleSheet.create({
   banner: { backgroundColor: 'rgba(8,12,20,0.82)', borderRadius: 16, borderWidth: 1, borderColor: C.line2, paddingHorizontal: 26, paddingVertical: 16 },
   bottom: { position: 'absolute', left: 10, right: 10, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(6,9,15,0.78)', borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 6 },
   feed: { position: 'absolute', left: 10, top: 66, width: 236, backgroundColor: 'rgba(6,9,15,0.45)', borderRadius: 10, padding: 6, borderWidth: 1, borderColor: C.line },
+  menuBtn: { position: 'absolute', left: 10, top: 8, width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(6,9,15,0.8)', borderWidth: 1, borderColor: C.line2 },
   board: { position: 'absolute', right: 12, top: 70, width: 230, backgroundColor: 'rgba(6,9,15,0.8)', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: C.line },
   overlay: { ...StyleSheet.absoluteFillObject, paddingTop: 64, paddingHorizontal: 14, paddingBottom: 10, alignItems: 'center' },
   panel: { backgroundColor: 'rgba(10,14,24,0.9)', borderRadius: 16, borderWidth: 1, borderColor: C.line2, padding: 14, width: '100%', maxWidth: 720 },

@@ -4,8 +4,9 @@ import * as DocumentPicker from 'expo-document-picker';
 import { S, FACILITIES, facCost, buildFac, STAFF_TYPES, staffOf, hireStaff, sponsorSlots, CREATOR_TYPES, hireCreator, DISC_ORDER, pack, FAKE, userTeam, teamOvr, fmt, news, applyPatchNames, validatePatch, maxDivs } from '../core/game';
 import { REAL_PATCH } from '../core/realPatch';
 import { PATCH_ICONS } from '../core/patchIcons';
+import { pickImageDataUri } from '../ui/pick';
 import { UI, bump, toast, save, wipe, openModal, closeModal } from '../ui/store';
-import { T, H, Panel, Btn, Seg, Chips, Row, Stat, Bar, Ovr, Flag, Tag, GameIcon } from '../ui/kit';
+import { T, H, Panel, Btn, Seg, Chips, Row, Stat, Bar, Ovr, Flag, Tag, GameIcon, OrgLogo } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 import { UnlockCard } from './Roster';
 
@@ -74,6 +75,13 @@ export default function Org() {
             {S.patchData ? <Seg ac={S.org.c1} style={{ marginTop: 8 }} value={!!S.patchOn} onChange={v => { S.patchOn = v; if (v) applyPatchNames(); save(); bump(); }} items={[[false, 'Вымышленные'], [true, 'Реальные']]} /> : null}
           </Panel></View>
           <View style={{ flex: 1 }}><Panel>
+            <H>Логотип клуба</H>
+            <Row gap={12}><OrgLogo size={56} /><View style={{ flex: 1, gap: 6 }}>
+              <Btn small title="📷 Загрузить свой (PNG/JPG)" onPress={async () => { try { const u = await pickImageDataUri(300000); if (u) { S.org.logo = u; save(); toast('✅ Логотип обновлён'); bump(); } } catch (e) { toast('⚠️ ' + e); } }} />
+              {S.org.logo ? <Btn small kind="bad" title="Вернуть стандартный" onPress={() => { S.org.logo = null; save(); bump(); }} /> : null}
+            </View></Row>
+            <T mu s={10.5} style={{ marginTop: 6 }}>Лучше квадратная картинка на прозрачном фоне, до 300 КБ. Показывается в меню, таблицах и на трансляции.</T>
+          </Panel><Panel>
             <H>Сохранение</H>
             <T mu s={11} style={{ marginBottom: 8 }}>Игра сохраняется автоматически на этом телефоне.</T>
             <Btn kind="bad" title="Начать заново" onPress={() => openModal(() => <View><T h s={18}>Удалить карьеру?</T><T mu style={{ marginVertical: 8 }}>Весь прогресс будет потерян.</T><Row><Btn style={{ flex: 1 }} title="Отмена" onPress={closeModal} /><Btn style={{ flex: 1 }} kind="bad" title="Удалить" onPress={async () => { closeModal(); await wipe(); UI.tab = 'home'; bump(); }} /></Row></View>)} />
