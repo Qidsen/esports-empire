@@ -145,3 +145,19 @@ export function GameIcon({ d, size = 28, uri, plain }) {
     </View>
   );
 }
+
+// Вкладки раздела: крупные, всегда видимые, с иконкой.
+export function SubTabs({ items, value, onChange, ac, right }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 1, flexShrink: 1 }} contentContainerStyle={{ gap: 6 }}>
+        {items.map(([k, n, ic]) => { const on = k === value; return (
+          <Pressable key={k} onPress={() => onChange(k)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 34, borderRadius: 10, backgroundColor: on ? (ac || C.blue) : 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: on ? 'transparent' : C.line }}>
+            {ic ? <Text style={{ fontSize: 13 }}>{ic}</Text> : null}
+            <Text numberOfLines={1} style={{ color: on ? '#0a0d14' : C.tx, fontFamily: F.h, fontSize: 12.5 }}>{n}</Text>
+          </Pressable>); })}
+      </ScrollView>
+      {right || null}
+    </View>
+  );
+}

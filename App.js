@@ -11,6 +11,8 @@ import { Logo, OrgLogo, T, Btn } from './src/ui/kit';
 import { UI, bump, useBump, useToasts, registerModal, closeModal, openModal, save, load, toast } from './src/ui/store';
 import Title, { openGameMenu } from './src/screens/Title';
 import Start from './src/screens/Start';
+import Negotiation from './src/screens/Negotiation';
+import { loadSettings } from './src/ui/settings';
 import Home from './src/screens/Home';
 import Roster from './src/screens/Roster';
 import Market from './src/screens/Market';
@@ -48,7 +50,7 @@ function SideNav() {
       {TABS.map(([k, i, n]) => {
         const on = UI.tab === k;
         return (
-          <Pressable key={k} onPress={() => { UI.tab = k; UI.sel = null; bump(); }} style={[st.nav, on && { backgroundColor: alpha(S.org.c1, 0.18), borderColor: alpha(S.org.c1, 0.5) }]}>
+          <Pressable key={k} onPress={() => { UI.tab = k; UI.sel = null; UI.neg = null; bump(); }} style={[st.nav, on && { backgroundColor: alpha(S.org.c1, 0.18), borderColor: alpha(S.org.c1, 0.5) }]}>
             <Text style={{ fontSize: 17, color: on ? S.org.c1 : C.mu }}>{i}</Text>
             <Text style={{ fontSize: 9.5, color: on ? C.tx : C.mu, fontFamily: F.hm, marginTop: 1 }}>{n}</Text>
           </Pressable>
@@ -85,7 +87,7 @@ function Toasts() {
 function Shell() {
   useBump();
   const ins = useSafeAreaInsets();
-  if (!S) return <Start />;
+  if (!S) return UI.newGame ? <Start /> : <Title />;
   if (UI.title) return <Title />;
   const Scr = { home: Home, roster: Roster, market: Market, comp: Comp, org: Org }[UI.tab];
   return (
@@ -93,7 +95,7 @@ function Shell() {
       <SideNav />
       <View style={{ flex: 1 }}>
         <TopBar />
-        <View style={{ flex: 1 }}><Scr /></View>
+        <View style={{ flex: 1 }}>{UI.neg && S.players[UI.neg.pid] ? <Negotiation key={UI.neg.pid} /> : <Scr />}</View>
       </View>
     </View>
   );
@@ -102,13 +104,9 @@ function Main() {
   useBump();
   const autoRef = useRef(0);
   useEffect(() => {
-    const iv = setInterval(() => {
-      if (!S) return; const now = Date.now(); const el = Math.min((now - (S.lastTick || now)) / 1000, offlineCapH() * 3600); S.lastTick = now; if (el > 0) idleTick(el);
-      if (S.auto && !UI.live && !UI.modalOpen) { autoRef.current++; if (autoRef.current >= 30) { autoRef.current = 0; userMatchesThisWeek().forEach(({ d, m }) => { m.res = quickSeries(d, m); applyResult(d, m); }); const wk = S.week; finishWeek(); save(); bump(); toast('⏩ Неделя ' + wk + ' сыграна автоматически'); } }
-    }, 1000);
     const sv = setInterval(save, 15000);
     const sub = AppState.addEventListener('change', s => { if (s !== 'active') save(); });
-    return () => { clearInterval(iv); clearInterval(sv); sub.remove(); };
+    return () => { clearInterval(sv); sub.remove(); };
   }, []);
   return (
     <View style={{ flex: 1 }}>
@@ -123,21 +121,12 @@ export default function App() {
   const [fontsOk] = useFonts({ Exo2_500Medium, Exo2_600SemiBold, Exo2_700Bold, Exo2_800ExtraBold });
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => { });
-    load().then(ok => {
+    loadSettings().then(load).then(ok => {
       if (ok) {
         S.cd = S.cd || { scrim: 0, stream: 0 }; S.creators = S.creators || []; S.tOffers = S.tOffers || []; S.negot = S.negot || {}; S.fac.office = S.fac.office || 1;
         Object.values(S.divs).forEach(dv => { dv.youth = dv.youth || []; dv.out = dv.out || []; });
         UI.d = Object.keys(S.divs)[0]; UI.title = true;
-        const g = offlineGain();
-        if (g) setTimeout(() => openModal(() => (
-          <View>
-            <T h s={20}>С возвращением!</T>
-            <T mu style={{ marginVertical: 8 }}>Пока тебя не было ({g.sec >= 3600 ? (g.sec / 3600).toFixed(1) + ' ч' : Math.round(g.sec / 60) + ' мин'}), организация заработала:</T>
-            <T h s={26} style={{ color: C.good }}>+{money(g.money)}</T>
-            <T s={14} style={{ color: C.blue, marginBottom: 12 }}>+{fmt(g.tp)} очков тренировок</T>
-            <Btn kind="pri" ac={S.org.c1} title="Забрать" onPress={closeModal} />
-          </View>
-        )), 400);
+        S.lastTick = Date.now(); S.auto = false;
       }
       setReady(true);
     });

@@ -7,13 +7,15 @@ import { createCs } from './scenes/cs';
 import { createMoba } from './scenes/moba';
 import { createRl } from './scenes/rl';
 import { createFc } from './scenes/fc';
+import { gfxLevel } from '../ui/settings';
 
 // Уровень графики: 0 — полный, 1 — без теней, 2 — минимальный. Понижается автоматически при ошибках GL.
-let GFX = 0;
+let GFX = 0, AUTO = 0;
 
 export default function Scene3D({ viz, style }) {
   const raf = useRef(null); const alive = useRef(true);
   const [attempt, setAttempt] = useState(0); const [diag, setDiag] = useState(null);
+  GFX = Math.max(gfxLevel(), AUTO);
   useEffect(() => () => { alive.current = false; if (raf.current) cancelAnimationFrame(raf.current); }, []);
   // если за 3 с нет кадров или есть ошибка — показываем диагностику и пробуем пониженную графику
   useEffect(() => {
@@ -21,7 +23,7 @@ export default function Scene3D({ viz, style }) {
     const iv = setInterval(() => {
       const err = viz.glError; const fr = viz.frames || 0;
       if (err) console.warn('GLERR', GFX, err);
-      if (err && fr < 90 && GFX < 2 && attempt < 2) { GFX++; viz.glError = null; viz.frames = 0; if (raf.current) cancelAnimationFrame(raf.current); setAttempt(a => a + 1); return; }
+      if (err && fr < 90 && GFX < 2 && attempt < 2) { AUTO = GFX + 1; GFX = AUTO; viz.glError = null; viz.frames = 0; if (raf.current) cancelAnimationFrame(raf.current); setAttempt(a => a + 1); return; }
       if (err || (fr === 0 && Date.now() - t0 > 3500)) setDiag(`3D: ${err ? String(err).slice(0, 260) : 'нет кадров'} · ${viz.glInfo || ''} · графика ${GFX}`);
       else setDiag(null);
     }, 1000);

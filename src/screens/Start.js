@@ -16,7 +16,7 @@ export default function Start() {
   const gameName = d => real && REAL_PATCH.disciplines[d] ? REAL_PATCH.disciplines[d].game : FAKE[d].game;
   const go = () => {
     const nm = name.trim() || 'Kyiv Phantoms'; const tg = (tag.trim() || nm.replace(/[^A-Za-zА-Яа-яІіЇїЄє]/g, '').slice(0, 3) || 'ORG').toUpperCase().slice(0, 4);
-    newCareer({ name: nm, tag: tg, c1, c2: '#05070b', disc, patchOn: real, patchData: real ? REAL_PATCH : null, logo });
+    UI.newGame = false; newCareer({ name: nm, tag: tg, c1, c2: '#05070b', disc, patchOn: real, patchData: real ? REAL_PATCH : null, logo });
     UI.d = disc; UI.tab = 'home'; save(); bump();
     setTimeout(() => openModal(() => (
       <View>
@@ -34,8 +34,8 @@ export default function Start() {
     <View style={{ flex: 1, flexDirection: 'row', paddingLeft: Math.max(ins.left, 14) + 4, paddingRight: Math.max(ins.right, 14) + 4, paddingTop: Math.max(ins.top, 10), paddingBottom: Math.max(ins.bottom, 10), gap: 18 }}>
       <View style={{ width: 290 * Math.min(1, k + 0.1), justifyContent: 'space-between' }}>
         <View>
-          <T mu s={9} style={{ letterSpacing: 2.5, fontFamily: F.hm }}>ESPORTS MANAGER SIMULATOR</T>
-          <Text style={{ color: C.tx, fontFamily: F.hx, fontSize: Math.round(26 * k), letterSpacing: 0.5, lineHeight: Math.round(30 * k) }}>ESPORTS EMPIRE</Text>
+          <Row gap={10}><Pressable onPress={() => { UI.newGame = false; bump(); }} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: C.line2 }}><T s={11} style={{ fontFamily: F.h }}>‹ Меню</T></Pressable><T mu s={9} style={{ letterSpacing: 2.5, fontFamily: F.hm }}>НОВАЯ ИГРА</T></Row>
+          <Text style={{ color: C.tx, fontFamily: F.hx, fontSize: Math.round(24 * k), letterSpacing: 0.5, lineHeight: Math.round(30 * k), marginTop: 4 }}>Основать организацию</Text>
           <T mu s={11} n={1}>Своя организация · 5 дисциплин · матчи в 3D</T>
         </View>
         <Row gap={10}>

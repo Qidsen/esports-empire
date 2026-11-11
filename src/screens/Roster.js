@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, ScrollView, Pressable, useWindowDimensions } from 'react-native';
-import { S, userTeam, starters, ovr, pnick, pcc, FAKE, DISC_ORDER, pack, teamOvr, standings, staffOf, STAFF_TYPES, mapName, heroName, heroMeta, fmt, divCost, divRep, buyDivision, maxDivs } from '../core/game';
-import { UI, bump, toast, save } from '../ui/store';
-import { T, H, Panel, Btn, Seg, Chips, Row, Stat, Bar, Ovr, Flag, Tag, Role, TeamLogo, GameIcon } from '../ui/kit';
-import { C, F, alpha } from '../ui/theme';
-import PlayerPanel, { PlayerScreen } from './PlayerPanel';
+import { LinearGradient } from 'expo-linear-gradient';
+import { S, userTeam, starters, ovr, pnick, pcc, FAKE, DISC_ORDER, pack, teamOvr, standings, staffOf, STAFF_TYPES, mapName, heroName, heroMeta, fmt, divCost, divRep, buyDivision, maxDivs, tname, ATTRS } from '../core/game';
+import { UI, bump, toast, save, openModal, closeModal } from '../ui/store';
+import { T, H, Panel, Btn, Seg, Chips, Row, Stat, Bar, Ovr, Flag, Tag, Role, TeamLogo, GameIcon, SubTabs } from '../ui/kit';
+import { C, F, alpha, ovrColor } from '../ui/theme';
+import PlayerPanel, { PlayerScreen, swap } from './PlayerPanel';
+import Staff from './Staff';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 export function DiscChips({ all }) { return <Chips ac={UI.d && FAKE[UI.d].color} value={UI.d} onChange={d => { UI.d = d; UI.sel = null; UI.tier = null; bump(); }} items={DISC_ORDER.filter(d => all || S.divs[d]).map(d => [d, `${pack(d).game}${S.divs[d] ? '' : ' 🔒'}`, !S.divs[d], d])} />; }
@@ -34,31 +36,21 @@ export function UnlockCard({ d }) {
     </Panel>
   );
 }
-function TeamSide({ d }) {
+function TeamSide({ d, only }) {
   const t = userTeam(d); const dv = S.divs[d]; const ac = FAKE[d].color;
   const co = staffOf('coach', d)[0], an = staffOf('analyst', d)[0];
   const styles = FAKE[d].kind === 'moba' ? [['agr', 'Давление'], ['bal', 'Баланс'], ['farm', 'Фарм']] : FAKE[d].kind === 'ball' ? [['agr', 'Прессинг'], ['bal', 'Ротации'], ['pas', 'Оборона']] : FAKE[d].kind === 'duel' ? [['agr', 'Атака'], ['bal', 'Баланс'], ['pas', 'Контратаки']] : [['agr', 'Агрессия'], ['bal', 'Стандарт'], ['pas', 'Осторожно']];
   return (
     <View>
-      <Panel>
+      {only === 'tactics' ? <Panel>
         <H>Тактика и тренировки</H>
         <T mu s={11} style={{ marginBottom: 4 }}>Стиль игры</T>
         <Seg ac={ac} value={dv.style} onChange={v => { dv.style = v; save(); bump(); }} items={styles} />
         <T mu s={11} style={{ marginVertical: 4 }}>Фокус недели</T>
         <Seg ac={ac} value={dv.train} onChange={v => { dv.train = v; save(); bump(); }} items={[['bal', 'Баланс'], ['mech', 'Механика'], ['tac', 'Тактика'], ['rest', 'Отдых']]} />
         <T mu s={10.5} style={{ marginTop: 4 }}>{{ bal: 'Ровный рост всех навыков.', mech: 'Механика и клатч растут быстрее.', tac: 'IQ и командная игра + химия.', rest: 'Слабый рост, но мораль быстро восстанавливается.' }[dv.train]}</T>
-      </Panel>
-      <Panel>
-        <H>Штаб дивизиона</H>
-        {[['coach', co], ['analyst', an]].map(([k, s]) => (
-          <Pressable key={k} onPress={() => { UI.tab = 'org'; UI.org = 'staff'; bump(); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 }}>
-            <Text style={{ fontSize: 20 }}>{STAFF_TYPES[k].i}</Text>
-            <View style={{ flex: 1 }}><T h s={13}>{s ? s.name : 'Вакансия'}</T><T mu s={10.5}>{STAFF_TYPES[k].n}{s ? ' · $' + fmt(s.sal) + '/нед' : ' · нажми, чтобы нанять'}</T></View>
-            {s ? <Ovr o={s.sk * 5} s={16} style={{ minWidth: 20 }} /> : <Tag t="нанять" c={ac} />}
-          </Pressable>
-        ))}
-      </Panel>
-      {FAKE[d].kind === 'fps' ? (
+      </Panel> : null}
+      {only === 'pool' && FAKE[d].kind === 'fps' ? (
         <Panel>
           <H right={<T mu s={10}>фокус: до 2 карт</T>}>Маппул</H>
           {t.prac.map((v, i) => (
@@ -71,7 +63,7 @@ function TeamSide({ d }) {
           ))}
         </Panel>
       ) : null}
-      {FAKE[d].kind === 'moba' ? (
+      {only === 'pool' && FAKE[d].kind === 'moba' ? (
         <Panel>
           <H>Пулы героев · мета</H>
           {starters(t).map(p => (
@@ -85,6 +77,55 @@ function TeamSide({ d }) {
     </View>
   );
 }
+const SHORT_ATTR = { mech: 'МЕХ', iq: 'IQ', tw: 'КОМ', cl: 'КЛЧ', con: 'СТБ' };
+function subModal(t, d, p, starter) {
+  // starter=true: кого выпустить вместо p; иначе: кого из основы заменить на p
+  const st = starters(t); const bench = t.roster.map(i => S.players[i]).filter(x => x && !st.includes(x));
+  const list = (starter ? bench : st).slice().sort((a, b) => (b.role === p.role) - (a.role === p.role) || ovr(b) - ovr(a));
+  openModal(() => (
+    <View>
+      <T h s={17}>{starter ? 'Замена: кто выйдет вместо ' + pnick(p) : pnick(p) + ' в основу — вместо кого?'}</T>
+      <T mu s={11} style={{ marginBottom: 8 }}>Игроки своей роли — сверху. Каждая замена немного снижает химию.</T>
+      {list.length ? list.map(x => { const dlt = ovr(starter ? x : p) - ovr(starter ? p : x); return (
+        <Pressable key={x.id} onPress={() => { if (starter) swap(t, x, p); else swap(t, p, x); save(); closeModal(); toast('🔁 ' + pnick(starter ? x : p) + ' в основе'); bump(); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line, marginBottom: 6, backgroundColor: x.role === p.role ? alpha(FAKE[d].color, 0.1) : 'transparent' }}>
+          <Role t={FAKE[d].roles[x.role]} /><Flag cc={pcc(x)} />
+          <View style={{ flex: 1 }}><T h s={14}>{pnick(x)}</T><T mu s={11}>{x.age} л. · мораль {x.mor} · форма {x.form > 0 ? '+' : ''}{x.form}</T></View>
+          <T num s={12} style={{ color: dlt > 0 ? C.good : dlt < 0 ? C.bad : C.mu }}>{dlt > 0 ? '+' : ''}{dlt}</T>
+          <Ovr o={ovr(x)} s={20} />
+        </Pressable>); }) : <T mu>Некого поставить — купи игрока на Рынке.</T>}
+      <Btn style={{ marginTop: 4 }} title="Отмена" onPress={closeModal} />
+    </View>
+  ));
+}
+function PCard({ p, d, t, canSub }) {
+  const ac = FAKE[d].color; const o = ovr(p); const rt = p.st.mp ? (p.st.rt / p.st.mp).toFixed(2) : '—';
+  return (
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <Pressable onPress={() => { UI.sel = p.id; bump(); }}>
+        <LinearGradient colors={[alpha(ac, 0.22), 'rgba(14,20,34,0.92)']} style={{ borderRadius: 12, borderWidth: 1, borderColor: alpha(ac, 0.45), padding: 9 }}>
+          <Row gap={6}><Role t={FAKE[d].roles[p.role]} /><View style={{ flex: 1 }} /><Ovr o={o} s={22} /></Row>
+          <Row gap={5} style={{ marginTop: 4 }}><Flag cc={pcc(p)} /><T h s={14.5} n={1} style={{ flexShrink: 1 }}>{pnick(p)}</T></Row>
+          <T mu s={10} n={1}>{p.age} л. · рейт. {rt} · {p.st.mp} игр</T>
+          <View style={{ marginTop: 6, gap: 2 }}>
+            {ATTRS.map(([k]) => <Row key={k} gap={5}><T mu s={8.5} style={{ width: 24, fontFamily: F.h }}>{SHORT_ATTR[k]}</T><Bar v={p[k]} ac={ovrColor(p[k])} h={4} style={{ flex: 1 }} /><T num s={9.5} style={{ width: 18, textAlign: 'right' }}>{p[k]}</T></Row>)}
+          </View>
+          <Row style={{ marginTop: 6 }}><T mu s={9.5} style={{ flex: 1 }}>Мораль {p.mor}</T><T s={9.5} style={{ color: p.form > 0 ? C.good : p.form < 0 ? C.bad : C.mu }}>форма {p.form > 0 ? '+' : ''}{p.form}</T></Row>
+          <Bar v={p.mor} ac={p.mor >= 60 ? C.good : p.mor >= 35 ? C.gold : C.bad} h={3} />
+          {p.wantRaise || p.transferReq ? <T s={9.5} n={1} style={{ color: C.bad, marginTop: 3 }}>{p.transferReq ? '⚠ хочет уйти' : '⚠ просит повышения'}</T> : null}
+        </LinearGradient>
+      </Pressable>
+      {canSub ? <Pressable onPress={() => subModal(t, d, p, true)} style={{ marginTop: 5, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: C.line }}><T s={11} style={{ fontFamily: F.h }}>⇄ Замена</T></Pressable> : null}
+    </View>
+  );
+}
+function BenchRow({ p, d, t, canIn }) {
+  return (
+    <Row gap={6}>
+      <View style={{ flex: 1 }}><PRow p={p} d={d} /></View>
+      {canIn ? <Pressable onPress={() => subModal(t, d, p, false)} style={{ paddingHorizontal: 10, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: alpha(FAKE[d].color, 0.18), borderWidth: 1, borderColor: alpha(FAKE[d].color, 0.5) }}><T s={11} style={{ fontFamily: F.h }}>В основу</T></Pressable> : null}
+    </Row>
+  );
+}
 export default function Roster() {
   const { width: WW } = useWindowDimensions(); const narrow = WW < 1100;
   const d = UI.d; if (!d) return null;
@@ -93,28 +134,35 @@ export default function Roster() {
   const youth = (dv.youth || []).map(i => S.players[i]).filter(Boolean); const out = (dv.out || []).map(i => S.players[i]).filter(Boolean);
   const pos = standings(d, t.tier).findIndex(x => x.id === t.id) + 1; const mor = Math.round(st.reduce((a, p) => a + p.mor, 0) / st.length);
   const sel = UI.sel && S.players[UI.sel] && S.players[UI.sel].d === d ? S.players[UI.sel] : null;
-  if (narrow && sel) return <PlayerScreen p={sel} back="К составу" />;
+  if (sel) return <PlayerScreen p={sel} back="К составу" />;
+  const sec = UI.rsec || 'players'; const ac = FAKE[d].color;
+  const kind = FAKE[d].kind;
+  const tabs = [['players', 'Игроки', '👥'], ['tactics', 'Тактика', '🎯'], ...(kind === 'fps' ? [['pool', 'Маппул', '🗺️']] : kind === 'moba' ? [['pool', 'Герои', '🦸']] : []), ['staff', 'Штаб', '🧠']];
   return (
     <View style={{ flex: 1, padding: 10 }}>
-      <DiscChips all />
-      <View style={{ flex: 1, flexDirection: 'row', gap: 10 }}>
-        <ScrollView style={{ width: 340, flexGrow: 0 }}>
-          <Panel ac={FAKE[d].color}>
-            <Row gap={10}><TeamLogo t={t} size={46} /><View style={{ flex: 1 }}><T h s={16} n={1}>{pack(d).game}</T><T mu s={11}>{pack(d).leagues[t.tier]} · {pos}-е место</T></View><View style={{ alignItems: 'flex-end' }}><Ovr o={teamOvr(t)} s={28} /><T mu s={9}>OVR</T></View></Row>
-            <Row style={{ marginTop: 8 }}>
-              <View style={{ flex: 1 }}><Row><T mu s={10.5} style={{ flex: 1 }}>Химия</T><T num s={11}>{Math.round(t.chem)}</T></Row><Bar v={t.chem} ac={FAKE[d].color} /></View>
-              <View style={{ flex: 1 }}><Row><T mu s={10.5} style={{ flex: 1 }}>Мораль</T><T num s={11}>{mor}</T></Row><Bar v={mor} ac={C.good} /></View>
-            </Row>
-          </Panel>
-          <Panel pad={8}><H style={{ marginLeft: 4 }}>{`Основа · ${FAKE[d].size}`}</H>{st.map(p => <PRow key={p.id} p={p} d={d} />)}</Panel>
-          <Panel pad={8}><H style={{ marginLeft: 4 }} right={<T mu s={10}>всего до 7</T>}>{`Запас · ${bench.length}`}</H>{bench.length ? bench.map(p => <PRow key={p.id} p={p} d={d} />) : <T mu s={11} style={{ margin: 4 }}>Пусто — подпиши игроков на Рынке</T>}</Panel>
-          <Panel pad={8}><H style={{ marginLeft: 4 }} right={<T mu s={10}>до 6 · академия ур.{S.fac.academy}</T>}>{`🌱 Молодёжка · ${youth.length}`}</H>{youth.length ? youth.map(p => <PRow key={p.id} p={p} d={d} />) : <T mu s={11} style={{ margin: 4 }}>Таланты 15–17 лет — Рынок → Академия</T>}</Panel>
-          {out.length ? <Panel pad={8}><H style={{ marginLeft: 4 }}>{`✈️ В аренде · ${out.length}`}</H>{out.map(p => <PRow key={p.id} p={p} d={d} />)}</Panel> : null}
-        </ScrollView>
+      <SubTabs ac={ac} value={sec} onChange={v => { UI.rsec = v; bump(); }} items={tabs} right={<DiscPick />} />
+      {sec === 'players' ? (
         <ScrollView style={{ flex: 1 }}>
-          {sel ? <Panel><Row style={{ marginBottom: 4 }}><View style={{ flex: 1 }} /><Btn small title="✕ Закрыть" onPress={() => { UI.sel = null; bump(); }} /></Row><PlayerPanel p={sel} /></Panel> : <TeamSide d={d} />}
+          <Row gap={10} style={{ marginBottom: 8 }}>
+            <TeamLogo t={t} size={38} />
+            <View style={{ flex: 1 }}><T h s={15} n={1}>{tname(t)} · {pack(d).game}</T><T mu s={11}>{pack(d).leagues[t.tier]} · {pos}-е место · OVR {teamOvr(t)}</T></View>
+            <View style={{ width: 120 }}><Row><T mu s={10} style={{ flex: 1 }}>Химия</T><T num s={10.5}>{Math.round(t.chem)}</T></Row><Bar v={t.chem} ac={ac} h={5} /></View>
+            <View style={{ width: 120 }}><Row><T mu s={10} style={{ flex: 1 }}>Мораль</T><T num s={10.5}>{mor}</T></Row><Bar v={mor} ac={C.good} h={5} /></View>
+          </Row>
+          <T mu s={10} style={{ fontFamily: F.h, letterSpacing: 1.4, marginBottom: 5 }}>ОСНОВА · {FAKE[d].size}</T>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>{st.map(p => <PCard key={p.id} p={p} d={d} t={t} canSub={bench.length > 0} />)}</View>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Panel pad={8} style={{ flex: 1 }}><H style={{ marginLeft: 4 }} right={<T mu s={10}>в составе до 7</T>}>{`Запас · ${bench.length}`}</H>{bench.length ? bench.map(p => <BenchRow key={p.id} p={p} d={d} t={t} canIn={!p.loanOut} />) : <T mu s={11} style={{ margin: 4 }}>Пусто — купи игрока на Рынке.</T>}</Panel>
+            <Panel pad={8} style={{ flex: 1 }}><H style={{ marginLeft: 4 }} right={<T mu s={10}>до 6</T>}>{`Молодёжка · ${youth.length}`}</H>{youth.length ? youth.map(p => <PRow key={p.id} p={p} d={d} />) : <T mu s={11} style={{ margin: 4 }}>Таланты — на Рынке → Академия.</T>}{out.length ? <><H style={{ marginLeft: 4, marginTop: 6 }}>{`В аренде · ${out.length}`}</H>{out.map(p => <PRow key={p.id} p={p} d={d} />)}</> : null}</Panel>
+          </View>
         </ScrollView>
-      </View>
+      ) : sec === 'staff' ? <Staff onlyDiv={d} /> : (
+        <ScrollView style={{ flex: 1 }}><TeamSide d={d} only={sec} /></ScrollView>
+      )}
     </View>
   );
+}
+function DiscPick() {
+  const ds = Object.keys(S.divs); if (ds.length < 2) return null;
+  return <Row gap={4}>{ds.map(d => <Pressable key={d} onPress={() => { UI.d = d; UI.sel = null; bump(); }} style={{ padding: 3, borderRadius: 9, borderWidth: 1, borderColor: UI.d === d ? FAKE[d].color : 'transparent' }}><GameIcon d={d} size={26} /></Pressable>)}</Row>;
 }

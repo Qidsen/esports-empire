@@ -4,6 +4,7 @@ import { S, ovr, potView, pnick, pcc, FAKE, T as TT, tname, ttag, pack, heroName
 import { UI, bump, toast, save, openModal, closeModal } from '../ui/store';
 import { T, H, Panel, Btn, Seg, Row, Stat, Bar, Ovr, Flag, Tag, Role, Stars, Sep } from '../ui/kit';
 import { C, F, ovrColor } from '../ui/theme';
+import { openNegotiation } from './Negotiation';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 function confirm(text, yes, fn) { openModal(() => <View><T h s={18}>Подтверждение</T><T style={{ marginVertical: 10 }}>{text}</T><Row><Btn style={{ flex: 1 }} title="Отмена" onPress={closeModal} /><Btn style={{ flex: 1 }} kind="pri" ac={S.org.c1} title={yes} onPress={() => { closeModal(); fn(); }} /></Row></View>); }
@@ -60,17 +61,11 @@ export default function PlayerPanel({ p, compact, back }) {
         <View style={{ flex: 1 }}>
           {!mine && ut ? (
             <Panel ac={ac}>
-              {p.team && !TT(p.team).user ? <>
-                <H>Трансфер</H>
-                <T mu s={11.5}>Стоимость {money(feeFor(p))} · шанс согласия клуба ≈{Math.round(buyChance(p, bid) * 100)}%</T>
-                <Seg ac={ac} style={{ marginTop: 6 }} value={bid} onChange={setBid} items={[[0.9, '90%'], [1.0, '100%'], [1.2, '120%'], [1.4, '140%']]} />
-              </> : <H>{UI.mk === 'acad' ? 'Академия' : 'Свободный агент'}</H>}
+              <H>{p.team && !TT(p.team).user ? 'Трансфер' : UI.mk === 'acad' ? 'Академия' : 'Свободный агент'}</H>
               {UI.mk !== 'acad' ? <>
-                <T mu s={11.5} style={{ marginTop: 8 }}>Зарплата: просит ${fmt(signDemand(p).sal)}/нед{signDemand(p).mult > 1.05 ? ' (наценка за малоизвестный клуб)' : ''}</T>
-                <Seg ac={ac} style={{ marginTop: 6 }} value={sal} onChange={setSal} items={[[0.9, '−10%'], [1.0, 'как просит'], [1.15, '+15%']]} />
-                <Seg ac={ac} style={{ marginTop: 6 }} value={yrs} onChange={setYrs} items={[[1, '1 сезон'], [2, '2 сезона'], [3, '3 сезона']]} />
-                {counter ? <View style={{ marginTop: 8 }}><T s={12} style={{ color: C.gold }}>Встречное предложение: {money(counter.fee)}</T><Btn style={{ marginTop: 6 }} kind="good" title="Принять встречное" onPress={() => { const r = acceptCounter(p, counter.mult, yrs); setCounter(null); done(r.err, '✍️ ' + pnick(p) + ' подписан!'); }} /></View> : null}
-                <Btn style={{ marginTop: 8 }} kind="pri" ac={ac} disabled={signDemand(p).refuse} title={signDemand(p).refuse ? 'Не пойдёт в ваш клуб' : p.team ? `Предложить ${money(Math.round(feeFor(p) * bid * agentDisc() / 100) * 100)}` : 'Подписать'} onPress={() => { const r = buyWithBid(p, p.team ? bid : 1, yrs, sal); if (r.ok) done(null, '✍️ ' + pnick(p) + ' подписан!'); else { if (r.counter) setCounter({ fee: r.counter, mult: r.counterMult }); done(r.err); } }} />
+                {p.team && !TT(p.team).user ? <T mu s={11.5}>Оценка клуба: {money(feeFor(p))}</T> : null}
+                <T mu s={11.5}>Ожидает зарплату около ${fmt(signDemand(p).sal)}/нед{signDemand(p).mult > 1.05 ? ' (наценка за малоизвестный клуб)' : ''}</T>
+                <Btn style={{ marginTop: 8 }} kind="pri" ac={ac} disabled={signDemand(p).refuse || S.negot[p.id + ':' + S.season + ':' + S.week] === 'no'} title={signDemand(p).refuse ? 'Не пойдёт в ваш клуб' : S.negot[p.id + ':' + S.season + ':' + S.week] === 'no' ? 'Отказ на этой неделе' : '📝 Начать переговоры'} onPress={() => openNegotiation(p)} />
               </> : <Btn style={{ marginTop: 8 }} kind="pri" ac={ac} title={`В молодёжку · ${money(feeFor(p))}`} onPress={() => done(signYouth(p), '🌱 ' + pnick(p) + ' в молодёжке!')} />}
               {isLoanable(p) ? <Btn style={{ marginTop: 8 }} title={`Аренда до конца сезона · ${money(loanInCost(p))}`} onPress={() => done(loanIn(p), '🔄 Аренда оформлена')} /> : null}
             </Panel>
@@ -126,4 +121,4 @@ function MineActions({ p, done }) {
     </>
   );
 }
-function swap(t, inP, outP) { inP.bench = false; outP.bench = true; const a = t.roster.indexOf(inP.id), b = t.roster.indexOf(outP.id); t.roster[a] = outP.id; t.roster[b] = inP.id; t.chem = Math.max(0, t.chem - 3); }
+export function swap(t, inP, outP) { inP.bench = false; outP.bench = true; const a = t.roster.indexOf(inP.id), b = t.roster.indexOf(outP.id); t.roster[a] = outP.id; t.roster[b] = inP.id; t.chem = Math.max(0, t.chem - 3); }

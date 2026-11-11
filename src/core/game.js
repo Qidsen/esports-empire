@@ -98,12 +98,12 @@ const STAFF_TYPES = {
 };
 
 const FACILITIES = {
-  house:   { n: 'Геймхаус', i: '🏠', base: 8000,  d: 'Очки тренировок в секунду и рост игроков' },
-  studio:  { n: 'Стрим-студия', i: '🎥', base: 6000,  d: 'Пассивный доход со стримов' },
+  house:   { n: 'Геймхаус', i: '🏠', base: 8000,  d: 'Больше очков тренировок за неделю и рост игроков' },
+  studio:  { n: 'Стрим-студия', i: '🎥', base: 6000,  d: 'Больше медиа-дохода за неделю' },
   analytics:{ n: 'Аналитический центр', i: '🖥️', base: 10000, d: 'Быстрее растёт знание карт и героев' },
-  marketing:{ n: 'Медиа-отдел', i: '📣', base: 7000,  d: 'Больше новых фанатов за победы и стримы' },
+  marketing:{ n: 'Медиа-отдел', i: '📣', base: 7000,  d: 'Больше новых фанатов за победы' },
   wellness:{ n: 'Wellness-зона', i: '🧖', base: 9000,  d: 'Мораль быстрее восстанавливается' },
-  server:  { n: 'Серверная', i: '🗄️', base: 5000,  d: 'Дольше копится офлайн-доход (2 ч → 12 ч)' },
+  server:  { n: 'Скрим-сервера', i: '🗄️', base: 5000,  d: 'Быстрее растёт знание карт и героев на скримах' },
   academy: { n: 'Академия', i: '🎓', base: 15000, d: 'Талантливее молодёжь, быстрее растёт молодёжный состав' },
   office:  { n: 'Офис', i: '🏢', base: 20000, d: 'Больше дивизионов (1 + 1 за каждые 2 уровня), +1 слот спонсора за 3 уровня, рост репутации' }
 };
@@ -293,6 +293,11 @@ function advanceWC(d) { const C = S.world[d].wc; const last = C.rounds[C.rounds.
 
 // ---- prize & economy ----
 const PRIZE = { win: [9000, 3500, 1200], po: [[60000, 25000], [20000, 8000], [7000, 2500]], wc: [500000, 200000, 80000, 30000] };
+// Еженедельные доходы (никакого пассивного дохода в реальном времени — только игровые недели)
+const LEAGUE_PAY = [9000, 4000, 2200];
+function leagueWeekly() { return Object.keys(S.divs).reduce((a, d) => a + LEAGUE_PAY[userTeam(d).tier], 0); }
+function mediaWeekly() { let m = 400 + S.fans * 0.5 * (1 + 0.3 * S.fac.studio) * (1 + staffSk('media') * 0.02); S.creators.forEach(c => m += c.inc * 2500); return Math.round(m / 10) * 10; }
+function tpWeekly() { const ndiv = Object.keys(S.divs).length; return Math.round(60 * (1 + 0.35 * S.fac.house) * (1 + 0.15 * (ndiv - 1))); }
 function passiveRate() { let r = 0.5 + S.fans * 0.00012 * (1 + 0.3 * S.fac.studio) * (1 + staffSk('media') * 0.02); S.creators.forEach(c => r += c.inc); return r; }
 function tpRate() { const ndiv = Object.keys(S.divs).length; return 0.15 * (1 + 0.35 * S.fac.house) * (1 + 0.15 * (ndiv - 1)); }
 function offlineCapH() { return 2 + S.fac.server; }
@@ -316,8 +321,8 @@ function genStaffMarket() {
   S.staffMarket = [];
   const lvl = 4 + S.rep / 9 + S.fac.academy * 0.3;
   Object.keys(STAFF_TYPES).forEach(type => {
-    const n = STAFF_TYPES[type].div ? 2 : 2;
-    for (let k = 0; k < n; k++) { const ds = Object.keys(S.divs); const s = genStaff(type, pick(ds), lvl + ri(-3, 4)); S.staffMarket.push(s); }
+    const ds = STAFF_TYPES[type].div ? Object.keys(S.divs) : [pick(Object.keys(S.divs))];
+    ds.forEach(d => { for (let k = 0; k < 3; k++) S.staffMarket.push(genStaff(type, d, lvl + ri(-3, 4))); });
   });
 }
 function refreshAcademy(d) {
@@ -401,6 +406,7 @@ function finishWeek() {
   // economy
   const c = weeklyCosts(); S.money -= c; log.cost = c;
   const sp = weeklySponsor(); S.money += sp; log.spons = sp;
+  const md = mediaWeekly(); S.money += md; log.media = md; const lp = leagueWeekly(); S.money += lp; log.league = lp; const tpg = tpWeekly(); S.tp += tpg; log.tp = tpg;
   S.sponsors.forEach(s => s.weeks--); const ended = S.sponsors.filter(s => s.weeks <= 0); ended.forEach(s => news('📄 Контракт со спонсором ' + s.name + ' завершён'));
   S.sponsors = S.sponsors.filter(s => s.weeks > 0);
   // growth
@@ -409,11 +415,16 @@ function finishWeek() {
   // practice & chemistry
   Object.keys(S.divs).forEach(d => {
     const t = userTeam(d); const a = staffSk('analyst', d); const dv = S.divs[d];
-    t.prac = t.prac.map((v, i) => clamp(v + (dv.focus.includes(i) ? 3 + a * 0.25 + S.fac.analytics * 0.4 : -0.6 + a * 0.05), 10, 100));
+    t.prac = t.prac.map((v, i) => clamp(v + (dv.focus.includes(i) ? 3 + a * 0.25 + S.fac.analytics * 0.4 + S.fac.server * 0.3 : -0.6 + a * 0.05), 10, 100));
     t.chem = clamp(t.chem + 2 + (dv.train === 'tac' ? 1.5 : 0), 0, 100);
     if (FAKE[d].kind === 'moba') starters(t).forEach(p => p.pool.forEach(x => x[1] = clamp(x[1] + (a * 0.06 + S.fac.analytics * 0.1) * rnd(), 20, 99)));
   });
   DISC_ORDER.forEach(d => S.world[d].teams.forEach(t => { if (!t.user) { t.chem = clamp(t.chem + 1, 0, 95); t.prac = t.prac.map(v => clamp(v + gauss() * 2, 20, 98)); } }));
+  // план недели: скримы / стрим-марафон / отдых
+  const plan = S.weekPlan || 'scrim'; log.plan = plan;
+  if (plan === 'scrim') { Object.keys(S.divs).forEach(d => { const t = userTeam(d); t.chem = clamp(t.chem + 2, 0, 100); const f = S.divs[d].focus; t.prac = t.prac.map((v, i) => clamp(v + (f.includes(i) ? 1.5 : 0.5), 10, 100)); }); S.tp += Math.round(tpWeekly() * 0.25); }
+  else if (plan === 'stream') { const f = Math.round((40 + S.fans * 0.03) * (1 + S.fac.marketing * 0.15)); const m = Math.round(f * 4 * (1 + S.fac.studio * 0.2)); S.fans += f; S.money += m; log.stream = { f, m }; Object.keys(S.divs).forEach(d => { const t = userTeam(d); t.chem = clamp(t.chem - 1, 0, 100); }); }
+  else if (plan === 'rest') { Object.keys(S.divs).forEach(d => userTeam(d).roster.forEach(i => { const p = S.players[i]; if (p) p.mor = clamp(p.mor + 5, 0, 100); })); }
   // fans organic
   S.fans += Math.round(S.fans * 0.004 * (1 + S.fac.marketing * 0.2) + staffSk('media') * 3);
   // meta patch
@@ -462,6 +473,7 @@ function applyResult(d, m) {
     if (m.po === 2) prize = PRIZE.po[t.tier][won ? 0 : 1];
     if (m.wc) { const stage = m.wc; if (stage === 3) prize = won ? PRIZE.wc[0] : PRIZE.wc[1]; else if (!won) prize = stage === 2 ? PRIZE.wc[2] : PRIZE.wc[3]; }
     if (won) S.sponsors.forEach(s => prize += s.win);
+    if (won) { const wb = t.roster.reduce((a, i) => { const p = S.players[i]; return a + (p && p.winB ? Math.round(p.sal * p.winB) : 0); }, 0); if (wb) { prize -= wb; } }
     S.money += prize;
     const fg = won ? Math.round((40 + (2 - t.tier) * 120 + (m.wc ? 1500 : 0) + (m.po ? 300 : 0)) * (1 + S.fac.marketing * 0.2)) : Math.round(10 + (2 - t.tier) * 20);
     S.fans += fg;
@@ -996,10 +1008,15 @@ function weeklyManagement() {
   Object.keys(S.divs).forEach(d => {
     const ut = userTeam(d), dv = S.divs[d]; dv.youth = dv.youth || []; dv.out = dv.out || [];
     const st = starters(ut); let raisedThisWeek = false;
+    ut.roster.forEach(i => { const p = S.players[i]; if (p && p.promise === 'start' && !st.includes(p)) { p.mor = clamp(p.mor - 3, 0, 100); if (!p.promiseWarn) { p.promiseWarn = true; news('😠 ' + pnick(p) + ' напоминает: ему обещали место в основе', 'bad'); } } else if (p) p.promiseWarn = false; });
     ut.roster.forEach(i => { const p = S.players[i]; if (!p || p.standin) return; let dm = st.includes(p) ? 1 : (p.age <= 19 ? 0 : -2); if (p.raiseCD > 0) p.raiseCD--; const under = p.sal < salaryFor(p) * 0.7; if (!under) p.wantRaise = false; else if (p.wantRaise) dm -= 1; else if (!p.raiseCD && !p.loanIn && !raisedThisWeek && rnd() < 0.35) { p.wantRaise = true; raisedThisWeek = true; news('💬 ' + pnick(p) + ' вырос как игрок и просит пересмотреть зарплату', 'bad'); } p.mor = clamp(p.mor + dm, 0, 100); if (p.mor < 25 && !p.transferReq) { p.transferReq = true; news('📢 ' + pnick(p) + ' просит выставить его на трансфер!', 'bad'); } if (p.mor > 55) p.transferReq = false; if (p.ctr === 1 && S.week === 12 && !p.loanIn) news('⏳ У ' + pnick(p) + ' последний год контракта — продли, иначе уйдёт бесплатно', 'bad'); });
     const yb = S.fac.academy * 0.07 + staffSk('youth') * 0.05;
     dv.youth.forEach(i => { const p = S.players[i]; if (!p) return; ATTRS.forEach(([a]) => { p.xp[a] = (p.xp[a] || 0) + yb * (0.5 + rnd()); while (p.xp[a] >= 1) { p.xp[a] -= 1; if (ovr(p) < p.pot) p[a] = Math.min(99, p[a] + 1); } }); p.mor = clamp(p.mor + 1, 0, 100); });
     dv.out.forEach(i => { const p = S.players[i]; if (!p) return; ATTRS.forEach(([a]) => { p.xp[a] = (p.xp[a] || 0) + 0.25 * (0.5 + rnd()); while (p.xp[a] >= 1) { p.xp[a] -= 1; if (ovr(p) < p.pot) p[a] = Math.min(99, p[a] + 1); } }); p.mor = clamp(p.mor + 1, 0, 100); });
+    // отступные: богатый клуб может выкупить игрока, заплатив сумму отступных
+    ut.roster.map(i => S.players[i]).filter(p => p && p.clause && !p.loanIn).forEach(p => {
+      if (rnd() < 0.05 * Math.max(0, (valueOf(p) * 2.2 - p.clause) / Math.max(1, valueOf(p)) + 0.3)) { const buyers = S.world[d].teams.filter(t => !t.user && t.tier <= ut.tier && t.roster.length < 7); if (buyers.length && ut.roster.length > FAKE[d].size) { const tb = pick(buyers); news('💥 ' + tname(tb) + ' активировали отступные ' + pnick(p) + ' ($' + fmt(p.clause) + ')', 'bad'); sellPlayer(p, tb, p.clause); p.clause = null; } }
+    });
     // incoming offers
     if (rnd() < 0.3 + S.rep / 400) {
       const cands = ut.roster.map(i => S.players[i]).filter(p => p && !p.loanIn && !p.standin && !S.tOffers.some(o => o.pid === p.id)); if (cands.length) {
@@ -1031,4 +1048,6 @@ function seasonManagement() {
 }
 
 export { answerRaise };
+export { mediaWeekly, tpWeekly };
+export { leagueWeekly };
 export { ATTRS,BallGame,CC_WEIGHTED,COUNTRIES,CREATOR_TYPES,DISC_ORDER,DRAFT_ORDER_5,DRAFT_ORDER_6,DW,DuelGame,ENTRY_ROLE,EVENTS,FACILITIES,FAKE,FIRST,FLAG,FpsMap,H,KW,LAST,MobaGame,NICK_A,NICK_SUF,NWS,PRIZE,RL_SHOOT,SEASON_WEEKS,SPONSOR_NAMES,STAFF_TYPES,T,TEAM_A,TEAM_B,TEAM_COLORS,acceptCounter,advanceWC,agentDisc,aiDraftChoice,aiTransfer,aiVetoChoice,alignOvr,applyPatchNames,applyResult,autoDraft,autoVeto,avgR,baseMod,bestPlayerFor,buildFac,buildWorld,buyChance,buyDivision,buyWithBid,canUp,clamp,divCost,divRep,doUp,draftApply,draftOrder,draftTaken,draftValue,ensureFive,extendDemand,facCost,fcPair,feeFor,finishWeek,fmt,fpsRating,gauss,genNick,genOffers,genPlayer,genPool,genStaff,genStaffMarket,genTeamName,heroList,heroMeta,heroName,hireCreator,hireStaff,idleTick,isLoanable,isUserPlayer,loanIn,loanInCost,loanOut,loanOutTarget,makeSchedule,mapName,maxDivs,mergeStats,metaShift,mobaRating,moodFactors,negKey,newCareer,newDraft,newPS,newSeason,newStats,news,nid,offlineCapH,offlineGain,ovr,pSkill,pack,passiveRate,pcc,phaseOf,pick,pnick,potView,prof,promoteYouth,quickSeries,randomEvent,refreshAcademy,releasePlayer,releaseYouth,respondOffer,ri,rnd,salaryFor,scaleCurve,scrim,seasonManagement,sellPlayer,seriesBo,seriesFinalize,setupFinals,setupPlayoffs,setupWC,shuffle,sig,signDemand,signPlayer,signYouth,sponsorSlots,staffOf,staffSk,standings,starters,stream,talk,teamColor,teamCtx,teamOf,teamOvr,tname,tpRate,ttag,unlockDivision,upCost,userMatchesThisWeek,userTeam,userTeamIds,validatePatch,valueOf,vetoOrder,weekMatches,weeklyCosts,weeklyGrowth,weeklyManagement,weeklySponsor,wpick };

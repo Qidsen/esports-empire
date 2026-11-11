@@ -8,6 +8,7 @@ import { T, Btn, Seg, Row, TeamLogo, Flag, Tag } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 import Scene3D from './Scene3D';
 import { runQueue } from '../screens/flow';
+import { SET } from '../ui/settings';
 
 const SPEEDS = [1, 2, 4, 8];
 const STEP = { fps: 6000, moba: 1000, ball: 1150, duel: 190 };
@@ -21,7 +22,7 @@ export default function Live() {
     const { d, m } = UI.live; const A = teamOf(d, m.a), B = teamOf(d, m.b); const cA = teamCtx(A, d), cB = teamCtx(B, d); const kind = FAKE[d].kind; const bo = seriesBo(d, m.bo);
     let ca = A.user ? S.org.c1 : A.color, cb = B.user ? S.org.c1 : B.color; if (colorDist(ca, cb) < 120) cb = colorDist(ca, '#e8e8e8') > 200 ? '#e8e8e8' : '#3fa9f5';
     const viz = { kind, d, ca, cb, pa: cA.players.map(p => ({ id: p.id, role: p.role })), pb: cB.players.map(p => ({ id: p.id, role: p.role })), map: 0, evSeq: 0, events: [] };
-    Lr.current = { d, m, A, B, cA, cB, kind, bo, need: Math.ceil(bo / 2), us: A.user ? 'A' : 'B', sa: 0, sb: 0, maps: [], acc: {}, speed: 1, phase: '', feed: [], cur: null, g: 0, sel: null, hrole: -1, viz, ready: false, shown: [0, 0], board: false, tm: null };
+    Lr.current = { d, m, A, B, cA, cB, kind, bo, need: Math.ceil(bo / 2), us: A.user ? 'A' : 'B', sa: 0, sb: 0, maps: [], acc: {}, speed: SET.speed || 1, phase: '', feed: [], cur: null, g: 0, sel: null, hrole: -1, viz, ready: false, shown: [0, 0], board: false, tm: null };
   }
   const L = Lr.current;
   const ins = useSafeAreaInsets(); const padL = Math.max(ins.left, 10), padR = Math.max(ins.right, 10);
