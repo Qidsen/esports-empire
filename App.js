@@ -24,6 +24,7 @@ import { Ico, IconText } from './src/ui/icons';
 import { music, sfx } from './src/ui/audio';
 
 import * as G from './src/core/game';
+import './src/core/legacy';
 import TrophyShow from './src/screens/TrophyShow';
 if (Platform.OS === 'web') globalThis.__APP = { G, UI, bump: () => bump() };
 const TABS = [['home', 'castle', 'Штаб'], ['roster', 'friends', 'Состав'], ['market', 'trade', 'Рынок'], ['comp', 'trophy', 'Турниры'], ['org', 'building', 'Клуб']];
@@ -90,6 +91,7 @@ function Toasts() {
 function Shell() {
   useBump();
   const ins = useSafeAreaInsets();
+  useEffect(() => { if (S && S.toastQ && S.toastQ.length) { const q = S.toastQ; S.toastQ = []; q.forEach((t, i) => setTimeout(() => { toast(t); sfx('ui_confirm'); }, 400 + i * 900)); } });
   useEffect(() => { if (!UI.live) music(!S || UI.title || UI.newGame ? 'music_menu' : 'music_hub'); });
   if (!S) return UI.newGame ? <Start /> : <Title />;
   if (UI.title) return <Title />;

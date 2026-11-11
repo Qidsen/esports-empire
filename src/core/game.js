@@ -110,6 +110,10 @@ const FACILITIES = {
 
 // Season calendar
 const SEASON_WEEKS = 20;
+// хуки для модулей прогресса (рейтинги, ачивки, карьера)
+const HOOKS = { match: [], week: [], season: [] };
+function onHook(k, f) { HOOKS[k].push(f); }
+function fire(k, ...a) { HOOKS[k].forEach(f => { try { f(...a); } catch (e) { } }); }
 // Свободные агенты: в основном середняки; сильные — редкость, чаще возрастные ветераны
 function faPlayer(d) { const vet = rnd() < 0.07; const lvl = vet ? ri(58, 66) : Math.round(38 + 20 * Math.pow(rnd(), 1.6)); return genPlayer(d, ri(0, FAKE[d].size - 1), lvl, vet ? [28, 33] : [17, 27]); }
 function phaseOf(w) {
@@ -335,7 +339,8 @@ function offlineCapH() { return 2 + S.fac.server; }
 function staffOf(type, d) { return Object.values(S.staff).filter(s => s.type === type && (!STAFF_TYPES[type].div || s.d === d)); }
 function staffSk(type, d) { const l = staffOf(type, d); return l.length ? Math.max(...l.map(s => s.sk)) : 0; }
 function weeklyCosts() { let c = 0; Object.keys(S.divs).forEach(d => { const t = userTeam(d); const dv = S.divs[d]; t.roster.forEach(i => c += S.players[i].sal); (dv.youth || []).forEach(i => { const p = S.players[i]; if (p) c += p.sal; }); (dv.out || []).forEach(i => { const p = S.players[i]; if (p) c += Math.round(p.sal * 0.3); }); }); Object.values(S.staff).forEach(s => c += s.sal); const fl = Object.values(S.fac).reduce((a, b) => a + b, 0); c += fl * 250; return c; }
-function weeklySponsor() { return S.sponsors.reduce((a, s) => a + s.weekly, 0); }
+function weeklySponsor() { return Math.round(S.sponsors.reduce((a, s) => a + s.weekly, 0) * (mgrLv() >= 3 ? 1.1 : 1)); }
+function mgrLv() { const x = (S.mgr && S.mgr.xp) || 0; return x >= 5000 ? 5 : x >= 2500 ? 4 : x >= 1200 ? 3 : x >= 500 ? 2 : x >= 150 ? 1 : 0; }
 function sponsorSlots() { return Math.min(8, 2 + Math.floor(S.rep / 20) + Math.floor((S.fac.office || 0) / 3)); }
 function genOffers() {
   S.offers = [];
@@ -401,9 +406,9 @@ function marketWeek() {
     if (S.divs[d]) news('📰 Слух: ' + tname(buyer) + ' хотят ' + pnick(p) + ' из ' + tname(T(p.team)) + ' (' + (prob > 0.6 ? 'надёжный источник' : prob > 0.4 ? 'говорят в кулуарах' : 'сомнительный инсайд') + ')'); });
   // звонок агента: игрок другого клуба хочет к вам — скидка на трансфер на 2 недели
   S.calls = (S.calls || []).filter(c => c.s === S.season && c.w + 2 >= S.week);
-  if (rnd() < 0.3) { const d = pick(Object.keys(S.divs)); const ut = userTeam(d); const W = S.world[d];
+  if (rnd() < (mgrLv() >= 5 ? 0.5 : 0.3)) { const d = pick(Object.keys(S.divs)); const ut = userTeam(d); const W = S.world[d];
     const cands = W.teams.filter(t => !t.user).flatMap(t => t.roster.map(i => S.players[i])).filter(p => p && !signDemand(p).refuse && ovr(p) >= teamOvr(ut) - 3 && ovr(p) <= teamOvr(ut) + 6);
-    const p = pick(cands); if (p) { const mul = 0.6 + rnd() * 0.2; p.deal = { s: S.season, w: S.week + 2, mul }; S.calls.push({ pid: p.id, d, s: S.season, w: S.week, mul, why: pick(['мало игрового времени', 'конфликт с тренером', 'хочет сменить обстановку', 'клуб задерживает зарплату', 'мечтает играть за вас']) }); news('📞 Агент ' + pnick(p) + ' (' + tname(T(p.team)) + '): клиент хочет к вам, клуб отдаст со скидкой ' + Math.round((1 - mul) * 100) + '% — 2 недели'); } }
+    const p = pick(cands); if (p) { const mul = (mgrLv() >= 5 ? 0.5 : 0.6) + rnd() * 0.2; p.deal = { s: S.season, w: S.week + 2, mul }; S.calls.push({ pid: p.id, d, s: S.season, w: S.week, mul, why: pick(['мало игрового времени', 'конфликт с тренером', 'хочет сменить обстановку', 'клуб задерживает зарплату', 'мечтает играть за вас']) }); news('📞 Агент ' + pnick(p) + ' (' + tname(T(p.team)) + '): клиент хочет к вам, клуб отдаст со скидкой ' + Math.round((1 - mul) * 100) + '% — 2 недели'); } }
 }
 // ---- характеры и связки игроков ----
 const TRAITS = {
@@ -479,7 +484,7 @@ function teamCtx(t, d) {
     analyst: isU ? staffSk('analyst', d) : Math.round(t.coach * 0.7),
     chem: t.chem, style: isU ? S.divs[d].style : t.str || 'bal', prac: t.prac,
     mor: sp.reduce((a, p) => a + p.mor, 0) / Math.max(1, sp.length),
-    press: t.press || 0, pair: isU ? teamPairs(t) : 4, lead: sp.some(p => traitOf(p) === 'leader') ? 1 : 0
+    press: t.press || 0, pair: isU ? teamPairs(t) + (mgrLv() >= 4 ? 8 : 0) : 4, lead: sp.some(p => traitOf(p) === 'leader') ? 1 : 0
   };
 }
 function baseMod(c) { return (c.coach - 8) * 0.25 + (c.chem - 50) * 0.05 + (c.mor - 60) * 0.04 + (c.pair || 0) * 0.12 + (c.lead || 0) * 0.8 + (c.press || 0) * 0.6; }
@@ -547,6 +552,7 @@ function finishWeek() {
   if (S.week === 20) DISC_ORDER.forEach(d => { advanceWC(d); const C = S.world[d].wc; const ch = teamOf(d, C.champ); S.world[d].champs.unshift({ s: S.season, t: tname(ch), id: ch.id }); news('🏆 ' + tname(ch) + ' — чемпион ' + pack(d).major + ' ' + S.season + '!', ch.user ? 'gold' : ''); if (ch.user) { S.trophyQ = (S.trophyQ || []).concat({ d, n: pack(d).major, s: S.season, major: true }); S.trophies.push({ s: S.season, d, n: pack(d).major }); S.money += 0; } });
   if (S.week > SEASON_WEEKS) newSeason();
   if (S.money < -50000 && !S.debtWarn) { S.debtWarn = true; news('⚠️ Большие долги! Спонсоры и игроки нервничают.', 'bad'); }
+  fire('week', log);
   S.weekLog = log;
   return log;
 }
@@ -580,6 +586,8 @@ function applyResult(d, m) {
     const opp = t === A ? B : A;
     news((won ? '✅ ' : '❌ ') + pack(d).game + ': ' + tname(t) + ' ' + (t === A ? r.sa + ':' + r.sb : r.sb + ':' + r.sa) + ' ' + tname(opp) + (prize ? ' · +$' + fmt(prize) : ''), won ? 'good' : 'bad');
   });
+  { const ea = A.elo || (A.elo = 1500 + (2 - A.tier) * 150), eb = B.elo || (B.elo = 1500 + (2 - B.tier) * 150); const exp = 1 / (1 + Math.pow(10, (eb - ea) / 400)); const sA = W === A ? 1 : 0; const K = m.wc ? 40 : m.po ? 32 : 24; A.elo = Math.round(ea + K * (sA - exp)); B.elo = Math.round(eb - K * (sA - exp)); }
+  fire('match', d, m, W, L);
   if (m.po === 2) { const P = S.world[d].po[m.tier]; P.champ = W.id; if (W.user) { S.trophyQ = (S.trophyQ || []).concat({ d, n: pack(d).leagues[m.tier], s: S.season }); S.trophies.push({ s: S.season, d, n: pack(d).leagues[m.tier] }); news('🏆 Титул! ' + tname(W) + ' выигрывает ' + pack(d).leagues[m.tier] + '!', 'gold'); } }
 }
 
@@ -625,6 +633,7 @@ function randomEvent() {
 }
 
 function newSeason() {
+  fire('season');
   // promotion / relegation
   DISC_ORDER.forEach(d => {
     const W = S.world[d];
@@ -666,10 +675,10 @@ function signDemand(p) {
   // сильные игроки не идут в слабые/безымянные команды: нужен уровень лиги и репутация
   const req = Math.max(0, (ovr(p) - 50) * 2.6);
   const ut = userTeam(p.d); const tierBonus = ut ? (2 - ut.tier) * 14 : 0;
-  const eff = S.rep + tierBonus + (ut ? Math.max(0, teamOvr(ut) - ovr(p) + 8) : 0);
+  const ml = mgrLv(); const eff = S.rep + tierBonus + (ut ? Math.max(0, teamOvr(ut) - ovr(p) + 8) : 0) + (ml >= 1 ? 5 : 0);
   let mult = 1 + Math.max(0, req - eff) / 35;
   if (p.team === null && S.world[p.d].academy.includes(p.id)) mult = 1;
-  return { sal: Math.round(salaryFor(p) * mult / 10) * 10, refuse: mult > 1.65, mult, need: Math.ceil(Math.max(0, req - 0.65 * 35 - tierBonus)) };
+  return { sal: Math.round(salaryFor(p) * mult * (ml >= 2 ? 0.95 : 1) / 10) * 10, refuse: mult > 1.65, mult, need: Math.ceil(Math.max(0, req - 0.65 * 35 - tierBonus)) };
 }
 function feeFor(p) { if (!p.team) return S.world[p.d].academy.includes(p.id) ? Math.round(1500 + p.pot * 40) : 0; const deal = p.deal && p.deal.s === S.season && p.deal.w >= S.week ? p.deal.mul : 1; return Math.round(valueOf(p) * (T(p.team).tier === 0 ? 1.3 : 1) * deal); }
 function signPlayer(p, years, feeOv, salOv) {
@@ -977,6 +986,20 @@ class MobaGame {
 function mobaRating(s, won) { return +Math.max(0.2, (0.55 + (s.k * 1.0 + s.a * 0.55 - s.d * 0.7) / 14 + (won ? 0.18 : 0))).toFixed(2); }
 
 
+// ---- коллы в мячевых дисциплинах (RL, FC) ----
+const BCALL = {
+  ball: { allin: { dur: 60, cd: 90, own: 0.07, opp: 0.05, pow: 0 }, park: { dur: 60, cd: 90, own: -0.05, opp: -0.07, pow: 0 }, rot: { dur: 90, cd: 999, own: 0, opp: 0, pow: 3, once: true } },
+  duel: { allin: { dur: 15, cd: 20, own: 0.02, opp: 0.012, pow: 0 }, park: { dur: 15, cd: 20, own: -0.02, opp: -0.025, pow: 0 }, rot: { dur: 200, cd: 999, own: 0, opp: 0, pow: 2.5, once: true } },
+};
+const ballCallMix = {
+  initCalls() { this.calls = { A: null, B: null }; this.ccd = { A: {}, B: {} }; },
+  canCall(side, k) { const C = BCALL[this.kindB][k]; if (this.done || !C) return false; const cd = this.ccd[side][k]; if (C.once) return cd === undefined; return cd === undefined || this.t >= cd; },
+  callCD(side, k) { const C = BCALL[this.kindB][k]; const cd = this.ccd[side][k]; if (cd === undefined) return 0; if (C.once) return -1; return Math.max(0, Math.ceil((cd - this.t) / (this.kindB === 'ball' ? 10 : 1))); },
+  doCall(side, k) { if (!this.canCall(side, k)) return false; const C = BCALL[this.kindB][k]; this.calls[side] = { k, until: this.t + C.dur }; this.ccd[side][k] = this.t + C.cd; this.feed.push({ t: this.t, type: 'bcall', side, call: k }); this.pendEv = (this.pendEv || []).concat({ t: this.t, type: 'bcall', side, call: k }); return true; },
+  activeCall(side) { const c = this.calls[side]; return c && this.t < c.until ? c.k : null; },
+  cmod(side) { const k = this.activeCall(side); return k ? BCALL[this.kindB][k] : { own: 0, opp: 0, pow: 0 }; },
+  aiBall(side) { const c = side === 'A' ? this.cA : this.cB; if (c.user) return; const me = side === 'A' ? this.sa : this.sb, op = side === 'A' ? this.sb : this.sa; const late = this.kindB === 'ball' ? this.t >= 200 : this.t >= 70; if (late && me < op && this.canCall(side, 'allin') && rnd() < 0.5) this.doCall(side, 'allin'); else if (late && me > op && this.canCall(side, 'park') && rnd() < 0.4) this.doCall(side, 'park'); else if (me < op && this.canCall(side, 'rot') && rnd() < 0.08) this.doCall(side, 'rot'); },
+};
 // ---------- ROCKET LEAGUE-like (ball) ----------
 const RL_SHOOT = [1.7, 1.1, 0.55], RL_KEEP = [0.45, 0.9, 1.7];
 class BallGame {
@@ -985,6 +1008,7 @@ class BallGame {
     this.stats = {}; [...cA.players, ...cB.players].forEach(p => { const s = newPS(); s.sh = 0; s.dm = 0; this.stats[p.id] = s; });
     const avg = c => c.players.reduce((a, p) => a + pSkill(p), 0) / c.players.length;
     this.bA = avg(cA) * 0.7 + baseMod(cA) + gauss() * 3; this.bB = avg(cB) * 0.7 + baseMod(cB) + gauss() * 3;
+    this.kindB = 'ball'; this.initCalls();
   }
   sk(p) { return pSkill(p) * 0.6 + p.mech * 0.3 + p.cl * 0.1 + gauss() * 6; }
   attack(side, ev) {
@@ -1003,11 +1027,12 @@ class BallGame {
   }
   tick() {
     if (this.done) return [];
-    this.t += 10; const ev = [];
+    this.t += 10; const ev = (this.pendEv || []).slice(); this.pendEv = [];
+    this.aiBall('A'); this.aiBall('B'); const mA = this.cmod('A'), mB = this.cmod('B');
     const stA = this.cA.style, stB = this.cB.style;
-    const diff = (this.bA + gauss() * 3) - (this.bB + gauss() * 3);
-    const chA = 0.17 + diff / 160 + (stA === 'agr' ? 0.04 : stA === 'pas' ? -0.04 : 0) + (stB === 'agr' ? 0.02 : stB === 'pas' ? -0.03 : 0);
-    const chB = 0.17 - diff / 160 + (stB === 'agr' ? 0.04 : stB === 'pas' ? -0.04 : 0) + (stA === 'agr' ? 0.02 : stA === 'pas' ? -0.03 : 0);
+    const diff = (this.bA + mA.pow + gauss() * 3) - (this.bB + mB.pow + gauss() * 3);
+    const chA = 0.17 + diff / 160 + (stA === 'agr' ? 0.04 : stA === 'pas' ? -0.04 : 0) + (stB === 'agr' ? 0.02 : stB === 'pas' ? -0.03 : 0) + mA.own + mB.opp;
+    const chB = 0.17 - diff / 160 + (stB === 'agr' ? 0.04 : stB === 'pas' ? -0.04 : 0) + (stA === 'agr' ? 0.02 : stA === 'pas' ? -0.03 : 0) + mB.own + mA.opp;
     let g = false;
     if (rnd() < chA) g = this.attack('A', ev);
     if (!(this.ot && g) && rnd() < chB) g = this.attack('B', ev) || g;
@@ -1027,16 +1052,18 @@ class DuelGame {
     this.d = d; this.pA = pA; this.pB = pB; this.cA = cA; this.cB = cB; this.ko = ko !== false; this.t = 0; this.sa = 0; this.sb = 0; this.done = false; this.winner = null; this.feed = []; this.pens = null; this.et = false;
     this.stats = {}; [pA, pB].forEach(p => this.stats[p.id] = newPS());
     this.bA = pSkill(pA) * 0.75 + (cA.coach - 8) * 0.2 + gauss() * 3; this.bB = pSkill(pB) * 0.75 + (cB.coach - 8) * 0.2 + gauss() * 3;
+    this.kindB = 'duel'; this.initCalls();
   }
   tick() {
     if (this.done) return [];
-    this.t += 1; const ev = [];
+    this.t += 1; const ev = (this.pendEv || []).slice(); this.pendEv = [];
+    this.aiBall('A'); this.aiBall('B'); const mA = this.cmod('A'), mB = this.cmod('B');
     const stA = this.cA.style, stB = this.cB.style;
-    const diff = this.bA - this.bB + gauss() * 2;
-    const ch = (st, ost) => 0.062 + (st === 'agr' ? 0.015 : st === 'pas' ? -0.02 : 0) + (ost === 'agr' ? 0.012 : ost === 'pas' ? -0.012 : 0);
+    const diff = this.bA + mA.pow - this.bB - mB.pow + gauss() * 2;
+    const ch = (st, ost, side) => 0.062 + (st === 'agr' ? 0.015 : st === 'pas' ? -0.02 : 0) + (ost === 'agr' ? 0.012 : ost === 'pas' ? -0.012 : 0) + (side === 'A' ? mA.own + mB.opp : mB.own + mA.opp);
     const goal = (side) => { const p = side === 'A' ? this.pA : this.pB, o = side === 'A' ? this.pB : this.pA; const pg = sig((side === 'A' ? diff : -diff) / 14 - 1.0 + (p.mech - o.iq) / 120); if (rnd() < pg) { if (side === 'A') this.sa++; else this.sb++; this.stats[p.id].k++; this.stats[o.id].d++; ev.push({ t: this.t, type: 'goal', side, p: p.id }); } else if (rnd() < 0.25) ev.push({ t: this.t, type: 'chance', side, p: p.id }); };
-    if (rnd() < ch(stA, stB)) goal('A');
-    if (rnd() < ch(stB, stA)) goal('B');
+    if (rnd() < ch(stA, stB, 'A')) goal('A');
+    if (rnd() < ch(stB, stA, 'B')) goal('B');
     if (this.t === 45) ev.push({ t: 45, type: 'ht' });
     if (this.t === 90 || this.t === 120) {
       if (this.sa !== this.sb) this.end(ev);
@@ -1049,6 +1076,7 @@ class DuelGame {
   end(ev, w) { this.done = true; this.winner = w || (this.sa > this.sb ? 'A' : 'B'); ev.push({ t: this.t, type: 'end', side: this.winner }); [['A', this.pA], ['B', this.pB]].forEach(([s, p]) => { const st = this.stats[p.id]; st.mp = 1; st.rt = +Math.max(0.3, (6 + st.k * 0.8 - st.d * 0.4 + (s === this.winner ? 0.8 : 0)) / 7).toFixed(2); }); }
   run() { while (!this.done) this.tick(); return this; }
 }
+Object.assign(BallGame.prototype, ballCallMix); Object.assign(DuelGame.prototype, ballCallMix);
 function fcPair(cA, cB, g, sa, sb, need) {
   const best = c => c.players.slice().sort((a, b) => ovr(b) - ovr(a))[0];
   if (sa === need - 1 && sb === need - 1 && g >= 2) return [best(cA), best(cB)];
@@ -1210,6 +1238,6 @@ export { mediaWeekly, tpWeekly };
 export { leagueWeekly };
 export { leaguePosFactor, weeksToPayday, goalProgress, makeGoal };
 export { raiseTarget };
-export { sigMap, sigHero, marketWeek };
+export { sigMap, sigHero, marketWeek, onHook };
 export { TRAITS, traitOf, pairVal, pairAdd, pairDelta, teamPairs };
 export { ATTRS,BallGame,CC_WEIGHTED,COUNTRIES,CREATOR_TYPES,DISC_ORDER,DRAFT_ORDER_5,DRAFT_ORDER_6,DW,DuelGame,ENTRY_ROLE,EVENTS,FACILITIES,FAKE,FIRST,FLAG,FpsMap,H,KW,LAST,MobaGame,NICK_A,NICK_SUF,NWS,PRIZE,RL_SHOOT,SEASON_WEEKS,SPONSOR_NAMES,STAFF_TYPES,T,TEAM_A,TEAM_B,TEAM_COLORS,acceptCounter,advanceWC,agentDisc,aiDraftChoice,aiTransfer,aiVetoChoice,alignOvr,applyPatchNames,applyResult,autoDraft,autoVeto,avgR,baseMod,bestPlayerFor,buildFac,buildWorld,buyChance,buyDivision,buyWithBid,canUp,clamp,divCost,divRep,doUp,draftApply,draftOrder,draftTaken,draftValue,ensureFive,extendDemand,facCost,fcPair,feeFor,finishWeek,fmt,fpsRating,gauss,genNick,genOffers,genPlayer,genPool,genStaff,genStaffMarket,genTeamName,heroList,heroMeta,heroName,hireCreator,hireStaff,idleTick,isLoanable,isUserPlayer,loanIn,loanInCost,loanOut,loanOutTarget,makeSchedule,mapName,maxDivs,mergeStats,metaShift,mobaRating,moodFactors,negKey,newCareer,newDraft,newPS,newSeason,newStats,news,nid,offlineCapH,offlineGain,ovr,pSkill,pack,passiveRate,pcc,phaseOf,pick,pnick,potView,prof,promoteYouth,quickSeries,randomEvent,refreshAcademy,releasePlayer,releaseYouth,respondOffer,ri,rnd,salaryFor,scaleCurve,scrim,seasonManagement,sellPlayer,seriesBo,seriesFinalize,setupFinals,setupPlayoffs,setupWC,shuffle,sig,signDemand,signPlayer,signYouth,sponsorSlots,staffOf,staffSk,standings,starters,stream,talk,teamColor,teamCtx,teamOf,teamOvr,tname,tpRate,ttag,unlockDivision,upCost,userMatchesThisWeek,userTeam,userTeamIds,validatePatch,valueOf,vetoOrder,weekMatches,weeklyCosts,weeklyGrowth,weeklyManagement,weeklySponsor,wpick };

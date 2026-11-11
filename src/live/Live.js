@@ -106,7 +106,7 @@ export default function Live() {
         {L.kind === 'fps' && L.cur ? <CsCalls L={L} rr={rr} /> : null}
         <View style={st.bottom}>
           <Seg ac={FAKE[L.d].color} style={{ width: 170 }} value={L.speed} onChange={v => { L.speed = v; rr(); }} items={SPEEDS.map(s => [s, s + '×'])} />
-          {L.kind === 'moba' ? <MobaCalls L={L} rr={rr} /> : L.kind === 'fps' ? <View style={{ flex: 1 }} /> : <Seg ac={FAKE[L.d].color} style={{ flex: 1 }} value={usC().style} onChange={v => { usC().style = v; S.divs[L.d].style = v; rr(); }} items={styleOpts(L.d)} />}
+          {L.kind === 'moba' ? <MobaCalls L={L} rr={rr} /> : L.kind === 'fps' ? <View style={{ flex: 1 }} /> : <BallCalls L={L} rr={rr} />}
           {L.kind === 'fps' ? <Btn small title={`⏸ Тайм-аут ${L.us === 'A' ? L.cur.toA : L.cur.toB}`} disabled={(L.us === 'A' ? L.cur.toA : L.cur.toB) <= 0} onPress={() => { if (L.cur.timeout(L.us)) { toast('⏸ Тайм-аут: +сила на 3 раунда'); rr(); } }} /> : null}
           {L.kind !== 'moba' ? <Btn small title="Табло" onPress={() => { L.board = !L.board; rr(); }} /> : null}
           <Btn small title="⏭ Игра" onPress={skipGame} />
@@ -137,6 +137,19 @@ function MobaCalls({ L, rr }) {
         <Pressable key={k} disabled={!ok} onPress={() => { if (g.doCall(us, k)) { toast(lbl + ': команда выполняет'); rr(); } }} style={{ flex: 1, height: 34, borderRadius: 9, borderWidth: 1, borderColor: on ? ac : ok ? alpha(ac, 0.55) : C.line, backgroundColor: on ? alpha(ac, 0.35) : ok ? alpha(ac, 0.14) : 'rgba(255,255,255,0.03)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4, opacity: ok || on ? 1 : 0.45 }}>
           <Ico n={ic} size={17} color={on ? '#fff' : ok ? ac : C.mu} />
           <Text numberOfLines={1} style={{ fontFamily: F.h, fontSize: 10.5, color: C.tx, textTransform: 'uppercase' }}>{lbl}{on ? ' …' : cd ? ' · ' + cd : ''}</Text>
+        </Pressable>); })}
+    </View>
+  );
+}
+const BC = { ball: [['allin', 'rocket', 'Все вперёд'], ['park', 'shield', 'Закрыться'], ['rot', 'whistle', 'Тайм-аут']], duel: [['allin', 'run', 'Прессинг'], ['park', 'shield', 'Автобус'], ['rot', 'mic', 'Подбодрить']] };
+function BallCalls({ L, rr }) {
+  const g = L.cur; if (!g || !g.canCall) return <View style={{ flex: 1 }} />; const us = L.us; const ac = FAKE[L.d].color; const act = g.activeCall(us);
+  return (
+    <View style={{ flex: 1, flexDirection: 'row', gap: 5 }}>
+      {BC[L.kind].map(([k, ic, n]) => { const ok = g.canCall(us, k); const cd = g.callCD(us, k); const on = act === k; return (
+        <Pressable key={k} disabled={!ok} onPress={() => { if (g.doCall(us, k)) { sfx('ui_confirm'); buzz('medium'); toast(n + '!'); rr(); } }} style={{ flex: 1, height: 34, borderRadius: 9, borderWidth: 1, borderColor: on ? ac : ok ? alpha(ac, 0.55) : C.line, backgroundColor: on ? alpha(ac, 0.35) : ok ? alpha(ac, 0.14) : 'rgba(255,255,255,0.03)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4, opacity: ok || on ? 1 : 0.45 }}>
+          <Ico n={ic} size={16} color={on ? '#fff' : ok ? ac : C.mu} />
+          <Text numberOfLines={1} style={{ fontFamily: F.h, fontSize: 10.5, color: C.tx, textTransform: 'uppercase' }}>{n}{on ? ' · активно' : cd > 0 ? ' · ' + cd : cd < 0 ? ' · исп.' : ''}</Text>
         </Pressable>); })}
     </View>
   );
@@ -372,6 +385,7 @@ function evText(L, e) {
   if (e.type === 'fight') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> {e.big ? 'выигрывают тимфайт' : 'стычка'} {e.kw}:{e.kl} · {nick(e.killer)} → {nick(e.victim)}</T>;
   if (e.type === 'tower') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> {L.d === 'dl' ? 'ломают ' + (e.n <= 3 ? 'Guardian' : e.n <= 6 ? 'Walker' : e.n <= 9 ? 'Base Guardian' : 'Shrine') : 'сносят башню'} ({e.n})</T>;
   if (e.type === 'hg') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> заходят на базу!</T>;
+  if (e.type === 'bcall') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> {(L.kind === 'ball' ? { allin: 'идут ва-банк', park: 'закрываются в обороне', rot: 'берут тайм-аут' } : { allin: 'включают прессинг', park: 'ставят автобус', rot: 'тренер подбадривает игрока' })[e.call]}</T>;
   if (e.type === 'call') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> {{ smoke: 'уходят в смок', push: 'давят линию', boss: 'идут на ' + pack(L.d).boss }[e.call]}</T>;
   if (e.type === 'boss' && e.stolen) return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> отбивают {pack(L.d).boss}!</T>;
   if (e.type === 'boss') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> забирают {pack(L.d).boss}</T>;

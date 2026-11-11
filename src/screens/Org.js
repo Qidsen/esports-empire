@@ -11,6 +11,7 @@ import { C, F, alpha } from '../ui/theme';
 import { UnlockCard } from './Roster';
 import Staff from './Staff';
 import { Ico } from '../ui/icons';
+import { Trophies } from './Legacy';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 async function readUri(asset) { if (Platform.OS === 'web') { if (asset.file) return await asset.file.text(); return await (await fetch(asset.uri)).text(); } const { File } = require('expo-file-system'); return await new File(asset.uri).text(); }
@@ -39,7 +40,7 @@ export default function Org() {
   const sec = UI.org;
   return (
     <View style={{ flex: 1, padding: 10 }}>
-      <SubTabs ac={S.org.c1} value={sec} onChange={v => { UI.org = v; bump(); }} items={[['fac', 'База и офис', '🏗️'], ['staff', 'Персонал', '🧑‍💼'], ['spons', 'Спонсоры', '🤝'], ['media', 'Контент', '🎙️'], ['divs', 'Дивизионы', '🎮'], ['trophy', 'Трофеи', '🏆'], ['set', 'Патч и данные', '⚙️']]} />
+      <SubTabs ac={S.org.c1} value={sec} onChange={v => { UI.org = v; bump(); }} items={[['fac', 'База и офис', '🏗️'], ['staff', 'Персонал', '🧑‍💼'], ['spons', 'Спонсоры', '🤝'], ['media', 'Контент', '🎙️'], ['divs', 'Дивизионы', '🎮'], ['trophy', 'Витрина', '🏆'], ['set', 'Патч и данные', '⚙️']]} />
       {sec === 'staff' ? <Staff /> : <ScrollView>
         {sec === 'fac' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{Object.entries(FACILITIES).map(([k, f]) => { const l = S.fac[k] || 0; const c = facCost(k); return (
           <View key={k} style={{ width: '32%', minWidth: 220 }}><Panel ac={k === 'office' ? C.gold : null}>
@@ -66,10 +67,7 @@ export default function Org() {
           <View style={{ flex: 1 }}><Panel><H>Нанять</H>{CREATOR_TYPES.map((c, i) => <Row key={i} style={{ paddingVertical: 6 }}><View style={{ flex: 1 }}><T h s={13}>{c.n}</T><T mu s={11}>+${fmt(c.inc * 2500)}/нед · +{c.fans} фанатов/нед · {c.weeks} нед.</T></View><Btn small kind="pri" ac={S.org.c1} disabled={S.money < c.cost || S.creators.length >= 3} title={money(c.cost)} onPress={() => { const e = hireCreator(i); if (e) toast(e); else save(); bump(); }} /></Row>)}</Panel></View>
         </View> : null}
         {sec === 'divs' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{DISC_ORDER.map(d => <View key={d} style={{ width: '32%', minWidth: 220 }}>{S.divs[d] ? <Panel ac={FAKE[d].color} onPress={() => { UI.d = d; UI.tab = 'roster'; bump(); }}><GameIcon d={d} size={40} /><T h s={16}>{pack(d).game}</T><T mu s={11}>{pack(d).leagues[userTeam(d).tier]} · OVR {teamOvr(userTeam(d))}</T><Tag t="активен" c={C.good} style={{ alignSelf: 'flex-start', marginTop: 6 }} /></Panel> : <UnlockCard d={d} />}</View>)}<T mu s={11} style={{ width: '100%' }}>Дивизионов по офису: {Object.keys(S.divs).length}/{maxDivs()}. Каждые 2 уровня офиса — ещё один слот.</T></View> : null}
-        {sec === 'trophy' ? <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}><Panel><H>Трофеи</H>{S.trophies.length ? S.trophies.map((t, i) => <Row key={i} style={{ paddingVertical: 5 }}><Ico n="trophy" size={22} color={C.gold} /><View><T h s={13}>{t.n}</T><T mu s={11}>{pack(t.d).game} · сезон {t.s}</T></View></Row>) : <T mu>Витрина пуста. Пора это исправить.</T>}</Panel></View>
-          <View style={{ flex: 1 }}><Panel><H>Статистика</H><Row><Stat label="Победы" value={S.stats.wins} color={C.good} /><Stat label="Поражения" value={S.stats.losses} color={C.bad} /><Stat label="Сезон" value={S.season} /></Row></Panel></View>
-        </View> : null}
+        {sec === 'trophy' ? <Trophies /> : null}
         {sec === 'set' ? <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}><Panel>
             <H>Патч реальных данных</H>

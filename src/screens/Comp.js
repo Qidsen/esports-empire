@@ -7,6 +7,7 @@ import { pickImageDataUri } from '../ui/pick';
 import { C, F, alpha } from '../ui/theme';
 import { DiscChips, PRow } from './Roster';
 import { Ico } from '../ui/icons';
+import { Rankings } from './Legacy';
 
 const money = n => '$' + fmt(n);
 function teamModal(t) { openModal(() => <View><Row style={{ marginBottom: 10 }}><TeamLogo t={t} size={50} /><View style={{ flex: 1 }}><T h s={20}>{tname(t)}</T><T mu>{pack(t.d).leagues[t.tier]} · OVR {teamOvr(t)} · {t.rec.w}-{t.rec.l}</T></View></Row>{!t.user ? <Row style={{ marginBottom: 8 }}><Btn small title="📷 Свой логотип команды" onPress={async () => { try { const u = await pickImageDataUri(200000); if (u) { S.customLogos = S.customLogos || {}; S.customLogos[teamKey(t)] = u; save(); closeModal(); toast('✅ Логотип команды обновлён'); bump(); } } catch (e) { toast('⚠️ ' + e); } }} />{S.customLogos && S.customLogos[teamKey(t)] ? <Btn small kind="bad" title="Сбросить" onPress={() => { delete S.customLogos[teamKey(t)]; save(); closeModal(); bump(); }} /> : null}</Row> : null}{t.roster.map(i => S.players[i] && <PRow key={i} p={S.players[i]} d={t.d} onPress={() => { }} />)}</View>); }
@@ -44,10 +45,11 @@ export default function Comp() {
           </Panel>
         </ScrollView>
         <ScrollView style={{ flex: 1 }}>
-          <Seg ac={ac} value={UI.cmp} onChange={v => { UI.cmp = v; bump(); }} items={[['table', 'Календарь'], ['po', 'Плей-офф'], ['wc', 'Мейджор'], ['hist', 'История']]} style={{ marginBottom: 8 }} />
+          <Seg ac={ac} value={UI.cmp} onChange={v => { UI.cmp = v; bump(); }} items={[['table', 'Календарь'], ['po', 'Плей-офф'], ['wc', 'Мейджор'], ['hist', 'История'], ['rank', 'Рейтинги']]} style={{ marginBottom: 8 }} />
           {UI.cmp === 'table' ? <Panel><H>Календарь {S.org.tag}</H>{mine.map(([w, m]) => { const opp = teamOf(d, m.a === ut.id ? m.b : m.a); const r = m.res; return <Row key={w} style={{ paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: C.line }}><T mu s={10.5} style={{ width: 30, fontFamily: F.hm }}>Н{w}</T><TeamLogo t={opp} size={20} /><T s={12} n={1} style={{ flex: 1 }}>{tname(opp)}</T>{r ? <Tag t={m.a === ut.id ? r.sa + ':' + r.sb : r.sb + ':' + r.sa} c={r.win === ut.id ? C.good : C.bad} /> : w === S.week ? <Tag t="сейчас" c={ac} /> : <T mu s={11}>—</T>}</Row>; })}</Panel> : null}
           {UI.cmp === 'po' ? ([0, 1, 2].some(t => W.po[t]) ? [0, 1, 2].map(t => W.po[t] ? <Panel key={t}><H>{pack(d).leagues[t]}</H><T mu s={10} style={{ marginBottom: 4 }}>ПОЛУФИНАЛЫ</T>{W.po[t].semis.map((m, i) => <Match key={i} d={d} m={m} />)}{W.po[t].final ? <><T mu s={10} style={{ marginVertical: 4 }}>ФИНАЛ</T>{W.po[t].final.map((m, i) => <Match key={i} d={d} m={m} />)}</> : null}{W.po[t].champ ? <T s={12} style={{ color: C.gold, marginTop: 4 }}><Ico n="trophy" size={14} color={C.gold} style={{ marginBottom: -2 }} /> {tname(teamOf(d, W.po[t].champ))}</T> : null}</Panel> : null) : <Panel><T mu>Плей-офф начнётся на 15-й неделе.</T></Panel>) : null}
           {UI.cmp === 'wc' ? (W.wc ? <Panel><H>{pack(d).major}</H>{W.wc.rounds.map((r, ri) => <View key={ri}><T mu s={10} style={{ marginVertical: 4 }}>{['1/4 ФИНАЛА', 'ПОЛУФИНАЛЫ', 'ГРАНД-ФИНАЛ'][ri]}</T>{r.map((m, i) => <Match key={i} d={d} m={m} />)}</View>)}{W.wc.champ ? <T s={13} style={{ color: C.gold, marginTop: 6 }}><Ico n="trophy" size={15} color={C.gold} style={{ marginBottom: -2 }} /> Чемпион: {tname(teamOf(d, W.wc.champ))}</T> : null}<T mu s={10.5} style={{ marginTop: 6 }}>Призовые: {money(PRIZE.wc[0])} чемпиону, {money(PRIZE.wc[1])} финалисту.</T></Panel> : <Panel><T mu>{pack(d).major} стартует на 17-й неделе: 8 команд, плей-офф на вылет.</T></Panel>) : null}
+          {UI.cmp === 'rank' ? <Rankings d={d} /> : null}
           {UI.cmp === 'hist' ? <Panel><H>Чемпионы {pack(d).major}</H>{W.champs.length ? W.champs.map((c, i) => <Row key={i} style={{ paddingVertical: 4 }}><T mu s={11} style={{ width: 30 }}>С{c.s}</T><T s={12.5} style={{ flex: 1 }}>{teamOf(d, c.id) ? tname(teamOf(d, c.id)) : c.t}</T>{teamOf(d, c.id) && teamOf(d, c.id).user ? <Ico n="trophy" size={16} color={C.gold} /> : null}</Row>) : <T mu>Пока пусто.</T>}</Panel> : null}
         </ScrollView>
       </View>
