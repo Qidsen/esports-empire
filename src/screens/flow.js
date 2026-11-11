@@ -8,6 +8,9 @@ import { rollEvent, pendingEvents } from '../core/events';
 import { showEvents } from './EventCard';
 import { IconText } from '../ui/icons';
 import { sfx } from '../ui/audio';
+import { rollPress } from '../core/press';
+import { showPress } from './Press';
+import { showTrophies } from './TrophyShow';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 export function playWeek() {
@@ -29,12 +32,19 @@ export function runQueue() {
         ))}
       </Row>
       {res.length ? res.map((n, i) => <View key={i} style={{ paddingVertical: 4 }}><IconText text={n.t} size={15} iconColor={n.c === 'good' ? C.good : n.c === 'bad' ? C.bad : C.gold} style={{ fontFamily: F.b, fontSize: 12.5, color: n.c === 'good' ? '#c6f7da' : n.c === 'bad' ? '#ffd0d5' : C.gold }} /></View>) : <T mu>На этой неделе твоих матчей не было.</T>}
-      <Btn kind="pri" ac={S.org.c1} title={pendingEvents().length ? 'Дальше · ⚡ событие' : 'Дальше'} onPress={() => showEvents()} style={{ marginTop: 12 }} />
+      <Btn kind="pri" ac={S.org.c1} title={pendingEvents().length ? 'Дальше · ⚡ событие' : 'Дальше'} onPress={() => showEvents(() => showTrophies())} style={{ marginTop: 12 }} />
     </View>
   ));
   UI.week0 = 0;
 }
+// после матча: иногда пресс-конференция, затем дальше по очереди
+export function afterMatch(d, m) {
+  const ut = userTeam(d); const won = m.res && m.res.win === ut.id;
+  if (Math.random() < 0.35) { const P = rollPress(d, m, 'post', won); if (P) { showPress(P, runQueue); return; } }
+  runQueue();
+}
 export function preMatch(d, m) {
+  if (!m.press && Math.random() < 0.4) { m.press = 1; const P = rollPress(d, m, 'pre'); if (P) { showPress(P, () => preMatch(d, m)); return; } }
   const A = teamOf(d, m.a), B = teamOf(d, m.b);
   const lbl = m.wc ? pack(d).major : m.po ? pack(d).leagues[m.tier] + ' · плей-офф' : pack(d).leagues[m.tier];
   const side = t => (
@@ -52,7 +62,7 @@ export function preMatch(d, m) {
       <Row style={{ marginVertical: 14 }}>{side(A)}<T h s={26} mu>VS</T>{side(B)}</Row>
       <Row>
         <Btn wide style={{ flex: 1 }} kind="pri" ac={FAKE[d].color} icon="🎮" title="Смотреть в 3D и управлять" onPress={() => { closeModal(); UI.live = { d, m }; bump(); }} />
-        <Btn style={{ flex: 1 }} icon="⚡" title="Быстрый результат" onPress={() => { closeModal(); m.res = quickSeries(d, m); applyResult(d, m); const ut = userTeam(d); toast(`${m.res.win === ut.id ? '✅ Победа' : '❌ Поражение'} ${m.a === ut.id ? m.res.sa + ':' + m.res.sb : m.res.sb + ':' + m.res.sa}`); setTimeout(runQueue, 50); }} />
+        <Btn style={{ flex: 1 }} icon="⚡" title="Быстрый результат" onPress={() => { closeModal(); m.res = quickSeries(d, m); applyResult(d, m); const ut = userTeam(d); toast(`${m.res.win === ut.id ? '✅ Победа' : '❌ Поражение'} ${m.a === ut.id ? m.res.sa + ':' + m.res.sb : m.res.sb + ':' + m.res.sa}`); setTimeout(() => afterMatch(d, m), 50); }} />
       </Row>
     </View>
   ));

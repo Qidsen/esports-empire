@@ -455,10 +455,10 @@ function teamCtx(t, d) {
     analyst: isU ? staffSk('analyst', d) : Math.round(t.coach * 0.7),
     chem: t.chem, style: isU ? S.divs[d].style : t.str || 'bal', prac: t.prac,
     mor: sp.reduce((a, p) => a + p.mor, 0) / Math.max(1, sp.length),
-    pair: isU ? teamPairs(t) : 4, lead: sp.some(p => traitOf(p) === 'leader') ? 1 : 0
+    press: t.press || 0, pair: isU ? teamPairs(t) : 4, lead: sp.some(p => traitOf(p) === 'leader') ? 1 : 0
   };
 }
-function baseMod(c) { return (c.coach - 8) * 0.25 + (c.chem - 50) * 0.05 + (c.mor - 60) * 0.04 + (c.pair || 0) * 0.12 + (c.lead || 0) * 0.8; }
+function baseMod(c) { return (c.coach - 8) * 0.25 + (c.chem - 50) * 0.05 + (c.mor - 60) * 0.04 + (c.pair || 0) * 0.12 + (c.lead || 0) * 0.8 + (c.press || 0) * 0.6; }
 function pSkill(p) { const tr = traitOf(p); return ovr(p) + p.form * 0.6 + (tr === 'toxic' ? 2 : 0) + (tr === 'hot' ? (p.mor - 60) * 0.06 : 0); }
 
 // ---- weekly flow ----
@@ -519,7 +519,7 @@ function finishWeek() {
   if (S.week === 16) DISC_ORDER.forEach(setupFinals);
   if (S.week === 17) DISC_ORDER.forEach(setupWC);
   if (S.week === 18 || S.week === 19) DISC_ORDER.forEach(advanceWC);
-  if (S.week === 20) DISC_ORDER.forEach(d => { advanceWC(d); const C = S.world[d].wc; const ch = teamOf(d, C.champ); S.world[d].champs.unshift({ s: S.season, t: tname(ch), id: ch.id }); news('🏆 ' + tname(ch) + ' — чемпион ' + pack(d).major + ' ' + S.season + '!', ch.user ? 'gold' : ''); if (ch.user) { S.trophies.push({ s: S.season, d, n: pack(d).major }); S.money += 0; } });
+  if (S.week === 20) DISC_ORDER.forEach(d => { advanceWC(d); const C = S.world[d].wc; const ch = teamOf(d, C.champ); S.world[d].champs.unshift({ s: S.season, t: tname(ch), id: ch.id }); news('🏆 ' + tname(ch) + ' — чемпион ' + pack(d).major + ' ' + S.season + '!', ch.user ? 'gold' : ''); if (ch.user) { S.trophyQ = (S.trophyQ || []).concat({ d, n: pack(d).major, s: S.season, major: true }); S.trophies.push({ s: S.season, d, n: pack(d).major }); S.money += 0; } });
   if (S.week > SEASON_WEEKS) newSeason();
   if (S.money < -50000 && !S.debtWarn) { S.debtWarn = true; news('⚠️ Большие долги! Спонсоры и игроки нервничают.', 'bad'); }
   S.weekLog = log;
@@ -529,7 +529,7 @@ function isUserPlayer(p) { const t = p.team && T(p.team); return t && t.user; }
 
 function applyResult(d, m) {
   const r = m.res; const A = teamOf(d, m.a), B = teamOf(d, m.b);
-  const W = r.win === A.id ? A : B, L = r.win === A.id ? B : A;
+  const W = r.win === A.id ? A : B, L = r.win === A.id ? B : A; A.press = 0; B.press = 0;
   const wm = Math.max(r.sa, r.sb), lm = Math.min(r.sa, r.sb);
   W.last = (W.last || []).concat('W').slice(-5); L.last = (L.last || []).concat('L').slice(-5);
   if (!m.po && !m.wc) { W.rec.w++; L.rec.l++; W.rec.pts += 3; W.rec.md += wm - lm; L.rec.md -= wm - lm; }
@@ -555,7 +555,7 @@ function applyResult(d, m) {
     const opp = t === A ? B : A;
     news((won ? '✅ ' : '❌ ') + pack(d).game + ': ' + tname(t) + ' ' + (t === A ? r.sa + ':' + r.sb : r.sb + ':' + r.sa) + ' ' + tname(opp) + (prize ? ' · +$' + fmt(prize) : ''), won ? 'good' : 'bad');
   });
-  if (m.po === 2) { const P = S.world[d].po[m.tier]; P.champ = W.id; if (W.user) { S.trophies.push({ s: S.season, d, n: pack(d).leagues[m.tier] }); news('🏆 Титул! ' + tname(W) + ' выигрывает ' + pack(d).leagues[m.tier] + '!', 'gold'); } }
+  if (m.po === 2) { const P = S.world[d].po[m.tier]; P.champ = W.id; if (W.user) { S.trophyQ = (S.trophyQ || []).concat({ d, n: pack(d).leagues[m.tier], s: S.season }); S.trophies.push({ s: S.season, d, n: pack(d).leagues[m.tier] }); news('🏆 Титул! ' + tname(W) + ' выигрывает ' + pack(d).leagues[m.tier] + '!', 'gold'); } }
 }
 
 function metaShift() {

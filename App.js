@@ -24,6 +24,7 @@ import { Ico, IconText } from './src/ui/icons';
 import { music, sfx } from './src/ui/audio';
 
 import * as G from './src/core/game';
+import TrophyShow from './src/screens/TrophyShow';
 if (Platform.OS === 'web') globalThis.__APP = { G, UI, bump: () => bump() };
 const TABS = [['home', 'castle', 'Штаб'], ['roster', 'friends', 'Состав'], ['market', 'trade', 'Рынок'], ['comp', 'trophy', 'Турниры'], ['org', 'building', 'Клуб']];
 export const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
@@ -114,6 +115,7 @@ function Main() {
   return (
     <View style={{ flex: 1 }}>
       {UI.live ? <Live /> : <Shell />}
+      <TrophyShow />
       <ModalHost />
       <Toasts />
     </View>

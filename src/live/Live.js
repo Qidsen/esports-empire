@@ -7,7 +7,7 @@ import { UI, bump, save, toast, openModal, closeModal } from '../ui/store';
 import { T, Btn, Seg, Row, TeamLogo, Flag, Tag } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 import Scene3D from './Scene3D';
-import { runQueue } from '../screens/flow';
+import { runQueue, afterMatch } from '../screens/flow';
 import { SET } from '../ui/settings';
 import { Ico } from '../ui/icons';
 import { sfx, buzz, music } from '../ui/audio';
@@ -80,7 +80,7 @@ export default function Live() {
     endSeries();
   };
   const skipGame = () => { if (!L.cur || L.phase !== 'play') return; clear(); L.cur.run(); L.shown = [L.cur.kA !== undefined ? L.cur.kA : L.cur.sa, L.cur.kB !== undefined ? L.cur.kB : L.cur.sb]; mapDone(); };
-  const close = () => { clear(); UI.live = null; bump(); setTimeout(runQueue, 60); };
+  const close = () => { clear(); const d = L.d, m = L.m; UI.live = null; bump(); setTimeout(() => afterMatch(d, m), 60); };
   useEffect(() => {
     music(L.kind === 'ball' || L.kind === 'duel' ? 'crowd_loop' : null);
     if (L.kind === 'fps') { L.veto = { avail: [0, 1, 2, 3, 4, 5, 6], order: vetoOrder(L.bo), step: 0, picks: [], log: [] }; L.phase = 'veto'; vetoNext(); }
