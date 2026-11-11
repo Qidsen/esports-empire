@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { S, teamOf, teamCtx, FAKE, seriesBo, vetoOrder, aiVetoChoice, newDraft, draftOrder, draftApply, aiDraftChoice, draftTaken, autoDraft, heroList, heroMeta, prof, FpsMap, MobaGame, BallGame, DuelGame, fcPair, mergeStats, seriesFinalize, applyResult, tname, ttag, pnick, pcc, mapName, pack, fpsRating, fmt, shuffle, ovr } from '../core/game';
+import { S, teamOf, teamCtx, FAKE, seriesBo, vetoOrder, aiVetoChoice, newDraft, draftOrder, draftApply, aiDraftChoice, draftTaken, autoDraft, heroList, heroMeta, prof, FpsMap, MobaGame, BallGame, DuelGame, fcPair, mergeStats, seriesFinalize, applyResult, tname, ttag, pnick, pcc, mapName, pack, fpsRating, fmt, shuffle, ovr, staffSk } from '../core/game';
 import { UI, bump, save, toast, openModal, closeModal } from '../ui/store';
 import { T, Btn, Seg, Row, TeamLogo, Flag, Tag } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
@@ -11,7 +11,7 @@ import { runQueue } from '../screens/flow';
 import { SET } from '../ui/settings';
 
 const SPEEDS = [1, 2, 4, 8];
-const STEP = { fps: 6000, moba: 1000, ball: 1150, duel: 190 };
+const STEP = { fps: 16000, moba: 1000, ball: 1150, duel: 190 };
 function styleOpts(d) { const k = FAKE[d].kind; if (k === 'moba') return [['agr', 'Давление'], ['bal', 'Баланс'], ['farm', 'Фарм']]; if (k === 'ball') return [['agr', 'Прессинг'], ['bal', 'Ротации'], ['pas', 'Оборона']]; if (k === 'duel') return [['agr', 'Атака'], ['bal', 'Баланс'], ['pas', 'Контратаки']]; return [['agr', 'Агрессия'], ['bal', 'Стандарт'], ['pas', 'Осторожно']]; }
 function colorDist(a, b) { const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; const x = p(a), y = p(b); return Math.abs(x[0] - y[0]) + Math.abs(x[1] - y[1]) + Math.abs(x[2] - y[2]); }
 
@@ -113,8 +113,8 @@ function CsHud({ L }) {
   const ca = v.ca, cb = v.cb; const sc = L.shown;
   const u = rec ? Math.min(1, Math.max(0, (Date.now() - v.roundT0) / v.roundDur)) : 0;
   let clock = '1:55', red = false;
-  if (h.planted) { const left = Math.max(0, Math.round(40 * (1 - Math.min(1, (u - 0.64) / 0.32)))); clock = '0:' + String(left).padStart(2, '0'); red = true; }
-  else { const sec = Math.max(0, Math.round(115 * (1 - Math.min(1, u / 0.66)))); clock = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
+  if (h.planted && rec && h.n === rec.n) { const left = Math.max(0, Math.min(40, Math.round(40 * (1 - Math.min(1, (u - 0.66) / 0.29))))); clock = '0:' + String(left).padStart(2, '0'); red = true; }
+  else { const sec = Math.max(0, Math.round(80 - u * 70)); clock = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
   const sideOf = s => rec ? ((s === 'A') === rec.ctA ? 'CT' : 'T') : '';
   const nick = id => { const p = S.players[id]; return p ? pnick(p) : '?'; };
   const kills = (h.kills || []).slice(-5);
@@ -244,6 +244,8 @@ function Board({ L }) {
     </View>
   );
 }
+// Оценка подготовки соперника аналитиком: без аналитика — «?», чем выше уровень — тем точнее
+function scoutPrac(L, op, i) { const sk = staffSk('analyst', L.d); if (!sk) return null; const err = Math.max(2, 22 - sk); const h = Math.sin((op.id || 1) * 12.9898 + i * 78.233 + S.season * 3.1) * 43758.5453; const n = (h - Math.floor(h) - 0.5) * 2 * err; return { v: Math.max(0, Math.min(100, Math.round(op.prac[i] + n))), err }; }
 function Veto({ L, onPick, onSkip }) {
   const V = L.veto; const st0 = V.order[V.step]; const my = st0 && st0[1] === L.us; const me = L.us === 'A' ? L.cA : L.cB, op = L.us === 'A' ? L.cB : L.cA;
   return (
@@ -254,11 +256,15 @@ function Veto({ L, onPick, onSkip }) {
           {[0, 1, 2, 3, 4, 5, 6].map(i => { const lg = V.log.find(x => x[1] === i); const ban = lg && lg[0] !== 'dec' && lg[0][0] === 'b'; const pk = lg && !ban; const who = lg ? (lg[0] === 'dec' ? 'десайдер' : ttag(lg[0][1] === 'A' ? L.A : L.B) + (ban ? ' бан' : ' пик')) : ''; return (
             <Pressable key={i} disabled={!my || !!lg} onPress={() => onPick(i)} style={{ width: '23.5%', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: pk ? FAKE[L.d].color : C.line, backgroundColor: ban ? 'rgba(255,90,106,0.08)' : pk ? alpha(FAKE[L.d].color, 0.15) : 'rgba(0,0,0,0.35)', opacity: ban ? 0.45 : 1 }}>
               <T h s={14} n={1} style={{ textDecorationLine: ban ? 'line-through' : 'none' }}>{mapName(L.d, i)}</T>
-              <T mu s={10.5}>мы {Math.round(me.prac[i])} · они {Math.round(op.prac[i])}</T>
+              <T mu s={10.5}>мы {Math.round(me.prac[i])} · они {(() => { const e = scoutPrac(L, op, i); return e ? '≈' + e.v : '?'; })()}</T>
               {who ? <T s={10} style={{ color: ban ? C.bad : FAKE[L.d].color, fontFamily: F.hm, marginTop: 2 }}>{who}</T> : null}
             </Pressable>); })}
         </View>
-        <Row style={{ marginTop: 10 }}><T mu s={10.5} style={{ flex: 1 }}>Цифры — знание карты (0–100). Разница в 50 очков ≈ +11 к силе каждого игрока в перестрелке. Баньте сильные карты соперника, пикайте свои.</T><Btn small title="⏩ Пропустить серию" onPress={onSkip} /></Row>
+        {(() => { const sk = staffSk('analyst', L.d); const avail = V.avail || []; if (!sk) return <T s={11} style={{ marginTop: 8, color: C.gold }}>Без аналитика подготовка соперника неизвестна. Найми аналитика в Состав → Штаб — он оценит карты соперника и подскажет вето.</T>;
+          const est = avail.map(i => ({ i, me: me.prac[i], op: scoutPrac(L, op, i).v }));
+          const ban = est.slice().sort((a, b) => (b.op - b.me) - (a.op - a.me))[0]; const pick = est.slice().sort((a, b) => (b.me - b.op) - (a.me - a.op))[0];
+          return <View style={{ marginTop: 8, padding: 8, borderRadius: 9, backgroundColor: 'rgba(56,200,255,0.07)', borderWidth: 1, borderColor: 'rgba(56,200,255,0.3)' }}><T s={11.5}>📊 Аналитик (ур. {sk}, точность ±{Math.max(2, 22 - sk)}): {ban ? 'банить ' + mapName(L.d, ban.i) : ''}{pick && ban && pick.i !== ban.i ? ', брать ' + mapName(L.d, pick.i) : ''}.</T></View>; })()}
+        <Row style={{ marginTop: 8 }}><T mu s={10.5} style={{ flex: 1 }}>Цифры — знание карты (0–100). Разница в 50 очков ≈ +11 к силе каждого игрока в перестрелке.</T><Btn small title="⏩ Пропустить серию" onPress={onSkip} /></Row>
       </View>
     </View>
   );

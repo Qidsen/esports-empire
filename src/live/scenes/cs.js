@@ -87,7 +87,7 @@ export function createCs(scene, cam, viz) {
     S.world.add(floors);
     const walls = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.02 }), Math.max(1, wallCells.length)); walls.castShadow = true; walls.receiveShadow = true;
     const w1 = new THREE.Color(th.wall).lerp(new THREE.Color('#ffffff'), 0.12), w2 = new THREE.Color(th.wall2);
-    wallCells.forEach(([gx, gy, y], n) => { const p = G.toW(gx, gy); const hgt = y - base + 3.2; m4.makeScale(C, hgt, C); m4.setPosition(p.x, base, p.z); walls.setMatrixAt(n, m4); col.copy(w1).lerp(w2, ((gx >> 2) + (gy >> 2)) % 3 * 0.18 + hash(gx * 11 + gy * 5) * 0.08); walls.setColorAt(n, col); });
+    wallCells.forEach(([gx, gy, y], n) => { const p = G.toW(gx, gy); const hgt = y - base + 2.3; m4.makeScale(C, hgt, C); m4.setPosition(p.x, base, p.z); walls.setMatrixAt(n, m4); col.copy(w1).lerp(w2, ((gx >> 2) + (gy >> 2)) % 3 * 0.18 + hash(gx * 11 + gy * 5) * 0.08); walls.setColorAt(n, col); });
     S.world.add(walls);
     [['A', '#ff9a2e'], ['B', '#38c8ff']].forEach(([k, c]) => {
       const p = wpos(M.pts[k]);
@@ -113,8 +113,8 @@ export function createCs(scene, cam, viz) {
     const key = p.id + (isCT ? 'c' : 't'); let f = S.fighters[key];
     if (!f) {
       const teamC = side === 'A' ? viz.ca : viz.cb;
-      f = makeFighter(isCT ? S.gl.ct : S.gl.t, { main: isCT ? CT_MAIN : T_MAIN, accent: new THREE.Color(teamC).multiplyScalar(0.55).getStyle(), gun: p.role === 1 ? 'Sniper' : 'AK' });
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.56, 28), new THREE.MeshBasicMaterial({ color: teamC, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; f.add(ring); f.userData.ring = ring;
+      f = makeFighter(isCT ? S.gl.ct : S.gl.t, { main: isCT ? CT_MAIN : T_MAIN, accent: new THREE.Color(teamC).multiplyScalar(0.55).getStyle(), gun: p.role === 1 ? 'Sniper' : 'AK', scale: 1.25 });
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 28), new THREE.MeshBasicMaterial({ color: teamC, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; f.add(ring); f.userData.ring = ring;
       f.visible = false; scene.add(f); S.fighters[key] = f;
     }
     return f;
@@ -145,7 +145,7 @@ export function createCs(scene, cam, viz) {
       P[p.id] = { side, isT, ...st, dead: null, f };
     });
     mk(viz.pa, 'A'); mk(viz.pb, 'B');
-    const n = rec.ev.length; const kills = rec.ev.map((e, i) => ({ ...e, t: 0.42 + 0.5 * (i + 0.5) / Math.max(1, n) + (hash(rec.n + i) - 0.5) * 0.03, done: false }));
+    const n = rec.ev.length; const kills = rec.ev.map((e, i) => ({ ...e, t: 0.4 + 0.52 * (i + 0.5) / Math.max(1, n) + (hash(rec.n + i) - 0.5) * 0.02, done: false }));
     const plant = (!rec.ctA ? rec.A : !rec.A) && (rec.how === 'bomb') || rec.how === 'defuse';
     viz.hud = { n: rec.n, kills: [], dead: {}, planted: false, end: false, site: sk };
     const sitePos = wpos(site);
@@ -188,7 +188,7 @@ export function createCs(scene, cam, viz) {
           b.dead = { t: u }; a.shoot = { t: u, at: to.clone() };
           if (b.f) b.f.userData.fighter.play('Death', 0.08);
           if (viz.hud) { viz.hud.kills.push({ k: k.k, v: k.v, hs: k.hs, awp: k.awp, A: k.A, at: now, place: prettyPlace(G.placeAt(b.pos)) }); viz.hud.dead[k.v] = true; }
-          if (!S.shot || now - S.shot.t0 > S.shot.dur * 0.8) S.shot = { t0: now, dur: Math.max(900, Math.min(1500, viz.roundDur * 0.14)), from: a.pos.clone(), to: b.pos.clone() };
+          S.shot = { t0: now, from: a.pos.clone(), to: b.pos.clone() };
         });
         const winT = pl.rec.A ? 'A' : 'B';
         Object.values(pl.P).forEach(st => {
@@ -233,35 +233,24 @@ export function createCs(scene, cam, viz) {
       S.flashes = S.flashes.filter(f => { f.t -= dt; f.s.material.opacity = Math.max(0, f.t / 0.09); if (f.t <= 0) { scene.remove(f.s); return false; } return true; });
       S.tracers.update(dt); S.bursts.update(dt);
 
-      // ---- камера-трансляция: установочный план → за атакой → облёт сайта; на убийствах — короткая перебивка ----
-      let wantPos, wantLook, kp = 2.0, kl = 3.5;
+      // ---- камера-трансляция: один понятный ракурс 3/4 со стороны атаки, плавно ведёт «центр событий» ----
+      let wantPos, wantLook;
       if (pl) {
-        const tAlive = Object.values(pl.P).filter(s => s.isT && !s.dead).map(s => s.pos);
+        const alive = Object.values(pl.P).filter(s => !s.dead);
+        const tAlive = alive.filter(s => s.isT).map(s => s.pos);
         const tc = tAlive.length ? tAlive.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / tAlive.length) : pl.site.clone();
-        const atSite = u > 0.55 || tc.distanceTo(pl.site) < 9;
-        const focus = atSite ? pl.site.clone().lerp(tc, 0.25) : tc.clone().lerp(pl.site, 0.35);
-        S.focus.lerp(focus, Math.min(1, dt * 2));
-        if (S.shot && now - S.shot.t0 < S.shot.dur) {
-          const dir = S.shot.to.clone().sub(S.shot.from).setY(0); const len = Math.max(2, dir.length()); dir.normalize();
-          const side = new THREE.Vector3(-dir.z, 0, dir.x); const k = (now - S.shot.t0) / S.shot.dur;
-          const back = 4.2 + k * 0.8;
-          let cp = S.shot.from.clone().addScaledVector(dir, -back * 1.25).addScaledVector(side, 2.2); cp.y = S.shot.from.y + 6.5;
-          if (blockedAt(cp, 3.5)) { cp = S.shot.from.clone().addScaledVector(dir, -back * 1.2).addScaledVector(side, 2); cp.y = S.shot.from.y + 11; }
-          wantPos = cp; wantLook = S.shot.from.clone().lerp(S.shot.to, Math.min(0.7, 3 / len + 0.35)); wantLook.y += 1.0;
-          kp = k < 0.12 ? 18 : 4; kl = k < 0.12 ? 18 : 7;
-        } else if (u < 0.12) {
-          wantPos = pl.site.clone().addScaledVector(S.camDir, -22 + u * 50).add(tmp.set(0, 28 - u * 60, 0)); wantLook = pl.site.clone();
-          kp = u < 0.02 ? 40 : 2.5; kl = u < 0.02 ? 40 : 4;
-        } else if (!atSite) {
-          const d = pl.site.clone().sub(tc).setY(0); if (d.lengthSq() > 1) S.camDir.lerp(d.normalize(), Math.min(1, dt * 0.8)).normalize();
-          wantPos = S.focus.clone().addScaledVector(S.camDir, -13).add(tmp.set(0, 19, 0)); wantLook = S.focus.clone();
-        } else {
-          S.ang += dt * 0.12; const a = Math.atan2(-S.camDir.z, -S.camDir.x) + Math.sin(S.ang) * 0.6;
-          wantPos = S.focus.clone().add(tmp.set(Math.cos(a) * 13, 18, Math.sin(a) * 13)); wantLook = S.focus.clone();
-        }
+        // центр событий: между атакой и сайтом, а ближе к концу — сам сайт
+        const k = Math.min(1, Math.max(0, (u - 0.3) / 0.3));
+        const focus = tc.clone().lerp(pl.site, k * 0.75);
+        // свежее убийство слегка притягивает кадр
+        if (S.shot && now - S.shot.t0 < 1600) focus.lerp(S.shot.to.clone().lerp(S.shot.from, 0.5), 0.35);
+        S.focus.lerp(focus, Math.min(1, dt * 2.2));
+        const zoom = u < 0.1 ? 1.5 - u * 5 : (S.shot && now - S.shot.t0 < 1600 ? 0.85 : 1);
+        wantPos = S.focus.clone().addScaledVector(S.camDir, -7 * zoom).add(tmp.set(0, 19 * zoom, 0));
+        wantLook = S.focus.clone();
+        if (u < 0.02) { S.focus.copy(focus); wantPos = S.focus.clone().addScaledVector(S.camDir, -7 * zoom).add(tmp.set(0, 19 * zoom, 0)); S.camPos.copy(wantPos); S.look.copy(S.focus); }
       } else { wantPos = new THREE.Vector3(0, 70, 60); wantLook = new THREE.Vector3(); }
-      if (G && !S.shot) { const fy = (S.G.walk(S.G.idx(...S.G.cellOf(wantPos))) ? S.G.yAt(S.G.idx(...S.G.cellOf(wantPos))) : S.focus.y + 3.2); if (wantPos.y < fy + 7) wantPos.y = fy + 7; }
-      S.camPos.lerp(wantPos, Math.min(1, dt * kp)); S.look.lerp(wantLook, Math.min(1, dt * kl));
+      S.camPos.lerp(wantPos, Math.min(1, dt * 2.2)); S.look.lerp(wantLook, Math.min(1, dt * 3));
       cam.position.copy(S.camPos);
       if (S.shake) { cam.position.x += (Math.random() - 0.5) * S.shake; cam.position.y += (Math.random() - 0.5) * S.shake; S.shake = Math.max(0, S.shake - dt * 1.5); }
       cam.lookAt(S.look);
