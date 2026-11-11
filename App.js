@@ -138,7 +138,7 @@ export default function App() {
         S.cd = S.cd || { scrim: 0, stream: 0 }; S.creators = S.creators || []; S.tOffers = S.tOffers || []; S.negot = S.negot || {}; S.fac.office = S.fac.office || 1;
         Object.values(S.divs).forEach(dv => { dv.youth = dv.youth || []; dv.out = dv.out || []; });
         UI.d = Object.keys(S.divs)[0]; UI.title = true;
-        S.lastTick = Date.now(); S.auto = false; G.migrateHeroRoles(REAL_PATCH);
+        S.lastTick = Date.now(); S.auto = false; G.migrateHeroRoles(REAL_PATCH); G.ensureMeta();
       }
       setReady(true);
     });

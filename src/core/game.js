@@ -204,6 +204,7 @@ function newCareer(opts) {
   genOffers(); genStaffMarket();
   news('🏁 Организация ' + S.org.name + ' основана. Цель — мировой титул!');
   if (S.patchOn && S.patchData) applyPatchNames();
+  metaMajor(true); S.patchNew = null;
   return S;
 }
 
@@ -393,6 +394,7 @@ function migrateHeroRoles(real) {
   Object.values(S.players).forEach(p => { if (p && FAKE[p.d] && FAKE[p.d].kind === 'moba') { const keep = p.pool && p.pool.length ? Math.max(...p.pool.map(x => x[1])) : null; genPool(p); if (keep !== null && p.pool.length) { const top = p.pool.slice().sort((a, b) => b[1] - a[1])[0]; top[1] = Math.max(top[1], Math.min(99, keep)); } } });
   S.heroFix = 4;
 }
+function ensureMeta() { if (S && !S.metaW) { metaMajor(true); S.patchNew = null; } }
 // ---- изучение нового героя: медленно, с потолком и ржавчиной остальных ----
 function learnCap(p, h) { const hr = heroList(p.d)[h]; return Math.min(95, ovr(p) + (hr && hr.r.includes(p.role) ? 4 : -6)); }
 function learnRate(p, h) { const e = (p.pool || []).find(x => x[0] === h); const cur = e ? e[1] : 0; const cap = learnCap(p, h); if (cur >= cap) return 0; const wp = S.weekPlan || 'scrim'; const plan = wp === 'scrim' ? 1 : wp === 'rest' ? 0.35 : 0.6; return Math.max(0.5, (cap - cur) / 5) * plan * (1 + staffSk('coach', p.d) * 0.03 + S.fac.server * 0.04) * (traitOf(p) === 'work' ? 1.2 : 1); }
@@ -554,7 +556,8 @@ function finishWeek() {
   // fans organic
   S.fans += Math.round(S.fans * 0.004 * (1 + S.fac.marketing * 0.2) + staffSk('media') * 3);
   // meta patch
-  if (S.week % 5 === 0) metaShift();
+  if (S.week % 5 === 0 && S.week < 20) metaMinor();
+  aiMetaAdapt();
   // random event
   if (rnd() < 0.15) randomEvent();
   // markets
@@ -613,19 +616,40 @@ function applyResult(d, m) {
   if (m.po === 2) { const P = S.world[d].po[m.tier]; P.champ = W.id; if (W.user) { S.trophyQ = (S.trophyQ || []).concat({ d, n: pack(d).leagues[m.tier], s: S.season }); S.trophies.push({ s: S.season, d, n: pack(d).leagues[m.tier] }); news('🏆 Титул! ' + tname(W) + ' выигрывает ' + pack(d).leagues[m.tier] + '!', 'gold'); } }
 }
 
-function metaShift() {
-  DISC_ORDER.forEach(d => {
-    const l = heroList(d); if (!l || !l.length) return;
-    const M = {}; for (let k = 0; k < 6; k++) M[ri(0, l.length - 1)] = ri(2, 5); for (let k = 0; k < 4; k++) M[ri(0, l.length - 1)] = -ri(2, 4);
-    S.meta[d] = M;
-  });
-  // карты CS: одна-две карты становятся «сторона атаки/защиты» сильнее — меняется важность подготовки
+// ---- мета: тренды (архетипы) меняются плавно, раз в сезон — крупный патч, в сезоне — точечные правки ----
+const META_TAGS = { T: 'жирные герои', H: 'урон с руки', M: 'магический бёрст', F: 'тимфайты', G: 'пики и мобильность', P: 'пуш и сплит', S: 'сейвы и сустейн' };
+const HERO_TAGS = {
+  'Anti-Mage': 'HG', 'Phantom Assassin': 'HG', 'Faceless Void': 'HF', 'Medusa': 'HT', 'Juggernaut': 'HS', 'Terrorblade': 'HP', 'Troll Warlord': 'H', 'Morphling': 'HG', 'Invoker': 'MF', 'Storm Spirit': 'MG', 'Shadow Fiend': 'HM', 'Puck': 'MG', 'Ember Spirit': 'GH', 'Queen of Pain': 'MG', 'Void Spirit': 'MG', 'Templar Assassin': 'HG', 'Mars': 'TF', 'Axe': 'TF', 'Centaur Warrunner': 'TF', 'Dark Seer': 'FP', 'Tidehunter': 'TF', 'Beastmaster': 'PT', 'Underlord': 'TFP', 'Primal Beast': 'TF', 'Earthshaker': 'FM', 'Tusk': 'G', 'Rubick': 'M', 'Hoodwink': 'G', 'Clockwerk': 'GT', 'Mirana': 'G', 'Snapfire': 'MF', 'Pangolier': 'GF', 'Crystal Maiden': 'MF', 'Lion': 'MG', 'Shadow Shaman': 'MP', 'Witch Doctor': 'MS', 'Dazzle': 'S', 'Oracle': 'S', 'Treant Protector': 'ST', 'Warlock': 'FS',
+  'Abaddon': 'ST', 'Alchemist': 'TH', 'Ancient Apparition': 'MF', 'Arc Warden': 'HP', 'Bane': 'M', 'Batrider': 'GF', 'Bloodseeker': 'HG', 'Bounty Hunter': 'G', 'Brewmaster': 'TF', 'Bristleback': 'T', 'Broodmother': 'PG', 'Chaos Knight': 'TH', 'Chen': 'SP', 'Clinkz': 'HP', 'Dark Willow': 'MG', 'Dawnbreaker': 'TS', 'Death Prophet': 'PM', 'Disruptor': 'MF', 'Doom': 'T', 'Dragon Knight': 'TP', 'Drow Ranger': 'HP', 'Elder Titan': 'F', 'Enchantress': 'SP', 'Enigma': 'F', 'Gyrocopter': 'HF', 'Grimstroke': 'MG', 'Huskar': 'HT', 'Io': 'S', 'Jakiro': 'MP', 'Keeper of the Light': 'M', 'Kez': 'HG', 'Kunkka': 'TF', 'Legion Commander': 'TG', 'Leshrac': 'MP', 'Lich': 'MS', 'Lifestealer': 'HT', 'Lina': 'M', 'Lone Druid': 'HP', 'Luna': 'HP', 'Lycan': 'HP', 'Magnus': 'F', 'Marci': 'G', 'Meepo': 'G', 'Monkey King': 'HG', 'Muerta': 'HM', 'Naga Siren': 'HP', "Nature's Prophet": 'P', 'Necrophos': 'TS', 'Night Stalker': 'GT', 'Nyx Assassin': 'GM', 'Ogre Magi': 'TS', 'Omniknight': 'S', 'Outworld Destroyer': 'M', 'Phantom Lancer': 'HP', 'Phoenix': 'FS', 'Pudge': 'TG', 'Pugna': 'MP', 'Razor': 'HT', 'Riki': 'G', 'Ringmaster': 'F', 'Sand King': 'F', 'Shadow Demon': 'S', 'Silencer': 'F', 'Skywrath Mage': 'M', 'Slardar': 'TG', 'Slark': 'HG', 'Sniper': 'HP', 'Spectre': 'HG', 'Spirit Breaker': 'G', 'Sven': 'HT', 'Techies': 'M', 'Timbersaw': 'TM', 'Tinker': 'MP', 'Tiny': 'MH', 'Undying': 'TS', 'Ursa': 'H', 'Vengeful Spirit': 'S', 'Venomancer': 'P', 'Viper': 'HT', 'Visage': 'P', 'Weaver': 'HG', 'Windranger': 'HG', 'Winter Wyvern': 'S', 'Wraith King': 'HT', 'Zeus': 'M', 'Largo': 'S', 'Earth Spirit': 'G',
+  'Haze': 'HG', 'Holliday': 'H', 'Mirage': 'HG', 'Venator': 'H', 'Vindicta': 'H', 'Vyper': 'HG', 'Wraith': 'H', 'Abrams': 'T', 'Mo & Krill': 'TF', 'Rat King': 'TP', 'Victor': 'TS', 'Warden': 'TF', 'Celeste': 'M', 'Graves': 'MP', 'Grey Talon': 'HM', 'Lady Geist': 'MT', 'Mina': 'MG', 'Seven': 'MF', 'Apollo': 'G', 'Calico': 'G', 'Drifter': 'G', 'Pocket': 'MG', 'Shiv': 'HG', 'Silver': 'HG', 'Yamato': 'HG', 'Dynamo': 'FS', 'Ivy': 'S', 'Kelvin': 'SF', 'McGinnis': 'PH', 'Paige': 'S', 'Rem': 'S', 'Viscous': 'TS', 'Nurse Harrow': 'S', 'Bebop': 'G', 'Billy': 'GT', 'Deadman Danny': 'F', 'Infernus': 'MT', 'Lash': 'GF', 'Baba': 'F', 'The Doorman': 'F', 'Paradox': 'G', 'Sinclair': 'M', 'Solomon': 'F', 'Violet': 'F',
+};
+const ROLE_TAGS = { dota: ['HG', 'MG', 'TF', 'GF', 'SM'], dl: ['H', 'TF', 'M', 'G', 'S', 'F'] };
+function heroTags(d, i) { const h = heroList(d)[i]; if (!h) return ''; return HERO_TAGS[h.n] || (ROLE_TAGS[d] || [])[h.r[0]] || ''; }
+function rndW() { return Math.round((rnd() * 4 - 1.5) * 10) / 10; }
+function computeMeta(d) { const W = (S.metaW || {})[d] || {}; const Tw = (S.metaTweak || {})[d] || {}; const M = {}; heroList(d).forEach((h, i) => { let v = 0; for (const t of heroTags(d, i)) v += (W[t] || 0) * 0.9; v += Tw[i] || 0; v = Math.max(-5, Math.min(5, Math.round(v))); if (v) M[i] = v; }); S.meta[d] = M; }
+function patchVer(major) { S.pv = S.pv || (S.patchOn ? { a: 7, b: 41, c: 0 } : { a: 1, b: 0, c: 0 }); if (major) { S.pv.b++; S.pv.c = 0; } else S.pv.c++; return S.pv.a + '.' + S.pv.b + (S.pv.c ? 'abcdefghij'[Math.min(9, S.pv.c - 1)] : ''); }
+function metaMajor(first) {
+  S.metaW = S.metaW || {}; S.metaTweak = {}; const shake = first || rnd() < 0.25; const trend = {};
+  ['dota', 'dl'].forEach(d => { const o = S.metaW[d] || {}; const W = {}; Object.keys(META_TAGS).forEach(t => { W[t] = shake ? rndW() : Math.round(((o[t] || 0) * 0.55 + rndW() * 0.45) * 10) / 10; }); S.metaW[d] = W; trend[d] = W; computeMeta(d); });
   S.mapMeta = {}; const mi = ri(0, 6); S.mapMeta[mi] = rnd() < 0.5 ? 'ct' : 't';
-  S.patchNew = { s: S.season, w: S.week, v: S.patchOn ? (S.season + 6) + '.' + (10 + Math.floor(S.week / 5)) : S.season + '.' + Math.floor(S.week / 5) };
-  const v = S.patchOn ? 'Патч ' + (S.season + 6) + '.' + (10 + Math.floor(S.week / 5)) : 'Обновление баланса ' + S.season + '.' + Math.floor(S.week / 5);
-  news('🧪 ' + v + ': сдвиг меты героев в MOBA-дисциплинах');
+  const v = patchVer(true); S.patchNew = { s: S.season, w: S.week, v, major: true, shake };
+  if (!first) news('🧪 Крупный патч ' + v + (shake ? ': мета перевёрнута' : ': тренды сместились') + ' — ' + trendText('dota'));
 }
+function metaMinor() {
+  S.metaTweak = S.metaTweak || {};
+  ['dota', 'dl'].forEach(d => { const W = (S.metaW || {})[d]; if (!W) return; Object.keys(W).forEach(t => { W[t] = Math.round((W[t] + (rnd() - 0.5) * 0.5) * 10) / 10; }); const Tw = S.metaTweak[d] = S.metaTweak[d] || {}; const n = heroList(d).length; for (let k = 0; k < 7; k++) { const i = ri(0, n - 1); Tw[i] = Math.max(-3, Math.min(3, (Tw[i] || 0) + (rnd() < 0.5 ? ri(1, 2) : -ri(1, 2)))); } computeMeta(d); });
+  S.mapMeta = S.mapMeta || {}; if (rnd() < 0.4) { S.mapMeta = {}; S.mapMeta[ri(0, 6)] = rnd() < 0.5 ? 'ct' : 't'; }
+  const v = patchVer(false); S.patchNew = { s: S.season, w: S.week, v, major: false };
+  news('🧪 Патч ' + v + ': точечные правки баланса, тренды прежние');
+}
+function trendText(d) { const W = (S.metaW || {})[d] || {}; const k = Object.keys(W).sort((a, b) => W[b] - W[a]); return 'в моде ' + META_TAGS[k[0]] + ', ' + META_TAGS[k[1]]; }
+function metaShift() { metaMinor(); }
 function heroMeta(d, i) { return (S.meta[d] && S.meta[d][i]) || 0; }
+// ИИ-команды тоже подстраиваются под мету: понемногу учат усиленных героев своей роли
+function aiMetaAdapt() {
+  ['dota', 'dl'].forEach(d => { const M = S.meta[d] || {}; const L = heroList(d); const top = Object.keys(M).map(Number).filter(i => M[i] > 0).sort((a, b) => M[b] - M[a]);
+    if (!top.length) return; S.world[d].teams.forEach(t => { if (t.user) return; starters(t).forEach(p => { if (rnd() > 0.3) return; const cand = top.filter(i => L[i] && L[i].r.includes(p.role)).slice(0, 4); if (!cand.length) return; const h = pick(cand); const cap = Math.min(95, ovr(p) + 4); p.pool = p.pool || []; let e = p.pool.find(x => x[0] === h); if (!e) { e = [h, Math.max(25, ovr(p) - 15)]; p.pool.push(e); if (p.pool.length > 8) { p.pool.sort((a, b) => b[1] - a[1]); p.pool.length = 8; } } e[1] = Math.min(cap, e[1] + 2 + rnd() * 2); }); }); });
+}
 
 function aiTransfer(d) {
   if (rnd() > 0.25) return; const W = S.world[d];
@@ -656,6 +680,7 @@ function randomEvent() {
 
 function newSeason() {
   fire('season');
+  metaMajor(false);
   // promotion / relegation
   DISC_ORDER.forEach(d => {
     const W = S.world[d];
@@ -1261,6 +1286,7 @@ export { mediaWeekly, tpWeekly };
 export { leagueWeekly };
 export { leaguePosFactor, weeksToPayday, goalProgress, makeGoal };
 export { raiseTarget };
+export { META_TAGS, heroTags, trendText, ensureMeta, metaMajor, metaMinor, aiMetaAdapt };
 export { sigMap, sigHero, marketWeek, onHook, migrateHeroRoles, learnCap, learnRate, setLearn, metaComfort };
 export { TRAITS, traitOf, pairVal, pairAdd, pairDelta, teamPairs };
 export { ATTRS,BallGame,CC_WEIGHTED,COUNTRIES,CREATOR_TYPES,DISC_ORDER,DRAFT_ORDER_5,DRAFT_ORDER_6,DW,DuelGame,ENTRY_ROLE,EVENTS,FACILITIES,FAKE,FIRST,FLAG,FpsMap,H,KW,LAST,MobaGame,NICK_A,NICK_SUF,NWS,PRIZE,RL_SHOOT,SEASON_WEEKS,SPONSOR_NAMES,STAFF_TYPES,T,TEAM_A,TEAM_B,TEAM_COLORS,acceptCounter,advanceWC,agentDisc,aiDraftChoice,aiTransfer,aiVetoChoice,alignOvr,applyPatchNames,applyResult,autoDraft,autoVeto,avgR,baseMod,bestPlayerFor,buildFac,buildWorld,buyChance,buyDivision,buyWithBid,canUp,clamp,divCost,divRep,doUp,draftApply,draftOrder,draftTaken,draftValue,ensureFive,extendDemand,facCost,fcPair,feeFor,finishWeek,fmt,fpsRating,gauss,genNick,genOffers,genPlayer,genPool,genStaff,genStaffMarket,genTeamName,heroList,heroMeta,heroName,hireCreator,hireStaff,idleTick,isLoanable,isUserPlayer,loanIn,loanInCost,loanOut,loanOutTarget,makeSchedule,mapName,maxDivs,mergeStats,metaShift,mobaRating,moodFactors,negKey,newCareer,newDraft,newPS,newSeason,newStats,news,nid,offlineCapH,offlineGain,ovr,pSkill,pack,passiveRate,pcc,phaseOf,pick,pnick,potView,prof,promoteYouth,quickSeries,randomEvent,refreshAcademy,releasePlayer,releaseYouth,respondOffer,ri,rnd,salaryFor,scaleCurve,scrim,seasonManagement,sellPlayer,seriesBo,seriesFinalize,setupFinals,setupPlayoffs,setupWC,shuffle,sig,signDemand,signPlayer,signYouth,sponsorSlots,staffOf,staffSk,standings,starters,stream,talk,teamColor,teamCtx,teamOf,teamOvr,tname,tpRate,ttag,unlockDivision,upCost,userMatchesThisWeek,userTeam,userTeamIds,validatePatch,valueOf,vetoOrder,weekMatches,weeklyCosts,weeklyGrowth,weeklyManagement,weeklySponsor,wpick };
