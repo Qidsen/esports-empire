@@ -690,7 +690,7 @@ class FpsMap {
     if (d === 'valo') { [cA, cB].forEach(c => { const used = new Set(); c.players.forEach(p => { const best = (p.pool || []).filter(x => !used.has(x[0])).sort((a, b) => b[1] - a[1])[0]; if (best) { used.add(best[0]); this.stats[p.id].ag = best[0]; this.stats[p.id].agp = best[1]; } }); }); }
     this.modA = this.teamMod(cA) + gauss() * 3; this.modB = this.teamMod(cB) + gauss() * 3;
   }
-  teamMod(c) { let m = baseMod(c) + ((c.prac[this.map] || 50) - 50) * 0.12; if (this.d === 'valo') { const l = c.players.map(p => this.stats[p.id].agp || 50); m += (l.reduce((a, b) => a + b, 0) / l.length - 60) * 0.06; } return m; }
+  teamMod(c) { let m = baseMod(c) + ((c.prac[this.map] || 50) - 50) * 0.22; if (this.d === 'valo') { const l = c.players.map(p => this.stats[p.id].agp || 50); m += (l.reduce((a, b) => a + b, 0) / l.length - 60) * 0.06; } return m; }
   buy(mon, ls, round) { if (round === 0 || round === 12 || (this.otStart !== null && (round - this.otStart) % 6 === 0)) return 'pistol'; if (mon >= 3900) return 'full'; if (mon >= 2000 && (ls >= 2 || round === 11 || round === 23)) return 'force'; if (mon >= 2600 && rnd() < 0.35) return 'force'; return 'eco'; }
   timeout(side) { if (side === 'A' && this.toA > 0) { this.toA--; this.boostA = 3; return true; } if (side === 'B' && this.toB > 0) { this.toB--; this.boostB = 3; return true; } return false; }
   nextRound() {
@@ -709,9 +709,10 @@ class FpsMap {
     const ev = []; let first = true;
     const styleA = cA.style, styleB = cB.style;
     const sideMod = (isA) => { const ct = isA ? this.ctA : !this.ctA; return ct ? 0.6 : 0; };
-    const swing = gauss() * 6;
-    const extA = swing + this.modA + BUY[bA] + (this.boostA > 0 ? 3 : 0) + sideMod(true) + (this.opts.liveA || 0);
-    const extB = this.modB + BUY[bB] + (this.boostB > 0 ? 3 : 0) + sideMod(false) + (this.opts.liveB || 0);
+    if (this.dayA === undefined) { this.dayA = gauss() * 4; this.dayB = gauss() * 4; }
+    const swing = gauss() * 7;
+    const extA = swing + this.dayA + this.modA + BUY[bA] + (this.boostA > 0 ? 3 : 0) + sideMod(true) + (this.opts.liveA || 0);
+    const extB = this.dayB + this.modB + BUY[bB] + (this.boostB > 0 ? 3 : 0) + sideMod(false) + (this.opts.liveB || 0);
     const wsel = (alive, first, side) => wpick(alive, p => { let w = 1; if (first) { if (p.role === ENTRY_ROLE[this.d]) w = 2.4; else if (p.role === AWP_ROLE[this.d]) w = 1.5; else if (p.role === SUP_ROLE[this.d]) w = 0.6; } return w * (0.6 + p.mech / 120); });
     const sk = (p, alone, n, styl, isFirst) => { let s = pSkill(p) * 0.55 + p.mech * 0.25 + (alone ? p.cl * 0.3 : p.iq * 0.2); if (styl === 'agr') s += isFirst ? 3 : -1; if (styl === 'pas') s += isFirst ? -1.5 : 1.5; if (styl === 'bal') s += 0.5; s += (p.con - 60) * 0.03 * gauss() + gauss() * (8 - p.con / 20); return s; };
     while (aliveA.length && aliveB.length) {

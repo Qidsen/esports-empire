@@ -163,6 +163,7 @@ function CsHud({ L }) {
             <Text numberOfLines={1} style={[hs.kn, { color: '#fff' }]}><Text style={{ color: kc }}>■ </Text>{nick(k.k)}</Text>
             <Text style={hs.wpn}>{k.awp ? 'AWP' : 'AK'}{k.hs ? ' ◎' : ''}</Text>
             <Text numberOfLines={1} style={[hs.kn, { color: 'rgba(255,255,255,0.75)' }]}>{nick(k.v)}<Text style={{ color: vc }}> ■</Text></Text>
+            {k.place ? <Text numberOfLines={1} style={hs.place}>{k.place}</Text> : null}
           </View>); })}
       </View>
       {h.end && rec ? <View style={hs.banner} pointerEvents="none"><LinearGradient colors={[alpha(rec.A ? ca : cb, 0), alpha(rec.A ? ca : cb, 0.9), alpha(rec.A ? ca : cb, 0)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={hs.bannerIn}><Text style={hs.bannerT}>{ttag(rec.A ? L.A : L.B)} ВЫИГРЫВАЮТ РАУНД</Text><Text style={hs.bannerS}>{HOW[rec.how] || ''}</Text></LinearGradient></View> : null}
@@ -186,6 +187,7 @@ const hs = StyleSheet.create({
   kill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(6,9,15,0.78)', paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: 'transparent', borderRadius: 3 },
   kn: { fontFamily: F.hm, fontSize: 11, maxWidth: 88 },
   wpn: { fontFamily: F.hx, fontSize: 9, color: '#ffd27a', letterSpacing: 1 },
+  place: { fontFamily: F.b, fontSize: 9, color: 'rgba(255,255,255,0.55)', maxWidth: 70 },
   banner: { position: 'absolute', top: 92, left: 0, right: 0, alignItems: 'center' },
   bannerIn: { paddingHorizontal: 60, paddingVertical: 6, alignItems: 'center' },
   bannerT: { fontFamily: F.hx, fontSize: 16, color: '#fff', letterSpacing: 2 },
@@ -256,7 +258,7 @@ function Veto({ L, onPick, onSkip }) {
               {who ? <T s={10} style={{ color: ban ? C.bad : FAKE[L.d].color, fontFamily: F.hm, marginTop: 2 }}>{who}</T> : null}
             </Pressable>); })}
         </View>
-        <Row style={{ marginTop: 10 }}><T mu s={10.5} style={{ flex: 1 }}>Цифры — знание карты. Баньте сильные карты соперника, пикайте свои.</T><Btn small title="⏩ Пропустить серию" onPress={onSkip} /></Row>
+        <Row style={{ marginTop: 10 }}><T mu s={10.5} style={{ flex: 1 }}>Цифры — знание карты (0–100). Разница в 50 очков ≈ +11 к силе каждого игрока в перестрелке. Баньте сильные карты соперника, пикайте свои.</T><Btn small title="⏩ Пропустить серию" onPress={onSkip} /></Row>
       </View>
     </View>
   );

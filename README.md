@@ -37,3 +37,6 @@
 
 ## 3D-модели
 Бойцы, оружие и окружение CS2 — Quaternius «Toon Shooter Game Kit» (CC0, quaternius.com), оптимизированы в GLB (`assets/models/`).
+
+## Карты CS2
+Раскладки семи карт (Ancient, Anubis, Cache, Dust II, Inferno, Mirage, Nuke) построены из навигационных сеток awpy-data (MIT, github.com/pnxenopoulos/awpy-data), названия зон — из awpy 1.3 (MIT). Бойцы ходят по реальным маршрутам (A* по сетке).
