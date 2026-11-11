@@ -10,7 +10,7 @@ const SRC = {
   cheer: require('../../assets/sfx/cheer.m4a'), crowd_loop: require('../../assets/sfx/crowd_loop.m4a'), horn: require('../../assets/sfx/horn.m4a'), whistle: require('../../assets/sfx/whistle.m4a'),
   kick: require('../../assets/sfx/kick.m4a'), boost: require('../../assets/sfx/boost.m4a'), demo: require('../../assets/sfx/demo.m4a'),
   clash: require('../../assets/sfx/clash.m4a'), tower: require('../../assets/sfx/tower.m4a'), roar: require('../../assets/sfx/roar2.m4a'), clash_big: require('../../assets/sfx/clash_big.m4a'),
-  win: require('../../assets/sfx/win.m4a'), lose: require('../../assets/sfx/lose.m4a'), trophy: require('../../assets/sfx/trophy.m4a'), event: require('../../assets/sfx/event.m4a'), cash: require('../../assets/sfx/cash.m4a'),
+  win: require('../../assets/sfx/win.m4a'), lose: require('../../assets/sfx/lose.m4a'), event: require('../../assets/sfx/event.m4a'), cash: require('../../assets/sfx/cash.m4a'),
   ui_click: require('../../assets/sfx/ui_click.m4a'), ui_select: require('../../assets/sfx/ui_select.m4a'), ui_confirm: require('../../assets/sfx/ui_confirm.m4a'), ui_error: require('../../assets/sfx/ui_error.m4a'), ui_tab: require('../../assets/sfx/ui_tab.m4a'), ui_open: require('../../assets/sfx/ui_open.m4a'),
 };
 // Музыка: треки CC0 (Komiku, Soft and Furious), можно выбрать в настройках
@@ -19,10 +19,11 @@ export const TRACKS = [
   ['m_hub', 'Штаб', require('../../assets/music/hq.m4a')],
   ['m_draft', 'Драфт', require('../../assets/music/draft.m4a')],
   ['m_draft_po', 'Драфт плей-офф', require('../../assets/music/draft_playoff.m4a')],
+  ['m_trophy', 'Трофей', require('../../assets/music/trophy.m4a')],
 ]
 TRACKS.forEach(([k, , r]) => { SRC[k] = r; });
 function trackFor(slot) { return slot === 'music_menu' ? 'm_menu' : 'm_hub'; }
-const VOL = { ak: 0.55, awp: 0.75, pistol: 0.5, headshot: 0.5, beep: 0.5, explosion: 1, cheer: 0.8, horn: 0.6, whistle: 0.6, kick: 0.6, boost: 0.5, ui_click: 0.5, ui_tab: 0.45, ui_select: 0.5, clash: 0.55, event: 0.7 };
+const VOL = { win: 0.9, lose: 0.9, ak: 0.55, awp: 0.75, pistol: 0.5, headshot: 0.5, beep: 0.5, explosion: 1, cheer: 0.8, horn: 0.6, whistle: 0.6, kick: 0.6, boost: 0.5, ui_click: 0.5, ui_tab: 0.45, ui_select: 0.5, clash: 0.55, event: 0.7 };
 const POOL = { clash_big: 1, ak: 4, pistol: 2, awp: 2, kick: 2, clash: 2, headshot: 2 };
 const pools = {}; const idx = {}; let ready = false;
 function init() { if (ready) return; ready = true; try { setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, interruptionMode: 'mixWithOthers' }).catch(() => { }); } catch (e) { } }

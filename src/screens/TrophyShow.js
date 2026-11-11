@@ -7,7 +7,7 @@ import { S, userTeam, starters, pnick, pcc, pack, FAKE, tname } from '../core/ga
 import { UI, bump } from '../ui/store';
 import { Flag, OrgLogo, Btn } from '../ui/kit';
 import { PATHS } from '../ui/iconPaths';
-import { sfx, buzz } from '../ui/audio';
+import { sfx, buzz, music } from '../ui/audio';
 import { C, F } from '../ui/theme';
 
 const CONF = ['#ffd24d', '#ffffff', '#ff5a6a', '#4da3ff', '#3ddc84', '#b98cff', '#ff8a1f'];
@@ -22,7 +22,7 @@ export default function TrophyShow() {
   const tr = UI.trophy; const { width: w, height: h } = useWindowDimensions();
   const spin = useRef(new Animated.Value(0)).current; const rays = useRef(new Animated.Value(0)).current; const intro = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    if (!tr) return; sfx('trophy'); buzz('success'); setTimeout(() => sfx('cheer', 0.8), 900);
+    if (!tr) return; music('m_trophy'); buzz('success'); setTimeout(() => sfx('cheer', 0.6), 900);
     intro.setValue(0); Animated.spring(intro, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }).start();
     Animated.loop(Animated.timing(spin, { toValue: 1, duration: 4200, easing: Easing.linear, useNativeDriver: true })).start();
     Animated.loop(Animated.timing(rays, { toValue: 1, duration: 22000, easing: Easing.linear, useNativeDriver: true })).start();
