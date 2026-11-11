@@ -34,3 +34,6 @@
 { "disciplines": { "cs": { "game": "Counter-Strike 2", "icon": "https://.../cs2.png" } } }
 ```
 Проще всего: Клуб → Патч → нажать на иконку игры и выбрать PNG/JPG (до 400 КБ). Иконки сохраняются, даже если переустановить патч.
+
+## 3D-модели
+Бойцы, оружие и окружение CS2 — Quaternius «Toon Shooter Game Kit» (CC0, quaternius.com), оптимизированы в GLB (`assets/models/`).

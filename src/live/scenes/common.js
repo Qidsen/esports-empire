@@ -6,7 +6,7 @@ export function makeRenderer(gl) {
   const r = new THREE.WebGLRenderer({ canvas, context: gl, antialias: true, powerPreference: 'high-performance' });
   r.debug.checkShaderErrors = false;
   r.setPixelRatio(1); r.setSize(w, h, false);
-  r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+  r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFShadowMap;
   r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
   r.outputColorSpace = THREE.SRGBColorSpace;
   return r;

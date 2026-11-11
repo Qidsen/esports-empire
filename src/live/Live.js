@@ -10,7 +10,7 @@ import Scene3D from './Scene3D';
 import { runQueue } from '../screens/flow';
 
 const SPEEDS = [1, 2, 4, 8];
-const STEP = { fps: 3800, moba: 1000, ball: 1150, duel: 190 };
+const STEP = { fps: 6000, moba: 1000, ball: 1150, duel: 190 };
 function styleOpts(d) { const k = FAKE[d].kind; if (k === 'moba') return [['agr', 'Давление'], ['bal', 'Баланс'], ['farm', 'Фарм']]; if (k === 'ball') return [['agr', 'Прессинг'], ['bal', 'Ротации'], ['pas', 'Оборона']]; if (k === 'duel') return [['agr', 'Атака'], ['bal', 'Баланс'], ['pas', 'Контратаки']]; return [['agr', 'Агрессия'], ['bal', 'Стандарт'], ['pas', 'Осторожно']]; }
 function colorDist(a, b) { const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; const x = p(a), y = p(b); return Math.abs(x[0] - y[0]) + Math.abs(x[1] - y[1]) + Math.abs(x[2] - y[2]); }
 
@@ -73,12 +73,12 @@ export default function Live() {
       <LinearGradient colors={['rgba(0,0,0,0.65)', 'rgba(0,0,0,0)']} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 90 }} pointerEvents="none" />
       <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80 }} pointerEvents="none" />
       <LinearGradient colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']} locations={[0, 0.18, 0.82, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
-      <View style={[StyleSheet.absoluteFill, { left: padL - 10, right: padR - 10 }]} pointerEvents="box-none"><Scoreboard L={L} sub={sub} />
+      <View style={[StyleSheet.absoluteFill, { left: padL - 10, right: padR - 10 }]} pointerEvents="box-none">{L.kind === 'fps' && L.phase === 'play' ? <CsHud L={L} /> : <Scoreboard L={L} sub={sub} />}
       {L.phase === 'veto' ? <Veto L={L} onPick={mp => { clear(); vetoApply(mp); }} onSkip={finishFast} /> : null}
       {L.phase === 'draft' ? <Draft L={L} rr={rr} onPick={h => { clear(); draftApply(L.d, L.draft, L.cA, L.cB, h); L.sel = null; draftNext(); }} onAuto={() => { clear(); draftApply(L.d, L.draft, L.cA, L.cB, aiDraftChoice(L.d, L.draft, L.cA, L.cB)); L.sel = null; draftNext(); }} onSkip={finishFast} /> : null}
       {L.phase === 'between' ? <View pointerEvents="none" style={st.center}><View style={st.banner}><T h s={20} style={{ textAlign: 'center' }}>{L.msg || 'Подготовка…'}</T><T mu style={{ textAlign: 'center', marginTop: 4 }}>Серия {L.sa}:{L.sb}</T></View></View> : null}
       {L.phase === 'play' ? <>
-        <Feed L={L} />
+        {L.kind !== 'fps' ? <Feed L={L} /> : null}
         {L.board ? <Board L={L} /> : null}
         <View style={st.bottom}>
           <Seg ac={FAKE[L.d].color} style={{ width: 170 }} value={L.speed} onChange={v => { L.speed = v; rr(); }} items={SPEEDS.map(s => [s, s + '×'])} />
@@ -94,6 +94,97 @@ export default function Live() {
     </View>
   );
 }
+// ===== HUD трансляции CS2 =====
+const HOW = { elim: 'зачистка', bomb: 'бомба взорвана', defuse: 'бомба обезврежена', clutch: 'клатч' };
+function useTicker(ms) { const [, set] = useState(0); useEffect(() => { const i = setInterval(() => set(v => v + 1), ms); return () => clearInterval(i); }, []); }
+function CsHud({ L }) {
+  useTicker(150);
+  const g = L.cur; const v = L.viz; const h = v.hud || {}; const rec = v.round;
+  const ca = v.ca, cb = v.cb; const sc = L.shown;
+  const u = rec ? Math.min(1, Math.max(0, (Date.now() - v.roundT0) / v.roundDur)) : 0;
+  let clock = '1:55', red = false;
+  if (h.planted) { const left = Math.max(0, Math.round(40 * (1 - Math.min(1, (u - 0.64) / 0.32)))); clock = '0:' + String(left).padStart(2, '0'); red = true; }
+  else { const sec = Math.max(0, Math.round(115 * (1 - Math.min(1, u / 0.66)))); clock = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
+  const sideOf = s => rec ? ((s === 'A') === rec.ctA ? 'CT' : 'T') : '';
+  const nick = id => { const p = S.players[id]; return p ? pnick(p) : '?'; };
+  const kills = (h.kills || []).slice(-5);
+  const pend = { k: {}, d: {} }; if (rec && h.n === rec.n) rec.ev.slice((h.kills || []).length).forEach(e => { pend.k[e.k] = (pend.k[e.k] || 0) + 1; pend.d[e.v] = (pend.d[e.v] || 0) + 1; });
+  const team = (s) => {
+    const t = s === 'A' ? L.A : L.B; const col = s === 'A' ? ca : cb; const right = s === 'B';
+    return (
+      <LinearGradient colors={right ? [alpha(col, 0.15), alpha(col, 0.85)] : [alpha(col, 0.85), alpha(col, 0.15)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[hs.team, right ? { flexDirection: 'row-reverse' } : null]}>
+        <TeamLogo t={t} size={26} />
+        <View style={{ flexShrink: 1, alignItems: right ? 'flex-end' : 'flex-start' }}>
+          <Text numberOfLines={1} style={hs.tname}>{tname(t)}</Text>
+          <Text style={[hs.side, { color: sideOf(s) === 'CT' ? '#8fc2ff' : '#ffd28a' }]}>{sideOf(s)}</Text>
+        </View>
+      </LinearGradient>
+    );
+  };
+  const strips = (s) => {
+    const ps = (s === 'A' ? L.cA : L.cB).players; const col = s === 'A' ? ca : cb; const right = s === 'B';
+    return (
+      <View style={[hs.strips, right ? { right: 10, alignItems: 'flex-end' } : { left: 10 }]} pointerEvents="none">
+        {ps.map(p => { const dead = h.dead && h.dead[p.id]; const k = ((g && g.stats[p.id] && g.stats[p.id].k) || 0) - (pend.k[p.id] || 0); const d = ((g && g.stats[p.id] && g.stats[p.id].d) || 0) - (pend.d[p.id] || 0); return (
+          <View key={p.id} style={[hs.strip, right ? { flexDirection: 'row-reverse' } : null, dead ? { opacity: 0.38 } : null]}>
+            <View style={{ width: 3, alignSelf: 'stretch', backgroundColor: col }} />
+            <Text numberOfLines={1} style={[hs.pn, { textAlign: right ? 'right' : 'left' }]}>{dead ? '✕ ' : ''}{pnick(p)}</Text>
+            <Text style={hs.kd}>{k}-{d}</Text>
+          </View>); })}
+      </View>
+    );
+  };
+  return (
+    <>
+      <View style={hs.top} pointerEvents="none">
+        {team('A')}
+        <View style={[hs.score, { backgroundColor: alpha(ca, 0.95) }]}><Text style={hs.scoreT}>{sc[0]}</Text></View>
+        <View style={hs.clock}>
+          <Text style={[hs.clockT, red ? { color: '#ff4d4d' } : null]}>{h.planted ? '💣 ' : ''}{clock}</Text>
+          <Text style={hs.round}>РАУНД {g ? g.round : ''}</Text>
+        </View>
+        <View style={[hs.score, { backgroundColor: alpha(cb, 0.95) }]}><Text style={hs.scoreT}>{sc[1]}</Text></View>
+        {team('B')}
+      </View>
+      <View style={hs.subWrap} pointerEvents="none"><Text style={hs.sub}>{mapName(L.d, g.map).toUpperCase()} · КАРТА {L.sa + L.sb + 1} · СЕРИЯ {L.sa}:{L.sb} · BO{L.bo}</Text></View>
+      <View style={hs.feed} pointerEvents="none">
+        {kills.map((k, i) => { const fresh = Date.now() - k.at < 2500; const kc = k.A ? ca : cb, vc = k.A ? cb : ca; return (
+          <View key={i} style={[hs.kill, fresh ? { borderColor: 'rgba(255,255,255,0.35)' } : null]}>
+            <Text numberOfLines={1} style={[hs.kn, { color: '#fff' }]}><Text style={{ color: kc }}>■ </Text>{nick(k.k)}</Text>
+            <Text style={hs.wpn}>{k.awp ? 'AWP' : 'AK'}{k.hs ? ' ◎' : ''}</Text>
+            <Text numberOfLines={1} style={[hs.kn, { color: 'rgba(255,255,255,0.75)' }]}>{nick(k.v)}<Text style={{ color: vc }}> ■</Text></Text>
+          </View>); })}
+      </View>
+      {h.end && rec ? <View style={hs.banner} pointerEvents="none"><LinearGradient colors={[alpha(rec.A ? ca : cb, 0), alpha(rec.A ? ca : cb, 0.9), alpha(rec.A ? ca : cb, 0)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={hs.bannerIn}><Text style={hs.bannerT}>{ttag(rec.A ? L.A : L.B)} ВЫИГРЫВАЮТ РАУНД</Text><Text style={hs.bannerS}>{HOW[rec.how] || ''}</Text></LinearGradient></View> : null}
+      {strips('A')}{strips('B')}
+    </>
+  );
+}
+const hs = StyleSheet.create({
+  top: { position: 'absolute', top: 6, alignSelf: 'center', flexDirection: 'row', alignItems: 'stretch', height: 40 },
+  team: { width: 190, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 8 },
+  tname: { fontFamily: F.h, fontSize: 13, color: '#fff', letterSpacing: 0.3 },
+  side: { fontFamily: F.hx, fontSize: 9, letterSpacing: 1.5 },
+  score: { width: 44, alignItems: 'center', justifyContent: 'center' },
+  scoreT: { fontFamily: F.hx, fontSize: 24, color: '#fff' },
+  clock: { width: 84, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(6,9,15,0.92)' },
+  clockT: { fontFamily: F.hx, fontSize: 17, color: '#fff' },
+  round: { fontFamily: F.h, fontSize: 8.5, color: 'rgba(255,255,255,0.6)', letterSpacing: 1.4 },
+  subWrap: { position: 'absolute', top: 48, alignSelf: 'center', backgroundColor: 'rgba(6,9,15,0.7)', paddingHorizontal: 10, paddingVertical: 2 },
+  sub: { fontFamily: F.h, fontSize: 9, color: 'rgba(255,255,255,0.75)', letterSpacing: 1.3 },
+  feed: { position: 'absolute', right: 10, top: 70, alignItems: 'flex-end', gap: 3 },
+  kill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(6,9,15,0.78)', paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: 'transparent', borderRadius: 3 },
+  kn: { fontFamily: F.hm, fontSize: 11, maxWidth: 88 },
+  wpn: { fontFamily: F.hx, fontSize: 9, color: '#ffd27a', letterSpacing: 1 },
+  banner: { position: 'absolute', top: 92, left: 0, right: 0, alignItems: 'center' },
+  bannerIn: { paddingHorizontal: 60, paddingVertical: 6, alignItems: 'center' },
+  bannerT: { fontFamily: F.hx, fontSize: 16, color: '#fff', letterSpacing: 2 },
+  bannerS: { fontFamily: F.h, fontSize: 10, color: 'rgba(255,255,255,0.85)', letterSpacing: 1.5 },
+  strips: { position: 'absolute', bottom: 62, gap: 2 },
+  strip: { flexDirection: 'row', alignItems: 'center', gap: 6, width: 150, height: 19, backgroundColor: 'rgba(6,9,15,0.72)', paddingRight: 6 },
+  pn: { flex: 1, fontFamily: F.hm, fontSize: 11, color: '#fff', paddingHorizontal: 4 },
+  kd: { fontFamily: F.hx, fontSize: 10, color: 'rgba(255,255,255,0.8)' },
+});
 function Scoreboard({ L, sub }) {
   const sc = L.phase === 'play' ? L.shown : [L.sa, L.sb];
   return (
