@@ -17,6 +17,8 @@ const SRC = {
 export const TRACKS = [
   ['m_menu', 'Меню', require('../../assets/music/menu.m4a')],
   ['m_hub', 'Штаб', require('../../assets/music/hq.m4a')],
+  ['m_draft', 'Драфт', require('../../assets/music/draft.m4a')],
+  ['m_draft_po', 'Драфт плей-офф', require('../../assets/music/draft_playoff.m4a')],
 ]
 TRACKS.forEach(([k, , r]) => { SRC[k] = r; });
 function trackFor(slot) { return slot === 'music_menu' ? 'm_menu' : 'm_hub'; }
