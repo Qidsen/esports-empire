@@ -388,10 +388,10 @@ function offlineGain() {
 // ---- training ----
 // ---- миграция сохранений: роли героев из реального патча и пулы игроков под свою позицию ----
 function migrateHeroRoles(real) {
-  if (!S || S.heroFix === 2) return;
+  if (!S || S.heroFix === 3) return;
   if (S.patchOn && S.patchData && S.patchData.disciplines && real && real.disciplines) ['dota', 'dl'].forEach(d => { const P = S.patchData.disciplines[d], R = real.disciplines[d]; if (!P || !P.heroes || !R || !R.heroes) return; P.heroes.forEach(h => { const r = R.heroes.find(x => x.n === h.n); if (r && r.r) h.r = r.r; }); });
   Object.values(S.players).forEach(p => { if (p && FAKE[p.d] && FAKE[p.d].kind === 'moba') { const keep = p.pool && p.pool.length ? Math.max(...p.pool.map(x => x[1])) : null; genPool(p); if (keep !== null && p.pool.length) { const top = p.pool.slice().sort((a, b) => b[1] - a[1])[0]; top[1] = Math.max(top[1], Math.min(99, keep)); } } });
-  S.heroFix = 2;
+  S.heroFix = 3;
 }
 // ---- сигнатурные карты и герои ----
 function sigMap(p) { if (FAKE[p.d].kind !== 'fps') return -1; return Math.floor(Math.abs(Math.sin(p.id * 17.31 + 1.7) * 43758.5453) % 1 * 7); }

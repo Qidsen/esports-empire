@@ -1027,7 +1027,7 @@ export const REAL_PATCH = {
     },
     {
      "n": "Nurse Harrow",
-     "r": [5],
+     "r": [4],
      "s": "m"
     },
     {
@@ -1057,7 +1057,7 @@ export const REAL_PATCH = {
     },
     {
      "n": "Baba",
-     "r": [5],
+     "r": [5,4],
      "s": "m"
     },
     {
@@ -1077,7 +1077,7 @@ export const REAL_PATCH = {
     },
     {
      "n": "Solomon",
-     "r": [5],
+     "r": [5,2],
      "s": "m"
     },
     {
