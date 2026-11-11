@@ -21,13 +21,21 @@ export function createMoba(scene, cam, viz) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(70, 70), new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.95 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
   const outer = new THREE.Mesh(new THREE.PlaneGeometry(260, 260), std(dl ? '#090b12' : '#1b2a18', { r: 1 })); outer.rotation.x = -Math.PI / 2; outer.position.y = -0.1; scene.add(outer);
   const laneMat = std(dl ? '#2b2f3c' : '#7a6646', { r: 1 });
-  lanes.forEach(pts => { for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; const len = a.distanceTo(b); const m = new THREE.Mesh(new THREE.PlaneGeometry(dl ? 5 : 4, len + 4), laneMat); m.rotation.x = -Math.PI / 2; m.rotation.z = -Math.atan2(b.x - a.x, b.z - a.z) + Math.PI; m.position.set((a.x + b.x) / 2, 0.02, (a.z + b.z) / 2); m.receiveShadow = true; scene.add(m); if (dl) { const zl = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a.clone().setY(6), b.clone().setY(6)]), new THREE.LineBasicMaterial({ color: '#8ad7ff', transparent: true, opacity: 0.5 })); scene.add(zl); } } });
+  lanes.forEach(pts => { for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; const len = a.distanceTo(b); const m = new THREE.Mesh(new THREE.PlaneGeometry(dl ? 5 : 4, len + 4), laneMat); m.rotation.x = -Math.PI / 2; m.rotation.z = Math.atan2(b.x - a.x, b.z - a.z) + Math.PI; m.position.set((a.x + b.x) / 2, 0.09, (a.z + b.z) / 2); m.receiveShadow = true; scene.add(m); if (dl) { const zl = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a.clone().setY(6), b.clone().setY(6)]), new THREE.LineBasicMaterial({ color: '#8ad7ff', transparent: true, opacity: 0.5 })); scene.add(zl); } } });
   if (!dl) {
-    const river = new THREE.Mesh(new THREE.PlaneGeometry(7, 90), new THREE.MeshStandardMaterial({ color: '#2a8fc9', roughness: 0.15, metalness: 0.3, transparent: true, opacity: 0.85, emissive: '#0b3550', emissiveIntensity: 0.6 })); river.rotation.x = -Math.PI / 2; const rg = new THREE.Group(); rg.add(river); rg.rotation.y = Math.PI / 4; river.position.y = 0.04; scene.add(rg);
+    // река: извилистая, от угла верхней линии до угла нижней (как в Dota), не выходит за линии; берега и вода
+    const RN = 64; const rc = t => { const x = -23 + 46 * t, z = -23 + 46 * t; const o = Math.sin(t * Math.PI * 2.2 + 0.4) * 3.2 * Math.sin(t * Math.PI); return V(x + o * 0.707, z - o * 0.707); };
+    const rw = t => 2.1 + Math.sin(t * Math.PI * 3.1) * 0.5 + (Math.abs(t - 0.5) < 0.1 ? 0.7 : 0);
+    S.riverPts = []; for (let i = 0; i <= 40; i++) S.riverPts.push(rc(i / 40));
+    const ribbon = (wf, y, mat) => { const pos = []; const idx = []; for (let i = 0; i <= RN; i++) { const t = i / RN; const c = rc(t); const c2 = rc(Math.min(1, t + 0.01)), c1 = rc(Math.max(0, t - 0.01)); const d = c2.clone().sub(c1).normalize(); const n = V(-d.z, d.x); const w = wf(t) * Math.min(1, Math.min(t, 1 - t) * 12 + 0.25); pos.push(c.x + n.x * w, y, c.z + n.z * w, c.x - n.x * w, y, c.z - n.z * w); if (i < RN) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); } } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); mat.side = THREE.DoubleSide; const m = new THREE.Mesh(g, mat); m.receiveShadow = true; scene.add(m); return m; };
+    ribbon(t => rw(t) + 1.1, 0.035, std('#4a3f2c', { r: 1 }));
+    ribbon(t => rw(t) + 0.4, 0.05, std('#3a5a4a', { r: 0.9 }));
+    S.water = ribbon(rw, 0.065, new THREE.MeshStandardMaterial({ color: '#1d5a7e', roughness: 0.12, metalness: 0.4, transparent: true, opacity: 0.92, emissive: '#0a2a40', emissiveIntensity: 0.5 }));
+    const riverDist = p => Math.min(...S.riverPts.map(q => q.distanceTo(p)));
     // trees
     const trunk = new THREE.CylinderGeometry(0.18, 0.25, 1, 6), crown = new THREE.ConeGeometry(1.1, 2.6, 7);
     const tm = std('#4a3424', { r: 1 }), cm = std('#24502a', { r: 0.9 });
-    const spots = []; const R = rng(42); for (let i = 0; i < 420; i++) { const x = -32 + R() * 64, z = -32 + R() * 64; const p = V(x, z); if (lanes.some(l => { for (let k = 0; k < l.length - 1; k++) { const d = distSeg(p, l[k], l[k + 1]); if (d < 4.5) return true; } return false; })) continue; if (Math.abs(x - z) < 6) continue; if (p.distanceTo(baseA) < 9 || p.distanceTo(baseB) < 9) continue; spots.push(p); }
+    const spots = []; const R = rng(42); for (let i = 0; i < 420; i++) { const x = -32 + R() * 64, z = -32 + R() * 64; const p = V(x, z); if (lanes.some(l => { for (let k = 0; k < l.length - 1; k++) { const d = distSeg(p, l[k], l[k + 1]); if (d < 4.5) return true; } return false; })) continue; if (riverDist(p) < 7) continue; if (p.distanceTo(baseA) < 9 || p.distanceTo(baseB) < 9) continue; spots.push(p); }
     const it = new THREE.InstancedMesh(trunk, tm, spots.length), ic = new THREE.InstancedMesh(crown, cm, spots.length); const m4 = new THREE.Matrix4();
     spots.forEach((p, i) => { const s = 0.8 + hash(i) * 0.6; m4.compose(new THREE.Vector3(p.x, 0.5 * s, p.z), new THREE.Quaternion(), new THREE.Vector3(s, s, s)); it.setMatrixAt(i, m4); m4.compose(new THREE.Vector3(p.x, 2.1 * s, p.z), new THREE.Quaternion(), new THREE.Vector3(s, s, s)); ic.setMatrixAt(i, m4); });
     ic.castShadow = true; it.castShadow = true; scene.add(it, ic);
@@ -67,7 +75,7 @@ export function createMoba(scene, cam, viz) {
       const kinds = ['Tree1', 'Pine1', 'Tree2', 'Pine2']; const by = kinds.map(() => []);
       S.treeSpots.forEach((p, i) => { const s = 1.0 + hash(i * 3) * 0.7; q.setFromAxisAngle(up, hash(i) * Math.PI * 2); m4.compose(new THREE.Vector3(p.x, 0, p.z), q, new THREE.Vector3(s, s, s)); by[i % kinds.length].push(m4.clone()); });
       kinds.forEach((k, n) => { if (P[k] && by[n].length) instanceTemplate(P[k], by[n], scene); });
-      const rocks = []; const R2 = rng(77); for (let i = 0; i < 40; i++) { const x = -30 + R2() * 60, z = -30 + R2() * 60; if (Math.abs(x - z) < 8) continue; q.setFromAxisAngle(up, R2() * 6); const s = 1 + R2() * 1.5; m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(s, s, s)); rocks.push(m4.clone()); }
+      const rocks = []; const R2 = rng(77); (S.riverPts || []).forEach((c, i) => { if (i % 2 || i < 3 || i > 37) return; [1, -1].forEach(sg => { const a = R2() * 6; const off = 4.6 + R2() * 1.5; m4.compose(new THREE.Vector3(c.x + sg * off * 0.707, 0, c.z - sg * off * 0.707), q.setFromAxisAngle(up, a), new THREE.Vector3(0.7 + R2() * 0.6, 0.6 + R2() * 0.5, 0.7 + R2() * 0.6)); rocks.push(m4.clone()); }); }); for (let i = 0; i < 20; i++) { const x = -30 + R2() * 60, z = -30 + R2() * 60; if (S.riverPts && Math.min(...S.riverPts.map(q2 => Math.hypot(q2.x - x, q2.z - z))) < 8) continue; q.setFromAxisAngle(up, R2() * 6); const s = 1 + R2() * 1.5; m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(s, s, s)); rocks.push(m4.clone()); }
       if (P.Rock1) instanceTemplate(P.Rock1, rocks, scene);
       // башни: модель сторожевой башни под кристаллом
       ['A', 'B'].forEach(side => S.towers[side].forEach(tw => { tw.children.forEach(c => { if (c.isMesh && c !== tw.userData.cr) c.visible = false; }); const t = P.Tower.clone(true); t.scale.setScalar(2.4); tw.add(t); tw.userData.cr.position.y = 4.6; }));
@@ -93,7 +101,7 @@ export function createMoba(scene, cam, viz) {
     h.add(a); h.userData.actor = a; a.userData.fighter.play(dl ? 'Idle_Gun_Pointing' : 'Idle', 0);
   }
   // boss
-  const bossPos = dl ? V(8, 0) : V(-10, -10);
+  const bossPos = dl ? V(8, 0) : V(-14.5, -5.5);
   const pit = new THREE.Mesh(new THREE.CircleGeometry(3.2, 32), std('#1a1a22', { r: 1 })); pit.rotation.x = -Math.PI / 2; pit.position.copy(bossPos).setY(0.05); scene.add(pit);
   const boss = new THREE.Group(); const bb = new THREE.Mesh(new THREE.DodecahedronGeometry(1.4), std(dl ? '#6a3fbf' : '#6b5440', { r: 0.6, m: 0.2, e: dl ? '#4a1f9f' : '#2a1a0a', ei: 0.6 })); bb.position.y = 1.6; bb.castShadow = true; boss.add(bb); const be = glowSprite('#ff5a2a', 1.4, 0.9); be.position.set(0, 2, 1); boss.add(be); boss.position.copy(bossPos); scene.add(boss);
   // creeps (instanced)
