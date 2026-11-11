@@ -2,7 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const KEY = 'esports_empire_settings_v1';
 export const SET = { lang: 'ru', gfx: 'auto', speed: 1, haptics: true, music: 0.6, sfx: 0.9 };
-export const LANGS = [['ru', 'Русский', true], ['uk', 'Українська', false], ['en', 'English', false]];
+export const LANGS = [['ru', 'Русский', true], ['uk', 'Українська', true], ['en', 'English', true]];
 export const GFX_OPTS = [['auto', 'Авто'], ['high', 'Высокая'], ['mid', 'Средняя'], ['low', 'Низкая']];
 export async function loadSettings() { try { const r = await AsyncStorage.getItem(KEY); if (r) Object.assign(SET, JSON.parse(r)); } catch (e) { } }
 export function saveSettings() { AsyncStorage.setItem(KEY, JSON.stringify(SET)).catch(() => { }); }

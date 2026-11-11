@@ -22,6 +22,8 @@ import Live from './src/live/Live';
 import { playWeek } from './src/screens/flow';
 import { Ico, IconText } from './src/ui/icons';
 import { music, sfx } from './src/ui/audio';
+import { installI18n } from './src/ui/i18n';
+installI18n();
 
 import * as G from './src/core/game';
 import './src/core/legacy';

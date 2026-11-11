@@ -94,7 +94,7 @@ function SettingsBody() {
   return (
     <View style={{ gap: 10 }}>
       <T h s={18}>Настройки</T>
-      <View><T mu s={11} style={{ marginBottom: 4 }}>Язык</T><Seg ac="#ff8a1f" value={SET.lang} onChange={v => { if (LANGS.find(l => l[0] === v)[2]) { SET.lang = v; up(); } }} items={LANGS.map(([k, n, ok]) => [k, ok ? n : n + ' · скоро'])} /></View>
+      <View><T mu s={11} style={{ marginBottom: 4 }}>Язык</T><Seg ac="#ff8a1f" value={SET.lang} onChange={v => { if (LANGS.find(l => l[0] === v)[2]) { SET.lang = v; up(); bump(); } }} items={LANGS.map(([k, n, ok]) => [k, ok ? n : n + ' · скоро'])} /></View>
       <View><T mu s={11} style={{ marginBottom: 4 }}>Качество 3D-трансляций</T><Seg ac="#ff8a1f" value={SET.gfx} onChange={v => { SET.gfx = v; up(); }} items={GFX_OPTS} /><T mu s={10} style={{ marginTop: 3 }}>Низкое — без теней и тонмаппинга, если телефон греется или 3D не показывается.</T></View>
       <Row gap={10}>
         <View style={{ flex: 1 }}><T mu s={11} style={{ marginBottom: 4 }}>Музыка</T><Seg ac="#ff8a1f" value={SET.music} onChange={v => { SET.music = v; up(); applyMusicVolume(); }} items={[[0, 'Выкл'], [0.3, 'Тихо'], [0.6, 'Норм'], [1, 'Громко']]} /></View>
