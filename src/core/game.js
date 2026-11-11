@@ -386,9 +386,16 @@ function offlineGain() {
 }
 
 // ---- training ----
+// ---- миграция сохранений: роли героев из реального патча и пулы игроков под свою позицию ----
+function migrateHeroRoles(real) {
+  if (!S || S.heroFix === 2) return;
+  if (S.patchOn && S.patchData && S.patchData.disciplines && real && real.disciplines) ['dota', 'dl'].forEach(d => { const P = S.patchData.disciplines[d], R = real.disciplines[d]; if (!P || !P.heroes || !R || !R.heroes) return; P.heroes.forEach(h => { const r = R.heroes.find(x => x.n === h.n); if (r && r.r) h.r = r.r; }); });
+  Object.values(S.players).forEach(p => { if (p && FAKE[p.d] && FAKE[p.d].kind === 'moba') { const keep = p.pool && p.pool.length ? Math.max(...p.pool.map(x => x[1])) : null; genPool(p); if (keep !== null && p.pool.length) { const top = p.pool.slice().sort((a, b) => b[1] - a[1])[0]; top[1] = Math.max(top[1], Math.min(99, keep)); } } });
+  S.heroFix = 2;
+}
 // ---- сигнатурные карты и герои ----
 function sigMap(p) { if (FAKE[p.d].kind !== 'fps') return -1; return Math.floor(Math.abs(Math.sin(p.id * 17.31 + 1.7) * 43758.5453) % 1 * 7); }
-function sigHero(p) { if (!p.pool || !p.pool.length) return null; return p.pool.slice().sort((a, b) => b[1] - a[1])[0][0]; }
+function sigHero(p) { if (!p.pool || !p.pool.length) return null; const L = heroList(p.d); const on = p.pool.filter(x => L[x[0]] && L[x[0]].r.includes(p.role)); const src = on.length ? on : p.pool; return src.slice().sort((a, b) => b[1] - a[1])[0][0]; }
 // ---- живой трансферный рынок: слухи, переходы между клубами, звонки агентов ----
 function marketWeek() {
   S.rumors = (S.rumors || []).filter(r => r.s === S.season);
@@ -1238,6 +1245,6 @@ export { mediaWeekly, tpWeekly };
 export { leagueWeekly };
 export { leaguePosFactor, weeksToPayday, goalProgress, makeGoal };
 export { raiseTarget };
-export { sigMap, sigHero, marketWeek, onHook };
+export { sigMap, sigHero, marketWeek, onHook, migrateHeroRoles };
 export { TRAITS, traitOf, pairVal, pairAdd, pairDelta, teamPairs };
 export { ATTRS,BallGame,CC_WEIGHTED,COUNTRIES,CREATOR_TYPES,DISC_ORDER,DRAFT_ORDER_5,DRAFT_ORDER_6,DW,DuelGame,ENTRY_ROLE,EVENTS,FACILITIES,FAKE,FIRST,FLAG,FpsMap,H,KW,LAST,MobaGame,NICK_A,NICK_SUF,NWS,PRIZE,RL_SHOOT,SEASON_WEEKS,SPONSOR_NAMES,STAFF_TYPES,T,TEAM_A,TEAM_B,TEAM_COLORS,acceptCounter,advanceWC,agentDisc,aiDraftChoice,aiTransfer,aiVetoChoice,alignOvr,applyPatchNames,applyResult,autoDraft,autoVeto,avgR,baseMod,bestPlayerFor,buildFac,buildWorld,buyChance,buyDivision,buyWithBid,canUp,clamp,divCost,divRep,doUp,draftApply,draftOrder,draftTaken,draftValue,ensureFive,extendDemand,facCost,fcPair,feeFor,finishWeek,fmt,fpsRating,gauss,genNick,genOffers,genPlayer,genPool,genStaff,genStaffMarket,genTeamName,heroList,heroMeta,heroName,hireCreator,hireStaff,idleTick,isLoanable,isUserPlayer,loanIn,loanInCost,loanOut,loanOutTarget,makeSchedule,mapName,maxDivs,mergeStats,metaShift,mobaRating,moodFactors,negKey,newCareer,newDraft,newPS,newSeason,newStats,news,nid,offlineCapH,offlineGain,ovr,pSkill,pack,passiveRate,pcc,phaseOf,pick,pnick,potView,prof,promoteYouth,quickSeries,randomEvent,refreshAcademy,releasePlayer,releaseYouth,respondOffer,ri,rnd,salaryFor,scaleCurve,scrim,seasonManagement,sellPlayer,seriesBo,seriesFinalize,setupFinals,setupPlayoffs,setupWC,shuffle,sig,signDemand,signPlayer,signYouth,sponsorSlots,staffOf,staffSk,standings,starters,stream,talk,teamColor,teamCtx,teamOf,teamOvr,tname,tpRate,ttag,unlockDivision,upCost,userMatchesThisWeek,userTeam,userTeamIds,validatePatch,valueOf,vetoOrder,weekMatches,weeklyCosts,weeklyGrowth,weeklyManagement,weeklySponsor,wpick };

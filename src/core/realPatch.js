@@ -363,162 +363,202 @@ export const REAL_PATCH = {
    "heroes": [
     {
      "n": "Anti-Mage",
+     "r": [0],
      "s": "l"
     },
     {
      "n": "Phantom Assassin",
+     "r": [0],
      "s": "m"
     },
     {
      "n": "Faceless Void",
+     "r": [0],
      "s": "l"
     },
     {
      "n": "Medusa",
+     "r": [0,1],
      "s": "l"
     },
     {
      "n": "Juggernaut",
+     "r": [0],
      "s": "m"
     },
     {
      "n": "Terrorblade",
+     "r": [0],
      "s": "l"
     },
     {
      "n": "Troll Warlord",
+     "r": [0],
      "s": "m"
     },
     {
      "n": "Morphling",
+     "r": [0,1],
      "s": "l"
     },
     {
      "n": "Invoker",
+     "r": [1],
      "s": "m"
     },
     {
      "n": "Storm Spirit",
+     "r": [1],
      "s": "m"
     },
     {
      "n": "Shadow Fiend",
+     "r": [1,0],
      "s": "m"
     },
     {
      "n": "Puck",
+     "r": [1],
      "s": "e"
     },
     {
      "n": "Ember Spirit",
+     "r": [1,0],
      "s": "m"
     },
     {
      "n": "Queen of Pain",
+     "r": [1],
      "s": "e"
     },
     {
      "n": "Void Spirit",
+     "r": [1],
      "s": "m"
     },
     {
      "n": "Templar Assassin",
+     "r": [1],
      "s": "m"
     },
     {
      "n": "Mars",
+     "r": [2],
      "s": "m"
     },
     {
      "n": "Axe",
+     "r": [2],
      "s": "e"
     },
     {
      "n": "Centaur Warrunner",
+     "r": [2],
      "s": "m"
     },
     {
      "n": "Dark Seer",
+     "r": [2],
      "s": "m"
     },
     {
      "n": "Tidehunter",
+     "r": [2],
      "s": "m"
     },
     {
      "n": "Beastmaster",
+     "r": [2],
      "s": "e"
     },
     {
      "n": "Underlord",
+     "r": [2],
      "s": "l"
     },
     {
      "n": "Primal Beast",
+     "r": [2,1],
      "s": "m"
     },
     {
      "n": "Earthshaker",
+     "r": [3,2],
      "s": "e"
     },
     {
      "n": "Tusk",
+     "r": [3],
      "s": "e"
     },
     {
      "n": "Rubick",
+     "r": [3],
      "s": "m"
     },
     {
      "n": "Hoodwink",
+     "r": [3],
      "s": "e"
     },
     {
      "n": "Clockwerk",
+     "r": [3,2],
      "s": "m"
     },
     {
      "n": "Mirana",
+     "r": [3],
      "s": "m"
     },
     {
      "n": "Snapfire",
+     "r": [3,4],
      "s": "e"
     },
     {
      "n": "Pangolier",
+     "r": [3,2],
      "s": "m"
     },
     {
      "n": "Crystal Maiden",
+     "r": [4],
      "s": "e"
     },
     {
      "n": "Lion",
+     "r": [4,3],
      "s": "e"
     },
     {
      "n": "Shadow Shaman",
+     "r": [4,3],
      "s": "e"
     },
     {
      "n": "Witch Doctor",
+     "r": [4],
      "s": "m"
     },
     {
      "n": "Dazzle",
+     "r": [4],
      "s": "m"
     },
     {
      "n": "Oracle",
+     "r": [4],
      "s": "l"
     },
     {
      "n": "Treant Protector",
+     "r": [4,3],
      "s": "m"
     },
     {
      "n": "Warlock",
+     "r": [4],
      "s": "m"
     }
    ],
@@ -827,178 +867,222 @@ export const REAL_PATCH = {
    "heroes": [
     {
      "n": "Haze",
+     "r": [0,3],
      "s": "l"
     },
     {
      "n": "Holliday",
+     "r": [0],
      "s": "m"
     },
     {
      "n": "Mirage",
+     "r": [0],
      "s": "m"
     },
     {
      "n": "Venator",
+     "r": [0],
      "s": "m"
     },
     {
      "n": "Vindicta",
+     "r": [0,3],
      "s": "l"
     },
     {
      "n": "Vyper",
+     "r": [0],
      "s": "m"
     },
     {
      "n": "Wraith",
+     "r": [0],
      "s": "l"
     },
     {
      "n": "Abrams",
+     "r": [1,5],
      "s": "m"
     },
     {
      "n": "Mo & Krill",
+     "r": [1,5],
      "s": "e"
     },
     {
      "n": "Rat King",
+     "r": [1],
      "s": "m"
     },
     {
      "n": "Victor",
+     "r": [1],
      "s": "m"
     },
     {
      "n": "Warden",
+     "r": [1,5],
      "s": "m"
     },
     {
      "n": "Celeste",
+     "r": [2],
      "s": "m"
     },
     {
      "n": "Graves",
+     "r": [2],
      "s": "m"
     },
     {
      "n": "Grey Talon",
+     "r": [2,0],
      "s": "l"
     },
     {
      "n": "Lady Geist",
+     "r": [2,1],
      "s": "m"
     },
     {
      "n": "Mina",
+     "r": [2],
      "s": "l"
     },
     {
      "n": "Seven",
+     "r": [2,0],
      "s": "l"
     },
     {
      "n": "Apollo",
+     "r": [3],
      "s": "m"
     },
     {
      "n": "Calico",
+     "r": [3],
      "s": "m"
     },
     {
      "n": "Drifter",
+     "r": [3],
      "s": "m"
     },
     {
      "n": "Pocket",
+     "r": [3,2],
      "s": "e"
     },
     {
      "n": "Shiv",
+     "r": [3,0],
      "s": "m"
     },
     {
      "n": "Silver",
+     "r": [3],
      "s": "m"
     },
     {
      "n": "Yamato",
+     "r": [3,0],
      "s": "m"
     },
     {
      "n": "Dynamo",
+     "r": [4,5],
      "s": "m"
     },
     {
      "n": "Ivy",
+     "r": [4],
      "s": "e"
     },
     {
      "n": "Kelvin",
+     "r": [4,1],
      "s": "m"
     },
     {
      "n": "McGinnis",
+     "r": [4,0],
      "s": "m"
     },
     {
      "n": "Paige",
+     "r": [4],
      "s": "m"
     },
     {
      "n": "Rem",
+     "r": [4],
      "s": "m"
     },
     {
      "n": "Viscous",
+     "r": [4,1],
      "s": "m"
     },
     {
      "n": "Nurse Harrow",
+     "r": [5],
      "s": "m"
     },
     {
      "n": "Bebop",
+     "r": [5,1],
      "s": "e"
     },
     {
      "n": "Billy",
+     "r": [5],
      "s": "e"
     },
     {
      "n": "Deadman Danny",
+     "r": [5],
      "s": "m"
     },
     {
      "n": "Infernus",
+     "r": [5,2],
      "s": "m"
     },
     {
      "n": "Lash",
+     "r": [5,3],
      "s": "e"
     },
     {
      "n": "Baba",
+     "r": [5],
      "s": "m"
     },
     {
      "n": "The Doorman",
+     "r": [5,4],
      "s": "m"
     },
     {
      "n": "Paradox",
+     "r": [5,0],
      "s": "m"
     },
     {
      "n": "Sinclair",
+     "r": [5,2],
      "s": "m"
     },
     {
      "n": "Solomon",
+     "r": [5],
      "s": "m"
     },
     {
      "n": "Violet",
+     "r": [5],
      "s": "m"
     }
    ],
