@@ -154,11 +154,14 @@ export function createMoba(scene, cam, viz) {
       const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
       [[cA, 'A'], [cB, 'B']].forEach(([im, side]) => { let k = 0; const front = frontF(g ? g.lead : 0); for (let li = 0; li < 3; li++) for (let w = 0; w < 3; w++) for (let c = 0; c < 4; c++) { const ph = ((now / 9000 + w / 3 + li * 0.13) % 1); const f = side === 'A' ? 0.08 + ph * (front - 0.08) : 0.92 - ph * (0.92 - front); const p = polyPoint(lanes[li], f).add(V((c % 2 - 0.5) * 0.9, (Math.floor(c / 2) - 0.5) * 0.9)); p.y = 0.3; m4.compose(p, q, new THREE.Vector3(1, 1, 1)); im.setMatrixAt(k++, m4); } im.count = k; im.instanceMatrix.needsUpdate = true; });
       S.tracers.update(dt); S.bursts.update(dt);
-      // камера: ведёт центр событий — последнюю драку, иначе центр героев; ракурс постоянный
-      let tgt; if (S.fightAt && now - S.fightAt.t0 < 4000) tgt = S.fightAt.pt.clone(); else { const hs = Object.values(S.heroes); tgt = hs.reduce((a, h) => a.add(h.position), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, hs.length)); }
-      tgt.y = 0; S.focus.lerp(tgt, Math.min(1, dt * 0.9));
-      const yaw = dl ? Math.PI * 0.5 : Math.PI * 0.75;
-      cam.position.set(S.focus.x + Math.cos(yaw) * 14, 24, S.focus.z + Math.sin(yaw) * 14); cam.lookAt(S.focus);
+      // камера: неподвижный вид сверху на всю карту — ничего не летает
+      cam.position.set(0, 72, 33); cam.lookAt(0, 0, 2); S.focus.set(0, 0, 0);
+      // данные для мини-карты HUD
+      const mm = viz.mm || (viz.mm = { heroes: [], towers: [], fights: [] });
+      mm.heroes = Object.entries(S.heroes).map(([id, h]) => ({ id: +id, side: h.userData.side, x: h.position.x, z: h.position.z, dead: !!(S.dead[id] && g && S.dead[id] > g.t) }));
+      mm.towers = ['A', 'B'].flatMap(sd => S.towers[sd].map(tw => ({ side: sd, x: tw.position.x, z: tw.position.z, alive: !!tw.userData.alive })));
+      if (S.fightAt && (!mm.fights.length || mm.fights[mm.fights.length - 1].t0 !== S.fightAt.t0)) { mm.fights.push({ x: S.fightAt.pt.x, z: S.fightAt.pt.z, t0: S.fightAt.t0, side: S.fightAt.side }); if (mm.fights.length > 6) mm.fights.shift(); }
+      mm.lanes = mm.lanes || lanes.map(l => l.map(p => [p.x, p.z])); mm.bases = mm.bases || [[baseA.x, baseA.z], [baseB.x, baseB.z]];
       L.sun.target.position.copy(S.focus);
     },
   };

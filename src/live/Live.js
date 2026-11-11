@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { S, teamOf, teamCtx, FAKE, seriesBo, vetoOrder, aiVetoChoice, newDraft, draftOrder, draftApply, aiDraftChoice, draftTaken, autoDraft, heroList, heroMeta, prof, FpsMap, MobaGame, BallGame, DuelGame, fcPair, mergeStats, seriesFinalize, applyResult, tname, ttag, pnick, pcc, mapName, pack, fpsRating, fmt, shuffle, ovr, staffSk } from '../core/game';
+import { S, teamOf, teamCtx, FAKE, seriesBo, vetoOrder, aiVetoChoice, newDraft, draftOrder, draftApply, aiDraftChoice, draftTaken, autoDraft, heroList, heroMeta, prof, FpsMap, MobaGame, BallGame, DuelGame, fcPair, mergeStats, seriesFinalize, applyResult, tname, ttag, pnick, pcc, mapName, pack, fpsRating, fmt, shuffle, ovr, staffSk, heroName } from '../core/game';
 import { UI, bump, save, toast, openModal, closeModal } from '../ui/store';
 import { T, Btn, Seg, Row, TeamLogo, Flag, Tag } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
@@ -74,12 +74,12 @@ export default function Live() {
       <LinearGradient colors={['rgba(0,0,0,0.65)', 'rgba(0,0,0,0)']} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 90 }} pointerEvents="none" />
       <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80 }} pointerEvents="none" />
       <LinearGradient colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']} locations={[0, 0.18, 0.82, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
-      <View style={[StyleSheet.absoluteFill, { left: padL - 10, right: padR - 10 }]} pointerEvents="box-none">{L.kind === 'fps' && L.phase === 'play' ? <CsHud L={L} /> : <Scoreboard L={L} sub={sub} />}
+      <View style={[StyleSheet.absoluteFill, { left: padL - 10, right: padR - 10 }]} pointerEvents="box-none">{L.kind === 'fps' && L.phase === 'play' ? <CsHud L={L} /> : L.kind === 'moba' && L.phase === 'play' && L.cur ? <MobaHud L={L} /> : <Scoreboard L={L} sub={sub} />}
       {L.phase === 'veto' ? <Veto L={L} onPick={mp => { clear(); vetoApply(mp); }} onSkip={finishFast} /> : null}
       {L.phase === 'draft' ? <Draft L={L} rr={rr} onPick={h => { clear(); draftApply(L.d, L.draft, L.cA, L.cB, h); L.sel = null; draftNext(); }} onAuto={() => { clear(); draftApply(L.d, L.draft, L.cA, L.cB, aiDraftChoice(L.d, L.draft, L.cA, L.cB)); L.sel = null; draftNext(); }} onSkip={finishFast} /> : null}
       {L.phase === 'between' ? <View pointerEvents="none" style={st.center}><View style={st.banner}><T h s={20} style={{ textAlign: 'center' }}>{L.msg || 'Подготовка…'}</T><T mu style={{ textAlign: 'center', marginTop: 4 }}>Серия {L.sa}:{L.sb}</T></View></View> : null}
       {L.phase === 'play' ? <>
-        {L.kind !== 'fps' ? <Feed L={L} /> : null}
+        {L.kind !== 'fps' && L.kind !== 'moba' ? <Feed L={L} /> : null}
         {L.board ? <Board L={L} /> : null}
         <View style={st.bottom}>
           <Seg ac={FAKE[L.d].color} style={{ width: 170 }} value={L.speed} onChange={v => { L.speed = v; rr(); }} items={SPEEDS.map(s => [s, s + '×'])} />
@@ -104,6 +104,88 @@ export default function Live() {
     </View>
   );
 }
+// ===== HUD MOBA: счёт, нетворс, перевес, таблицы игроков, мини-карта =====
+const FARM = { dota: [1.4, 1.2, 1.0, 0.72, 0.6], dl: [1.25, 0.95, 1.15, 1.1, 0.75, 0.9] };
+function mobaRows(L) {
+  const g = L.cur; const t = g.t; const fw = FARM[L.d] || FARM.dota;
+  const mk = (c, side) => c.players.map(p => { const st = g.stats[p.id] || { k: 0, d: 0, a: 0 }; const nw = Math.max(600, Math.round(600 + t * 470 * (fw[p.role] || 1) + st.k * 260 + st.a * 90 - st.d * 70)); const lvl = Math.max(1, Math.min(30, Math.round(1 + t * 0.5 * (0.8 + (fw[p.role] || 1) * 0.2) + (st.k + st.a * 0.5) * 0.35 - st.d * 0.15))); return { p, st, nw, lvl, side, hero: st.h != null ? heroName(L.d, st.h) : '—' }; });
+  const A = mk(L.cA, 'A'), B = mk(L.cB, 'B');
+  // подгоняем общий перевес под «лид» симуляции
+  const sum = r => r.reduce((a, x) => a + x.nw, 0); const diff = sum(A) - sum(B); const adj = (g.lead - diff) / 2;
+  A.forEach(x => { x.nw = Math.max(600, Math.round(x.nw + adj * (fw[x.p.role] || 1) / fw.reduce((a, b) => a + b, 0) * fw.length / A.length)); });
+  B.forEach(x => { x.nw = Math.max(600, Math.round(x.nw - adj * (fw[x.p.role] || 1) / fw.reduce((a, b) => a + b, 0) * fw.length / B.length)); });
+  return { A, B, nwA: sum(A), nwB: sum(B) };
+}
+const k1 = n => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+function MiniMap({ L, size = 118 }) {
+  const mm = L.viz.mm; if (!mm || !mm.lanes) return null; const sc = v => (v + 35) / 70 * size; const ca = L.viz.ca, cb = L.viz.cb; const now = Date.now();
+  return (
+    <View style={{ width: size, height: size, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(6,9,15,0.85)', borderWidth: 1, borderColor: C.line2 }}>
+      {mm.lanes.map((l, i) => l.slice(0, -1).map((p, j) => { const q = l[j + 1]; const x1 = sc(p[0]), y1 = sc(p[1]), x2 = sc(q[0]), y2 = sc(q[1]); const len = Math.hypot(x2 - x1, y2 - y1); const ang = Math.atan2(y2 - y1, x2 - x1); return <View key={i + '-' + j} style={{ position: 'absolute', left: (x1 + x2) / 2 - len / 2, top: (y1 + y2) / 2 - 1.5, width: len, height: 3, backgroundColor: 'rgba(255,255,255,0.12)', transform: [{ rotate: ang + 'rad' }] }} />; }))}
+      {mm.bases.map((b, i) => <View key={'b' + i} style={{ position: 'absolute', left: sc(b[0]) - 7, top: sc(b[1]) - 7, width: 14, height: 14, borderRadius: 3, backgroundColor: i ? cb : ca, opacity: 0.85 }} />)}
+      {mm.towers.map((tw, i) => <View key={'t' + i} style={{ position: 'absolute', left: sc(tw.x) - 3, top: sc(tw.z) - 3, width: 6, height: 6, backgroundColor: tw.alive ? (tw.side === 'A' ? ca : cb) : 'rgba(255,255,255,0.15)', borderWidth: tw.alive ? 1 : 0, borderColor: '#000' }} />)}
+      {mm.fights.filter(f => now - f.t0 < 5000).map((f, i) => <View key={'f' + i} style={{ position: 'absolute', left: sc(f.x) - 8, top: sc(f.z) - 8, width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: '#ff4d4d', opacity: 1 - (now - f.t0) / 5000 }} />)}
+      {mm.heroes.map(h => <View key={'h' + h.id} style={{ position: 'absolute', left: sc(h.x) - 4, top: sc(h.z) - 4, width: 8, height: 8, borderRadius: 4, backgroundColor: h.dead ? 'rgba(120,120,120,0.6)' : (h.side === 'A' ? ca : cb), borderWidth: 1, borderColor: '#fff' }} />)}
+    </View>
+  );
+}
+function MobaHud({ L }) {
+  useTicker(250);
+  const g = L.cur; const ca = L.viz.ca, cb = L.viz.cb; const { A, B, nwA, nwB } = mobaRows(L); const lead = nwA - nwB;
+  const nick = id => { const p = S.players[id]; return p ? pnick(p) : '?'; };
+  const lastEv = L.feed.slice(0, 3);
+  const table = (rows, side) => { const col = side === 'A' ? ca : cb; const right = side === 'B'; return (
+    <View style={[mh.table, right ? { right: 10 } : { left: 10 }]} pointerEvents="none">
+      <View style={[mh.row, mh.head]}><Text style={[mh.hc, { flex: 1 }]}>{ttag(side === 'A' ? L.A : L.B)}</Text><Text style={[mh.hc, mh.cLvl]}>УР</Text><Text style={[mh.hc, mh.cKda]}>K/D/A</Text><Text style={[mh.hc, mh.cNw]}>NW</Text></View>
+      {rows.map(x => { const dead = (L.viz.mm && L.viz.mm.heroes.find(h => h.id === x.p.id) || {}).dead; return (
+        <View key={x.p.id} style={[mh.row, dead ? { opacity: 0.45 } : null]}>
+          <View style={{ width: 3, alignSelf: 'stretch', backgroundColor: col }} />
+          <View style={{ flex: 1, minWidth: 0, paddingLeft: 5 }}><Text numberOfLines={1} style={mh.nick}>{pnick(x.p)}</Text><Text numberOfLines={1} style={mh.hero}>{x.hero}</Text></View>
+          <Text style={[mh.v, mh.cLvl, { color: '#ffd27a' }]}>{x.lvl}</Text>
+          <Text style={[mh.v, mh.cKda]}>{x.st.k}/{x.st.d}/{x.st.a}</Text>
+          <Text style={[mh.v, mh.cNw, { color: '#ffd27a' }]}>{k1(x.nw)}</Text>
+        </View>); })}
+    </View>); };
+  return (
+    <>
+      <View style={mh.top} pointerEvents="none">
+        <LinearGradient colors={[alpha(ca, 0.85), alpha(ca, 0.15)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[mh.tm]}><TeamLogo t={L.A} size={24} /><Text numberOfLines={1} style={mh.tn}>{tname(L.A)}</Text></LinearGradient>
+        <View style={[mh.kills, { backgroundColor: alpha(ca, 0.95) }]}><Text style={mh.kt}>{g.kA}</Text></View>
+        <View style={mh.clock}><Text style={mh.ct}>{g.t}:00</Text><Text style={mh.cs}>ИГРА {L.sa + L.sb + 1} · {L.sa}:{L.sb}</Text></View>
+        <View style={[mh.kills, { backgroundColor: alpha(cb, 0.95) }]}><Text style={mh.kt}>{g.kB}</Text></View>
+        <LinearGradient colors={[alpha(cb, 0.15), alpha(cb, 0.85)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[mh.tm, { flexDirection: 'row-reverse' }]}><TeamLogo t={L.B} size={24} /><Text numberOfLines={1} style={[mh.tn, { textAlign: 'right' }]}>{tname(L.B)}</Text></LinearGradient>
+      </View>
+      <View style={mh.nwBar} pointerEvents="none">
+        <Text style={[mh.nwT, { color: ca }]}>{k1(nwA)}</Text>
+        <View style={{ width: 150, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden', flexDirection: 'row' }}><View style={{ flex: nwA, backgroundColor: ca }} /><View style={{ flex: nwB, backgroundColor: cb }} /></View>
+        <Text style={[mh.nwT, { color: cb }]}>{k1(nwB)}</Text>
+        <Text style={mh.lead}>{lead === 0 ? 'равенство' : 'перевес ' + ttag(lead > 0 ? L.A : L.B) + ' +' + k1(Math.abs(lead))}</Text>
+        <Text style={mh.tw}>башни {g.twA}:{g.twB}</Text>
+      </View>
+      <View style={mh.mm} pointerEvents="none"><MiniMap L={L} /></View>
+      <View style={mh.feed} pointerEvents="none">{lastEv.map((e, i) => <View key={i} style={{ opacity: 1 - i * 0.25, backgroundColor: 'rgba(6,9,15,0.7)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: 2 }}>{evText(L, e)}</View>)}</View>
+      {table(A, 'A')}{table(B, 'B')}
+    </>
+  );
+}
+const mh = StyleSheet.create({
+  top: { position: 'absolute', top: 6, alignSelf: 'center', flexDirection: 'row', height: 36 },
+  tm: { width: 170, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8 },
+  tn: { flex: 1, fontFamily: F.h, fontSize: 12.5, color: '#fff' },
+  kills: { width: 40, alignItems: 'center', justifyContent: 'center' },
+  kt: { fontFamily: F.hx, fontSize: 21, color: '#fff' },
+  clock: { width: 82, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(6,9,15,0.92)' },
+  ct: { fontFamily: F.hx, fontSize: 15, color: '#fff' }, cs: { fontFamily: F.h, fontSize: 7.5, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 },
+  nwBar: { position: 'absolute', top: 44, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(6,9,15,0.75)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 4 },
+  nwT: { fontFamily: F.hx, fontSize: 11 }, lead: { fontFamily: F.h, fontSize: 10, color: '#ffd27a' }, tw: { fontFamily: F.h, fontSize: 10, color: 'rgba(255,255,255,0.7)' },
+  mm: { position: 'absolute', right: 10, top: 6 },
+  feed: { position: 'absolute', left: 10, top: 56, width: 200 },
+  table: { position: 'absolute', bottom: 62, width: 232, backgroundColor: 'rgba(6,9,15,0.78)', borderRadius: 6, paddingVertical: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', height: 22, paddingRight: 6 },
+  head: { height: 15 }, hc: { fontFamily: F.h, fontSize: 8.5, color: 'rgba(255,255,255,0.55)', letterSpacing: 0.8, paddingLeft: 8 },
+  nick: { fontFamily: F.hm, fontSize: 10.5, color: '#fff' }, hero: { fontFamily: F.b, fontSize: 8.5, color: 'rgba(255,255,255,0.55)' },
+  v: { fontFamily: F.hx, fontSize: 10, color: '#fff', textAlign: 'right' }, cLvl: { width: 22, textAlign: 'right' }, cKda: { width: 54, textAlign: 'right' }, cNw: { width: 40, textAlign: 'right' },
+});
 // ===== HUD трансляции CS2 =====
 const HOW = { elim: 'зачистка', bomb: 'бомба взорвана', defuse: 'бомба обезврежена', clutch: 'клатч' };
 function useTicker(ms) { const [, set] = useState(0); useEffect(() => { const i = setInterval(() => set(v => v + 1), ms); return () => clearInterval(i); }, []); }
