@@ -78,22 +78,26 @@ function TeamSide({ d, only }) {
   );
 }
 const SHORT_ATTR = { mech: 'МЕХ', iq: 'IQ', tw: 'КОМ', cl: 'КЛЧ', con: 'СТБ' };
-function subModal(t, d, p, starter) {
-  // starter=true: кого выпустить вместо p; иначе: кого из основы заменить на p
-  const st = starters(t); const bench = t.roster.map(i => S.players[i]).filter(x => x && !st.includes(x));
-  const list = (starter ? bench : st).slice().sort((a, b) => (b.role === p.role) - (a.role === p.role) || ovr(b) - ovr(a));
+function subModal(t, d, p, starter, any) {
+  // Замены по позиции: starter=true — кто выйдет вместо p; иначе — p в основу вместо игрока той же роли
+  const st = starters(t); const bench = t.roster.map(i => S.players[i]).filter(x => x && !st.includes(x) && !x.loanOut);
+  const pool = starter ? bench : st;
+  const same = pool.filter(x => x.role === p.role).sort((a, b) => ovr(b) - ovr(a));
+  if (!starter && same.length === 1 && !any) { swap(t, p, same[0]); save(); toast('🔁 ' + pnick(p) + ' вместо ' + pnick(same[0]) + ' (' + FAKE[d].roles[p.role] + ')'); bump(); return; }
+  const list = any ? pool.filter(x => x.role !== p.role).sort((a, b) => ovr(b) - ovr(a)) : same;
   openModal(() => (
     <View>
-      <T h s={17}>{starter ? 'Замена: кто выйдет вместо ' + pnick(p) : pnick(p) + ' в основу — вместо кого?'}</T>
-      <T mu s={11} style={{ marginBottom: 8 }}>Игроки своей роли — сверху. Каждая замена немного снижает химию.</T>
+      <T h s={17}>{starter ? 'Замена · ' + FAKE[d].roles[p.role] : pnick(p) + ' в основу'}</T>
+      <T mu s={11} style={{ marginBottom: 8 }}>{any ? 'Игроки других позиций: на чужой роли они играют слабее.' : starter ? 'Запасные на позиции «' + FAKE[d].roles[p.role] + '». Замена немного снижает химию.' : 'Кого заменить на позиции «' + FAKE[d].roles[p.role] + '».'}</T>
       {list.length ? list.map(x => { const dlt = ovr(starter ? x : p) - ovr(starter ? p : x); return (
-        <Pressable key={x.id} onPress={() => { if (starter) swap(t, x, p); else swap(t, p, x); save(); closeModal(); toast('🔁 ' + pnick(starter ? x : p) + ' в основе'); bump(); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line, marginBottom: 6, backgroundColor: x.role === p.role ? alpha(FAKE[d].color, 0.1) : 'transparent' }}>
+        <Pressable key={x.id} onPress={() => { if (starter) swap(t, x, p); else swap(t, p, x); save(); closeModal(); toast('🔁 ' + pnick(starter ? x : p) + ' в основе'); bump(); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line, marginBottom: 6 }}>
           <Role t={FAKE[d].roles[x.role]} /><Flag cc={pcc(x)} />
           <View style={{ flex: 1 }}><T h s={14}>{pnick(x)}</T><T mu s={11}>{x.age} л. · мораль {x.mor} · форма {x.form > 0 ? '+' : ''}{x.form}</T></View>
           <T num s={12} style={{ color: dlt > 0 ? C.good : dlt < 0 ? C.bad : C.mu }}>{dlt > 0 ? '+' : ''}{dlt}</T>
           <Ovr o={ovr(x)} s={20} />
-        </Pressable>); }) : <T mu>Некого поставить — купи игрока на Рынке.</T>}
-      <Btn style={{ marginTop: 4 }} title="Отмена" onPress={closeModal} />
+        </Pressable>); }) : <T mu s={12} style={{ marginBottom: 8 }}>{starter ? 'В запасе нет игрока на позицию «' + FAKE[d].roles[p.role] + '». Купи его на Рынке.' : 'Нет игрока для замены.'}</T>}
+      {!any && pool.some(x => x.role !== p.role) ? <Btn small style={{ marginBottom: 6 }} title="Показать игроков других позиций" onPress={() => { closeModal(); setTimeout(() => subModal(t, d, p, starter, true), 250); }} /> : null}
+      <Btn title="Отмена" onPress={closeModal} />
     </View>
   ));
 }

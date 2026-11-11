@@ -10,28 +10,44 @@ import { T, Btn, Row, Seg, OrgLogo, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 import { SET, LANGS, GFX_OPTS, saveSettings } from '../ui/settings';
 
-// Логотип игры: щит-корона с монограммой EE
+// Логотип игры: щит с крыльями, короной-клинками и объёмной «E»
 export function GameLogo({ size = 120 }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 200 200">
-      <Defs>
-        <SG id="lg1" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#ffb547" /><Stop offset="0.55" stopColor="#ff6a2b" /><Stop offset="1" stopColor="#c2183d" /></SG>
-        <SG id="lg2" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor="#1b2233" /><Stop offset="1" stopColor="#0a0e17" /></SG>
-        <RadialGradient id="lg3" cx="0.5" cy="0.35" r="0.6"><Stop offset="0" stopColor="#ffffff" stopOpacity="0.35" /><Stop offset="1" stopColor="#ffffff" stopOpacity="0" /></RadialGradient>
-      </Defs>
-      {/* корона */}
-      <Path d="M52 46 L70 18 L86 40 L100 10 L114 40 L130 18 L148 46 Z" fill="url(#lg1)" stroke="#05070b" strokeWidth={4} strokeLinejoin="round" />
-      <Circle cx="70" cy="18" r="5" fill="#ffd27a" /><Circle cx="100" cy="10" r="6" fill="#ffd27a" /><Circle cx="130" cy="18" r="5" fill="#ffd27a" />
-      {/* щит */}
-      <Path d="M100 44 L164 62 L160 120 C156 152 132 176 100 192 C68 176 44 152 40 120 L36 62 Z" fill="url(#lg1)" stroke="#05070b" strokeWidth={5} strokeLinejoin="round" />
-      <Path d="M100 58 L150 72 L147 118 C144 144 126 163 100 176 C74 163 56 144 53 118 L50 72 Z" fill="url(#lg2)" />
-      <Path d="M100 58 L150 72 L147 118 C144 144 126 163 100 176 C74 163 56 144 53 118 L50 72 Z" fill="url(#lg3)" />
-      {/* монограмма EE */}
-      <G fill="url(#lg1)">
-        <Path d="M64 86 H96 V96 H76 V108 H92 V118 H76 V130 H96 V140 H64 Z" />
-        <Path d="M104 86 H136 V96 H116 V108 H132 V118 H116 V130 H136 V140 H104 Z" />
-      </G>
-      <Path d="M70 152 L100 166 L130 152" stroke="#ffb547" strokeWidth={3} fill="none" strokeLinecap="round" />
+    <Svg width={size * 240 / 220} height={size} viewBox="0 0 240 220">
+<Defs>
+<SG id="gl_rim" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#ffe0a0"/><Stop offset="0.35" stopColor="#ff9a2e"/><Stop offset="1" stopColor="#a3123a"/></SG>
+<SG id="gl_rim2" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#7a2a10"/><Stop offset="1" stopColor="#3a0716"/></SG>
+<SG id="gl_core" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#222b40"/><Stop offset="1" stopColor="#06080f"/></SG>
+<SG id="gl_blade" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#fff1cf"/><Stop offset="0.5" stopColor="#ffb347"/><Stop offset="1" stopColor="#ff5a2b"/></SG>
+<SG id="gl_ext" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#b8461a"/><Stop offset="1" stopColor="#5c0d1f"/></SG>
+<SG id="gl_f1" x1="1" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#ffb347"/><Stop offset="1" stopColor="#c2183d"/></SG>
+<RadialGradient id="gl_glow" cx="0.5" cy="0.45" r="0.5"><Stop offset="0" stopColor="#ff7a2b" stopOpacity="0.45"/><Stop offset="1" stopColor="#ff7a2b" stopOpacity="0"/></RadialGradient>
+</Defs>
+<G stroke="#05070b" strokeWidth="3" strokeLinejoin="round">
+
+<Path d="M66 60 L8 30 L30 70 L60 88 Z" fill="url(#gl_f1)"/>
+<Path d="M64 92 L2 82 L28 110 L62 118 Z" fill="url(#gl_f1)"/>
+<Path d="M66 124 L14 134 L40 152 L72 150 Z" fill="url(#gl_f1)"/>
+
+<Path d="M174 60 L232 30 L210 70 L180 88 Z" fill="url(#gl_f1)"/>
+<Path d="M176 92 L238 82 L212 110 L178 118 Z" fill="url(#gl_f1)"/>
+<Path d="M174 124 L226 134 L200 152 L168 150 Z" fill="url(#gl_f1)"/>
+</G>
+
+<Path d="M120 2 L131 28 L146 14 L150 36 L190 46 L188 128 C184 168 152 196 120 212 C88 196 56 168 52 128 L50 46 L90 36 L94 14 L109 28 Z" fill="url(#gl_rim)" stroke="#05070b" strokeWidth="5" strokeLinejoin="round"/>
+<Path d="M120 40 L176 56 L174 126 C170 158 146 180 120 194 C94 180 70 158 66 126 L64 56 Z" fill="url(#gl_rim2)"/>
+<Path d="M120 46 L170 60 L168 125 C165 154 143 174 120 187 C97 174 75 154 72 125 L70 60 Z" fill="url(#gl_core)"/>
+<Path d="M120 46 L170 60 L168 125 C165 154 143 174 120 187 C97 174 75 154 72 125 L70 60 Z" fill="url(#gl_glow)"/>
+
+<G transform="translate(4,5)" fill="url(#gl_ext)">
+<Path d="M88 74 H156 L146 92 H108 V108 H140 L131 124 H108 V140 H150 L160 158 H88 Z"/>
+</G>
+
+<Path d="M88 74 H156 L146 92 H108 V108 H140 L131 124 H108 V140 H150 L160 158 H88 Z" fill="url(#gl_blade)" stroke="#05070b" strokeWidth="3" strokeLinejoin="round"/>
+<Path d="M92 78 H149 L144 86 H92 Z" fill="#ffffff" opacity="0.35"/>
+
+<Path d="M120 12 L125 24 L120 34 L115 24 Z" fill="#fff4d6" stroke="#05070b" strokeWidth="2" strokeLinejoin="round"/>
+
     </Svg>
   );
 }
