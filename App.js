@@ -95,7 +95,7 @@ function Shell() {
   useBump();
   const ins = useSafeAreaInsets();
   useEffect(() => { if (S && S.toastQ && S.toastQ.length) { const q = S.toastQ; S.toastQ = []; q.forEach((t, i) => setTimeout(() => { toast(t); sfx('ui_confirm'); }, 400 + i * 900)); } });
-  useEffect(() => { if (!UI.live && !UI.trophy) music(!S || UI.title || UI.newGame ? 'music_menu' : 'music_hub'); });
+  useEffect(() => { if (!UI.live && !UI.trophy) music(!S || UI.title || UI.newGame ? 'music_menu' : G.phaseOf(S.week).k === 'off' ? 'music_off' : 'music_hub'); });
   if (!S) return UI.newGame ? <Start /> : <Title />;
   if (UI.title) return <Title />;
   const Scr = { home: Home, roster: Roster, market: Market, comp: Comp, org: Org }[UI.tab];

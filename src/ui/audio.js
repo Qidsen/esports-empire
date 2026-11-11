@@ -20,9 +20,10 @@ export const TRACKS = [
   ['m_draft', 'Драфт', require('../../assets/music/draft.m4a')],
   ['m_draft_po', 'Драфт плей-офф', require('../../assets/music/draft_playoff.m4a')],
   ['m_trophy', 'Трофей', require('../../assets/music/trophy.m4a')],
+  ['m_off', 'Межсезонье', require('../../assets/music/offseason.m4a')],
 ]
 TRACKS.forEach(([k, , r]) => { SRC[k] = r; });
-function trackFor(slot) { return slot === 'music_menu' ? 'm_menu' : 'm_hub'; }
+function trackFor(slot) { return slot === 'music_menu' ? 'm_menu' : slot === 'music_off' ? 'm_off' : 'm_hub'; }
 const VOL = { win: 0.9, lose: 0.9, ak: 0.55, awp: 0.75, pistol: 0.5, headshot: 0.5, beep: 0.5, explosion: 1, cheer: 0.8, horn: 0.6, whistle: 0.6, kick: 0.6, boost: 0.5, ui_click: 0.5, ui_tab: 0.45, ui_select: 0.5, clash: 0.55, event: 0.7 };
 const POOL = { clash_big: 1, ak: 4, pistol: 2, awp: 2, kick: 2, clash: 2, headshot: 2 };
 const pools = {}; const idx = {}; let ready = false;
@@ -43,7 +44,7 @@ export function sfx(name, vol = 1) {
 let mus = null, musName = null, fadeT = null;
 export function music(slot) {
   init(); if (musName === slot) return; musName = slot;
-  const name = slot === 'music_menu' || slot === 'music_hub' ? trackFor(slot) : slot;
+  const name = slot === 'music_menu' || slot === 'music_hub' || slot === 'music_off' ? trackFor(slot) : slot;
   const old = mus; mus = null;
   if (old) { let v = old.volume; const f = setInterval(() => { v -= 0.06; if (v <= 0) { clearInterval(f); try { old.pause(); old.remove(); } catch (e) { } } else try { old.volume = v; } catch (e) { } }, 50); }
   if (!name || !SRC[name]) return;
