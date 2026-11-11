@@ -141,7 +141,7 @@ const nid = () => ++S.nextId;
 
 // ---- pack / naming (patch-aware) ----
 function pack(d) { const f = FAKE[d]; const p = S && S.patchOn && S.patchData && S.patchData.disciplines && S.patchData.disciplines[d]; if (!p) return f; return Object.assign({}, f, { game: p.game || f.game, maps: p.maps && p.maps.length >= 7 ? p.maps : f.maps, leagues: p.leagues || f.leagues, major: p.major || f.major, boss: p.boss || f.boss, base: p.base || f.base }); }
-function heroList(d) { const f = FAKE[d].heroes || []; const p = S && S.patchOn && S.patchData && S.patchData.disciplines[d]; const ph = p && p.heroes; return f.map((h, i) => ph && ph[i] ? { n: ph[i].n, r: ph[i].r || h.r, s: ph[i].s || h.s } : h); }
+function heroList(d) { const f = FAKE[d].heroes || []; const p = S && S.patchOn && S.patchData && S.patchData.disciplines[d]; const ph = p && p.heroes; if (!ph) return f; const n = Math.max(f.length, ph.length); const out = []; for (let i = 0; i < n; i++) { const h = f[i] || { r: [0], s: 'm' }; out.push(ph[i] ? { n: ph[i].n, r: ph[i].r || h.r, s: ph[i].s || h.s } : h); } return out; }
 function heroName(d, i) { const l = heroList(d); return l[i] ? l[i].n : '?'; }
 function mapName(d, i) { return pack(d).maps[i]; }
 function tname(t) { return S.patchOn && t.real ? t.real.name : t.fake.name; }
@@ -388,10 +388,10 @@ function offlineGain() {
 // ---- training ----
 // ---- миграция сохранений: роли героев из реального патча и пулы игроков под свою позицию ----
 function migrateHeroRoles(real) {
-  if (!S || S.heroFix === 3) return;
-  if (S.patchOn && S.patchData && S.patchData.disciplines && real && real.disciplines) ['dota', 'dl'].forEach(d => { const P = S.patchData.disciplines[d], R = real.disciplines[d]; if (!P || !P.heroes || !R || !R.heroes) return; P.heroes.forEach(h => { const r = R.heroes.find(x => x.n === h.n); if (r && r.r) h.r = r.r; }); });
+  if (!S || S.heroFix === 4) return;
+  if (S.patchOn && S.patchData && S.patchData.disciplines && real && real.disciplines) ['dota', 'dl'].forEach(d => { const P = S.patchData.disciplines[d], R = real.disciplines[d]; if (!P || !P.heroes || !R || !R.heroes) return; P.heroes.forEach(h => { const r = R.heroes.find(x => x.n === h.n); if (r && r.r) h.r = r.r; }); R.heroes.forEach(r => { if (!P.heroes.some(h => h.n === r.n)) P.heroes.push(Object.assign({}, r)); }); });
   Object.values(S.players).forEach(p => { if (p && FAKE[p.d] && FAKE[p.d].kind === 'moba') { const keep = p.pool && p.pool.length ? Math.max(...p.pool.map(x => x[1])) : null; genPool(p); if (keep !== null && p.pool.length) { const top = p.pool.slice().sort((a, b) => b[1] - a[1])[0]; top[1] = Math.max(top[1], Math.min(99, keep)); } } });
-  S.heroFix = 3;
+  S.heroFix = 4;
 }
 // ---- сигнатурные карты и герои ----
 function sigMap(p) { if (FAKE[p.d].kind !== 'fps') return -1; return Math.floor(Math.abs(Math.sin(p.id * 17.31 + 1.7) * 43758.5453) % 1 * 7); }
@@ -600,7 +600,7 @@ function applyResult(d, m) {
 
 function metaShift() {
   DISC_ORDER.forEach(d => {
-    const l = FAKE[d].heroes; if (!l) return;
+    const l = heroList(d); if (!l || !l.length) return;
     const M = {}; for (let k = 0; k < 6; k++) M[ri(0, l.length - 1)] = ri(2, 5); for (let k = 0; k < 4; k++) M[ri(0, l.length - 1)] = -ri(2, 4);
     S.meta[d] = M;
   });

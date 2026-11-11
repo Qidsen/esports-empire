@@ -560,6 +560,441 @@ export const REAL_PATCH = {
      "n": "Warlock",
      "r": [4],
      "s": "m"
+    },
+    {
+     "n": "Abaddon",
+     "r": [4,2],
+     "s": "m"
+    },
+    {
+     "n": "Alchemist",
+     "r": [0,1],
+     "s": "m"
+    },
+    {
+     "n": "Ancient Apparition",
+     "r": [4],
+     "s": "l"
+    },
+    {
+     "n": "Arc Warden",
+     "r": [1,0],
+     "s": "l"
+    },
+    {
+     "n": "Bane",
+     "r": [4],
+     "s": "m"
+    },
+    {
+     "n": "Batrider",
+     "r": [1,2],
+     "s": "m"
+    },
+    {
+     "n": "Bloodseeker",
+     "r": [0,2],
+     "s": "e"
+    },
+    {
+     "n": "Bounty Hunter",
+     "r": [3],
+     "s": "e"
+    },
+    {
+     "n": "Brewmaster",
+     "r": [2],
+     "s": "m"
+    },
+    {
+     "n": "Bristleback",
+     "r": [2,0],
+     "s": "m"
+    },
+    {
+     "n": "Broodmother",
+     "r": [1,2],
+     "s": "e"
+    },
+    {
+     "n": "Chaos Knight",
+     "r": [0],
+     "s": "m"
+    },
+    {
+     "n": "Chen",
+     "r": [4],
+     "s": "e"
+    },
+    {
+     "n": "Clinkz",
+     "r": [0,1],
+     "s": "m"
+    },
+    {
+     "n": "Dark Willow",
+     "r": [3],
+     "s": "m"
+    },
+    {
+     "n": "Dawnbreaker",
+     "r": [2,3],
+     "s": "m"
+    },
+    {
+     "n": "Death Prophet",
+     "r": [1,2],
+     "s": "m"
+    },
+    {
+     "n": "Disruptor",
+     "r": [4],
+     "s": "m"
+    },
+    {
+     "n": "Doom",
+     "r": [2],
+     "s": "m"
+    },
+    {
+     "n": "Dragon Knight",
+     "r": [1,2],
+     "s": "m"
+    },
+    {
+     "n": "Drow Ranger",
+     "r": [0],
+     "s": "m"
+    },
+    {
+     "n": "Elder Titan",
+     "r": [4,3],
+     "s": "m"
+    },
+    {
+     "n": "Enchantress",
+     "r": [4,3],
+     "s": "e"
+    },
+    {
+     "n": "Enigma",
+     "r": [2,4],
+     "s": "m"
+    },
+    {
+     "n": "Gyrocopter",
+     "r": [0],
+     "s": "m"
+    },
+    {
+     "n": "Grimstroke",
+     "r": [4,3],
+     "s": "m"
+    },
+    {
+     "n": "Huskar",
+     "r": [1],
+     "s": "e"
+    },
+    {
+     "n": "Io",
+     "r": [4],
+     "s": "m"
+    },
+    {
+     "n": "Jakiro",
+     "r": [4],
+     "s": "m"
+    },
+    {
+     "n": "Keeper of the Light",
+     "r": [1,4],
+     "s": "m"
+    },
+    {
+     "n": "Kez",
+     "r": [0,1],
+     "s": "m"
+    },
+    {
+     "n": "Kunkka",
+     "r": [1,2],
+     "s": "m"
+    },
+    {
+     "n": "Legion Commander",
+     "r": [2],
+     "s": "m"
+    },
+    {
+     "n": "Leshrac",
+     "r": [1],
+     "s": "m"
+    },
+    {
+     "n": "Lich",
+     "r": [4],
+     "s": "e"
+    },
+    {
+     "n": "Lifestealer",
+     "r": [0],
+     "s": "m"
+    },
+    {
+     "n": "Lina",
+     "r": [1,0],
+     "s": "m"
+    },
+    {
+     "n": "Lone Druid",
+     "r": [0,1],
+     "s": "l"
+    },
+    {
+     "n": "Luna",
+     "r": [0],
+     "s": "l"
+    },
+    {
+     "n": "Lycan",
+     "r": [2,0],
+     "s": "m"
+    },
+    {
+     "n": "Magnus",
+     "r": [2,1],
+     "s": "m"
+    },
+    {
+     "n": "Marci",
+     "r": [3,2],
+     "s": "e"
+    },
+    {
+     "n": "Meepo",
+     "r": [1,0],
+     "s": "m"
+    },
+    {
+     "n": "Monkey King",
+     "r": [1,3],
+     "s": "m"
+    },
+    {
+     "n": "Muerta",
+     "r": [0,1],
+     "s": "m"
+    },
+    {
+     "n": "Naga Siren",
+     "r": [0,4],
+     "s": "l"
+    },
+    {
+     "n": "Nature's Prophet",
+     "r": [2,3],
+     "s": "m"
+    },
+    {
+     "n": "Necrophos",
+     "r": [2,1],
+     "s": "m"
+    },
+    {
+     "n": "Night Stalker",
+     "r": [2],
+     "s": "e"
+    },
+    {
+     "n": "Nyx Assassin",
+     "r": [3],
+     "s": "m"
+    },
+    {
+     "n": "Ogre Magi",
+     "r": [4,3],
+     "s": "e"
+    },
+    {
+     "n": "Omniknight",
+     "r": [4,2],
+     "s": "m"
+    },
+    {
+     "n": "Outworld Destroyer",
+     "r": [1],
+     "s": "l"
+    },
+    {
+     "n": "Phantom Lancer",
+     "r": [0],
+     "s": "l"
+    },
+    {
+     "n": "Phoenix",
+     "r": [3,4],
+     "s": "m"
+    },
+    {
+     "n": "Pudge",
+     "r": [3,2],
+     "s": "m"
+    },
+    {
+     "n": "Pugna",
+     "r": [1,4],
+     "s": "m"
+    },
+    {
+     "n": "Razor",
+     "r": [1,2],
+     "s": "m"
+    },
+    {
+     "n": "Riki",
+     "r": [0,3],
+     "s": "m"
+    },
+    {
+     "n": "Ringmaster",
+     "r": [4,3],
+     "s": "m"
+    },
+    {
+     "n": "Sand King",
+     "r": [2,3],
+     "s": "m"
+    },
+    {
+     "n": "Shadow Demon",
+     "r": [4],
+     "s": "m"
+    },
+    {
+     "n": "Silencer",
+     "r": [4,1],
+     "s": "m"
+    },
+    {
+     "n": "Skywrath Mage",
+     "r": [3,4],
+     "s": "m"
+    },
+    {
+     "n": "Slardar",
+     "r": [2],
+     "s": "m"
+    },
+    {
+     "n": "Slark",
+     "r": [0],
+     "s": "l"
+    },
+    {
+     "n": "Sniper",
+     "r": [1,0],
+     "s": "m"
+    },
+    {
+     "n": "Spectre",
+     "r": [0],
+     "s": "l"
+    },
+    {
+     "n": "Spirit Breaker",
+     "r": [3],
+     "s": "m"
+    },
+    {
+     "n": "Sven",
+     "r": [0],
+     "s": "l"
+    },
+    {
+     "n": "Techies",
+     "r": [3,4],
+     "s": "m"
+    },
+    {
+     "n": "Timbersaw",
+     "r": [2,1],
+     "s": "m"
+    },
+    {
+     "n": "Tinker",
+     "r": [1],
+     "s": "l"
+    },
+    {
+     "n": "Tiny",
+     "r": [1,3],
+     "s": "m"
+    },
+    {
+     "n": "Undying",
+     "r": [4],
+     "s": "e"
+    },
+    {
+     "n": "Ursa",
+     "r": [0],
+     "s": "m"
+    },
+    {
+     "n": "Vengeful Spirit",
+     "r": [4,3],
+     "s": "m"
+    },
+    {
+     "n": "Venomancer",
+     "r": [3,4],
+     "s": "m"
+    },
+    {
+     "n": "Viper",
+     "r": [1,2],
+     "s": "m"
+    },
+    {
+     "n": "Visage",
+     "r": [1,2],
+     "s": "m"
+    },
+    {
+     "n": "Weaver",
+     "r": [3,0],
+     "s": "m"
+    },
+    {
+     "n": "Windranger",
+     "r": [1,3],
+     "s": "m"
+    },
+    {
+     "n": "Winter Wyvern",
+     "r": [4],
+     "s": "m"
+    },
+    {
+     "n": "Wraith King",
+     "r": [0,2],
+     "s": "m"
+    },
+    {
+     "n": "Zeus",
+     "r": [1,3],
+     "s": "m"
+    },
+    {
+     "n": "Largo",
+     "r": [4,3],
+     "s": "m"
+    },
+    {
+     "n": "Earth Spirit",
+     "r": [3,2],
+     "s": "m"
     }
    ],
    "boss": "Рошан",
