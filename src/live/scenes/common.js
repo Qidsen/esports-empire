@@ -4,7 +4,11 @@ export function makeRenderer(gl, gfx = 0) {
   const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
   const canvas = { width: w, height: h, style: {}, addEventListener() { }, removeEventListener() { }, clientWidth: w, clientHeight: h, getContext: () => gl };
   if (!gl.getContextAttributes) gl.getContextAttributes = () => ({ alpha: true, antialias: false, depth: true, stencil: false, premultipliedAlpha: true, preserveDrawingBuffer: false });
-  const r = new THREE.WebGLRenderer({ canvas, context: gl, antialias: false, powerPreference: 'high-performance' });
+  // Expo Go: контекст WebGL2 ошибочно наследует WebGLRenderingContext, и three.js (r163+) считает его WebGL1.
+  // Прячем глобальный конструктор на время создания рендерера, чтобы пропустить эту проверку.
+  const g = globalThis; const saved = g.WebGLRenderingContext; let r;
+  try { if (gl.supportsWebGL2 !== false && saved && gl instanceof saved) g.WebGLRenderingContext = undefined; r = new THREE.WebGLRenderer({ canvas, context: gl, antialias: false, powerPreference: 'high-performance' }); }
+  finally { g.WebGLRenderingContext = saved; }
   r.setPixelRatio(1); r.setSize(w, h, false);
   r.shadowMap.enabled = gfx === 0; r.shadowMap.type = THREE.PCFShadowMap;
   r.toneMapping = gfx >= 2 ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
