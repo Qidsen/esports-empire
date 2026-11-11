@@ -21,6 +21,7 @@ import Org from './src/screens/Org';
 import Live from './src/live/Live';
 import { playWeek } from './src/screens/flow';
 import { Ico, IconText } from './src/ui/icons';
+import { music, sfx } from './src/ui/audio';
 
 import * as G from './src/core/game';
 if (Platform.OS === 'web') globalThis.__APP = { G, UI, bump: () => bump() };
@@ -51,7 +52,7 @@ function SideNav() {
       {TABS.map(([k, i, n]) => {
         const on = UI.tab === k;
         return (
-          <Pressable key={k} onPress={() => { UI.tab = k; UI.sel = null; UI.neg = null; bump(); }} style={[st.nav, on && { backgroundColor: alpha(S.org.c1, 0.18), borderColor: alpha(S.org.c1, 0.5) }]}>
+          <Pressable key={k} onPress={() => { sfx('ui_tab'); UI.tab = k; UI.sel = null; UI.neg = null; bump(); }} style={[st.nav, on && { backgroundColor: alpha(S.org.c1, 0.18), borderColor: alpha(S.org.c1, 0.5) }]}>
             <Ico n={i} size={22} color={on ? S.org.c1 : C.mu} />
             <Text style={{ fontSize: 9.5, color: on ? C.tx : C.mu, fontFamily: F.hm, marginTop: 1 }}>{n}</Text>
           </Pressable>
@@ -88,6 +89,7 @@ function Toasts() {
 function Shell() {
   useBump();
   const ins = useSafeAreaInsets();
+  useEffect(() => { if (!UI.live) music(!S || UI.title || UI.newGame ? 'music_menu' : 'music_hub'); });
   if (!S) return UI.newGame ? <Start /> : <Title />;
   if (UI.title) return <Title />;
   const Scr = { home: Home, roster: Roster, market: Market, comp: Comp, org: Org }[UI.tab];

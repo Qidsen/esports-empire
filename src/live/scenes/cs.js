@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { std, box, sph, glowSprite, lights, Bursts, Tracers, rng, hash } from './common';
 import { loadModel, loadProps, placeProp, makeFighter } from '../assets';
 import { CS_MAPS } from '../csmaps';
+import { sfx, buzz } from '../../ui/audio';
 
 const THEMES = [
   { floor: '#7d8a5a', floor2: '#5f6d45', wall: '#8f8a76', wall2: '#6f6a58', sky: '#a9c7a0', fog: '#7e9a7a', sun: '#fff1d6', ground: '#2c3522' }, // Ancient
@@ -180,9 +181,9 @@ export function createCs(scene, cam, viz) {
       const u = rec ? Math.min(1, Math.max(0, (now - viz.roundT0) / viz.roundDur)) : 0;
       const pl = S.plan; const G = S.G;
       if (pl) {
-        if (viz.hud) { viz.hud.u = u; if (u > 0.94) viz.hud.end = true; }
+        if (viz.hud) { viz.hud.u = u; if (u > 0.94 && !viz.hud.end) { viz.hud.end = true; if (pl.rec.how === 'defuse') sfx('defuse'); if (pl.rec.A === (viz.us === 'A')) sfx('roundwin'); if (pl.rec.hl) { sfx('cheer', pl.rec.hl.big ? 1 : 0.6); buzz('heavy'); } } }
         pl.kills.forEach(k => {
-          if (k.done || u < k.t) return; k.done = true; const a = pl.P[k.k], b = pl.P[k.v]; if (!a || !b) return;
+          if (k.done || u < k.t) return; k.done = true; sfx(k.awp ? 'awp' : 'ak'); if (k.hs) setTimeout(() => sfx('headshot', 0.6), 70); const a = pl.P[k.k], b = pl.P[k.v]; if (!a || !b) return;
           const to = b.pos.clone(); to.y += 1.1; const from = muzzle(a, to);
           S.tracers.add(from, to, a.isT ? '#ffd9a0' : '#cfe6ff'); S.bursts.add(to, '#c81e1e', 16, 3.5, 0.45, 0.35);
           b.dead = { t: u }; a.shoot = { t: u, at: to.clone() };
@@ -223,11 +224,12 @@ export function createCs(scene, cam, viz) {
         S.smokes.forEach(s => { const k = Math.min(1, s.scale.x + dt * 1.6); s.scale.setScalar(k); s.rotation.y += dt * 0.08; });
         if (pl.plant && !S.bomb && u > pl.plantT) {
           const b = new THREE.Group(); b.add(box(0.5, 0.22, 0.34, std('#2b2f36', { m: 0.6, r: 0.4 }))); b.add(box(0.3, 0.06, 0.2, std('#3a7d3a', { e: '#1f5f1f', ei: 0.6 }), 0, 0.14, 0));
-          const lg = glowSprite('#ff2a2a', 1.4, 1); lg.position.set(0, 0.3, 0); b.add(lg); b.position.copy(pl.site); b.position.y += 0.11; b.userData.lg = lg; scene.add(b); S.bomb = b; if (viz.hud) viz.hud.planted = true;
+          const lg = glowSprite('#ff2a2a', 1.4, 1); lg.position.set(0, 0.3, 0); b.add(lg); b.position.copy(pl.site); b.position.y += 0.11; b.userData.lg = lg; scene.add(b); S.bomb = b; sfx('beep'); pl.nextBeep = now + 900; if (viz.hud) viz.hud.planted = true;
         }
         if (S.bomb) {
           S.bomb.userData.lg.material.opacity = (Math.sin(now / (u > 0.85 ? 50 : 150)) + 1) / 2;
-          if (pl.rec.how === 'bomb' && !pl.boomed && u > pl.boomT) { pl.boomed = true; const bp = S.bomb.position.clone(); bp.y += 1; S.bursts.add(bp, '#ffd27a', 100, 18, 1.6, 1.3); S.bursts.add(bp, '#ff5a1f', 70, 11, 1.8, 1.7); S.bursts.add(bp, '#3a3a3a', 40, 6, 2.2, 2.4); S.shake = 0.9; }
+          if (!pl.boomed && now > (pl.nextBeep || 0) && u < 0.95) { sfx('beep', 0.7); pl.nextBeep = now + (u > 0.85 ? 250 : u > 0.75 ? 500 : 900); }
+          if (pl.rec.how === 'bomb' && !pl.boomed && u > pl.boomT) { pl.boomed = true; sfx('explosion'); buzz('heavy'); const bp = S.bomb.position.clone(); bp.y += 1; S.bursts.add(bp, '#ffd27a', 100, 18, 1.6, 1.3); S.bursts.add(bp, '#ff5a1f', 70, 11, 1.8, 1.7); S.bursts.add(bp, '#3a3a3a', 40, 6, 2.2, 2.4); S.shake = 0.9; }
         }
       }
       S.flashes = S.flashes.filter(f => { f.t -= dt; f.s.material.opacity = Math.max(0, f.t / 0.09); if (f.t <= 0) { scene.remove(f.s); return false; } return true; });

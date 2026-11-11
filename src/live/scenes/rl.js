@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadModel } from '../assets';
 import { std, box, cyl, sph, lights, makeCar, Bursts, glowSprite, stripeTex, hash, rng, camOrbit } from './common';
+import { sfx, buzz } from '../../ui/audio';
 
 const W = 20, Lh = 30, GOAL = 5;
 export function createRl(scene, cam, viz) {
@@ -52,7 +53,7 @@ export function createRl(scene, cam, viz) {
   function kickoff() { B.p.set(0, 1, 0); B.v.set(0, 0, 0); Object.values(cars).forEach(kickoffCar); }
   // Сценарий гола/сейва: атакующая машина реально доезжает до мяча и бьёт по воротам; мяч летит по физике
   function startScript(e) {
-    if (e.type === 'demo') { const v = cars[e.v]; if (v && !v.dead) { v.dead = 1.6; bursts.add(v.p.clone().setY(1), '#ff7b2b', 60, 12, 1.1, 0.9); } return; }
+    if (e.type === 'demo') { const v = cars[e.v]; if (v && !v.dead) { v.dead = 1.6; sfx('demo', 0.8); bursts.add(v.p.clone().setY(1), '#ff7b2b', 60, 12, 1.1, 0.9); } return; }
     const atk = e.type === 'goal' ? e.side : (e.side === 'A' ? 'B' : 'A');
     let shooter = e.type === 'goal' ? cars[e.p] : null; if (!shooter) shooter = Object.values(cars).filter(c => c.side === atk && !c.dead).sort((a, b) => a.p.distanceTo(B.p) - b.p.distanceTo(B.p))[0];
     const goalZ = atk === 'A' ? -Lh : Lh;
@@ -60,7 +61,7 @@ export function createRl(scene, cam, viz) {
   }
   function shoot(sc) {
     const T = Math.max(0.6, Math.min(1.4, B.p.distanceTo(sc.aim) / 28)); const g = 22;
-    B.v.set((sc.aim.x - B.p.x) / T, (sc.aim.y - B.p.y + 0.5 * g * T * T) / T, (sc.aim.z - B.p.z) / T); sc.shot = true; sc.t = 0;
+    B.v.set((sc.aim.x - B.p.x) / T, (sc.aim.y - B.p.y + 0.5 * g * T * T) / T, (sc.aim.z - B.p.z) / T); sc.shot = true; sc.t = 0; sfx('kick', 1.3);
     bursts.add(B.p.clone(), '#ffffff', 16, 5, 0.4, 0.4);
   }
   return {
@@ -73,11 +74,11 @@ export function createRl(scene, cam, viz) {
       const sc = S.script;
       if (sc && (sc.type === 'goal' || sc.type === 'save')) {
         sc.t += dt;
-        if (!sc.shot && (sc.t > 5 || (sc.shooter && sc.shooter.p.distanceTo(B.p.clone().setY(0)) < 2.6))) { if (sc.shooter) sc.shooter.boostT = 0.4; shoot(sc); }
+        if (!sc.shot && (sc.t > 5 || (sc.shooter && sc.shooter.p.distanceTo(B.p.clone().setY(0)) < 2.6))) { if (sc.shooter) { sc.shooter.boostT = 0.4; sfx('boost', 0.6); } shoot(sc); }
         if (sc.shot) {
           const nearLine = Math.abs(B.p.z) > Lh - 1.6 && Math.sign(B.p.z) === Math.sign(sc.goalZ);
           if (sc.type === 'save' && sc.keeper && !sc.saved && Math.abs(B.p.z) > Lh - 6 && Math.sign(B.p.z) === Math.sign(sc.goalZ)) { sc.saved = true; B.v.set((Math.random() - 0.5) * 16, 7, -Math.sign(sc.goalZ) * 20); bursts.add(B.p.clone(), '#bfe3ff', 24, 7, 0.5, 0.5); S.script = null; }
-          else if (sc.type === 'goal' && nearLine) { const g = goals[sc.side === 'A' ? 'B' : 'A']; for (let i = 0; i < 3; i++) bursts.add(B.p.clone(), i === 1 ? '#ffffff' : (sc.side === 'A' ? viz.ca : viz.cb), 90, 18, 1.6, 1.1); g.light.intensity = 160; S.freeze = 1.6; viz.vg = viz.vg || { A: 0, B: 0 }; viz.vg[sc.side]++; S.focus.copy(B.p); B.v.set(0, 0, 0); S.script = null; }
+          else if (sc.type === 'goal' && nearLine) { sfx('horn'); sfx('cheer'); buzz('medium'); const g = goals[sc.side === 'A' ? 'B' : 'A']; for (let i = 0; i < 3; i++) bursts.add(B.p.clone(), i === 1 ? '#ffffff' : (sc.side === 'A' ? viz.ca : viz.cb), 90, 18, 1.6, 1.1); g.light.intensity = 160; S.freeze = 1.6; viz.vg = viz.vg || { A: 0, B: 0 }; viz.vg[sc.side]++; S.focus.copy(B.p); B.v.set(0, 0, 0); S.script = null; }
           else if (sc.t > 3) S.script = null;
         }
       }

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadModel, makeActor } from '../assets';
 import { std, box, cyl, sph, lights, makeSoldier, animWalk, Bursts, glowSprite, stripeTex, hash, rng, camOrbit, ease } from './common';
+import { sfx, buzz } from '../../ui/audio';
 
 const PW = 17, PL = 26;
 const F442 = [[0, 0.95], [-0.6, 0.72], [-0.2, 0.75], [0.2, 0.75], [0.6, 0.72], [-0.65, 0.45], [-0.22, 0.5], [0.22, 0.5], [0.65, 0.45], [-0.2, 0.2], [0.2, 0.2]];
@@ -43,15 +44,15 @@ export function createFc(scene, cam, viz) {
     if (forward) best = cand.filter(i => sg * (tm[i].p.z - tm[S.holder].p.z) > 2).sort((a, b) => sg * (tm[b].p.z - tm[a].p.z))[Math.floor(Math.random() * 2)];
     if (best === undefined) best = cand.sort((a, b) => tm[a].p.distanceTo(S.ball) - tm[b].p.distanceTo(S.ball))[Math.floor(Math.random() * 4)];
     const to = tm[best].p.clone().add(new THREE.Vector3(0, 0, sg * 1.5));
-    S.pass = { from: S.ball.clone(), to, t: 0, dur: 0.45 + S.ball.distanceTo(to) / 26, i: best };
+    sfx('kick', 0.5); S.pass = { from: S.ball.clone(), to, t: 0, dur: 0.45 + S.ball.distanceTo(to) / 26, i: best };
   }
   function shoot() {
     const sg = atkSgn(S.poss); const goal = S.attack && S.attack.type === 'goal';
     const to = goal ? new THREE.Vector3((Math.random() - 0.5) * 6, 0.4 + Math.random() * 1.6, sg * (PL + 0.6)) : new THREE.Vector3((Math.random() - 0.5) * 3, 1, sg * (PL - 0.8));
-    team[S.poss][S.holder].kick = 0.45;
+    team[S.poss][S.holder].kick = 0.45; sfx('kick', 1.2);
     S.shot = { side: S.poss, goal, from: S.ball.clone(), to, t: 0, dur: 0.35 + S.ball.distanceTo(to) / 40 };
   }
-  function kickoff(side) { ['A', 'B'].forEach(s => team[s].forEach(x => x.p.copy(x.home))); S.poss = side; S.holder = 9; S.ball.set(0, 0, 0); S.pass = null; S.steal = null; S.t = 0; }
+  function kickoff(side) { sfx('whistle', 0.7); ['A', 'B'].forEach(s => team[s].forEach(x => x.p.copy(x.home))); S.poss = side; S.holder = 9; S.ball.set(0, 0, 0); S.pass = null; S.steal = null; S.t = 0; }
   return {
     update(dt, now) {
       if (viz.evSeq !== S.seq) { S.seq = viz.evSeq; (viz.events || []).forEach(e => { if (e.type === 'goal' || (e.type === 'chance' && Math.random() < 0.6)) S.queue.push(e); }); }
@@ -60,7 +61,7 @@ export function createFc(scene, cam, viz) {
       else if (S.shot) {
         const sc = S.shot; sc.t += dt / sc.dur; const k = Math.min(1, sc.t); S.ball.lerpVectors(sc.from, sc.to, k); S.ball.y = sc.from.y + (sc.to.y - sc.from.y) * k + Math.sin(k * Math.PI) * 1.0;
         if (sc.t >= 1) {
-          if (sc.goal) { for (let i = 0; i < 3; i++) bursts.add(S.ball.clone().setY(1.5), i === 1 ? '#ffffff' : (sc.side === 'A' ? viz.ca : viz.cb), 80, 12, 1.4, 0.8); S.freeze = 2.2; S.celebrate = sc.side; viz.vg = viz.vg || { A: 0, B: 0 }; viz.vg[sc.side]++; }
+          if (sc.goal) { sfx('horn'); sfx('cheer'); buzz('medium'); for (let i = 0; i < 3; i++) bursts.add(S.ball.clone().setY(1.5), i === 1 ? '#ffffff' : (sc.side === 'A' ? viz.ca : viz.cb), 80, 12, 1.4, 0.8); S.freeze = 2.2; S.celebrate = sc.side; viz.vg = viz.vg || { A: 0, B: 0 }; viz.vg[sc.side]++; }
           else { S.poss = sc.side === 'A' ? 'B' : 'A'; S.holder = 0; S.ball.copy(team[S.poss][0].p); S.ball.y = 0.32; S.t = -0.6; }
           S.shot = null; S.attack = null;
         }

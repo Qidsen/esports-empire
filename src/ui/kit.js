@@ -17,6 +17,7 @@ export const H = ({ children, style, right }) => (
   </View>
 );
 import { Ico, splitIcon, iconKey } from './icons';
+import { sfx, buzz } from './audio';
 export function Panel({ children, style, ac, pad = 12, onPress }) {
   const inner = (
     <View style={[st.panel, { padding: pad }, style]}>
@@ -33,7 +34,7 @@ export function Btn({ title, onPress, kind, ac, disabled, small, style, icon, wi
   const [lk, tt] = splitIcon(title); const ik = iconKey(icon) || lk; const tc = pri || good ? '#0a0d14' : danger ? '#ffd6db' : C.tx;
   const colors = pri ? [shade(accent, 1.15), shade(accent, 0.75)] : good ? ['#4ff09a', '#25b468'] : danger ? ['rgba(255,90,106,0.28)', 'rgba(255,90,106,0.14)'] : ['rgba(60,72,104,0.65)', 'rgba(36,44,66,0.65)'];
   return (
-    <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [{ opacity: disabled ? 0.35 : pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }, wide && { alignSelf: 'stretch' }, style]}>
+    <Pressable disabled={disabled} onPress={onPress ? (e => { sfx(pri ? 'ui_confirm' : 'ui_click'); buzz('light'); onPress(e); }) : undefined} style={({ pressed }) => [{ opacity: disabled ? 0.35 : pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }, wide && { alignSelf: 'stretch' }, style]}>
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[st.btn, small && st.btnSm, pri && { shadowColor: accent, shadowOpacity: 0.6, shadowRadius: 12, shadowOffset: { width: 0, height: 0 } }, { borderColor: pri ? alpha('#ffffff', 0.25) : danger ? 'rgba(255,90,106,0.45)' : C.line2 }]}>
         {ik ? <Ico n={ik} size={small ? 14 : 17} color={tc} style={{ marginRight: 6 }} /> : null}
         <Text numberOfLines={1} style={{ color: tc, fontFamily: F.h, fontSize: small ? 11 : 12.5, letterSpacing: 0.3, textTransform: 'uppercase' }}>{tt}</Text>
@@ -47,7 +48,7 @@ export function Seg({ items, value, onChange, ac, style }) {
       {items.map(([k, n]) => {
         const on = k === value;
         return (
-          <Pressable key={String(k)} onPress={() => onChange(k)} style={[st.segI, on && { backgroundColor: alpha(ac || C.blue, 0.22), borderColor: alpha(ac || C.blue, 0.6) }]}>
+          <Pressable key={String(k)} onPress={() => { sfx('ui_tab'); onChange(k); }} style={[st.segI, on && { backgroundColor: alpha(ac || C.blue, 0.22), borderColor: alpha(ac || C.blue, 0.6) }]}>
             <Text numberOfLines={1} style={{ color: on ? C.tx : C.mu, fontFamily: F.hm, fontSize: 11.5 }}>{n}</Text>
           </Pressable>
         );
@@ -154,7 +155,7 @@ export function SubTabs({ items, value, onChange, ac, right }) {
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 1, flexShrink: 1 }} contentContainerStyle={{ gap: 6 }}>
         {items.map(([k, n, ic]) => { const on = k === value; return (
-          <Pressable key={k} onPress={() => onChange(k)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 34, borderRadius: 10, backgroundColor: on ? (ac || C.blue) : 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: on ? 'transparent' : C.line }}>
+          <Pressable key={k} onPress={() => { sfx('ui_tab'); onChange(k); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 34, borderRadius: 10, backgroundColor: on ? (ac || C.blue) : 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: on ? 'transparent' : C.line }}>
             {ic ? <Ico n={ic} size={16} color={on ? '#0a0d14' : C.tx} /> : null}
             <Text numberOfLines={1} style={{ color: on ? '#0a0d14' : C.tx, fontFamily: F.h, fontSize: 12.5 }}>{n}</Text>
           </Pressable>); })}

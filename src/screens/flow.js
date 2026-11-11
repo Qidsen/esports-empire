@@ -7,6 +7,7 @@ import { C, F } from '../ui/theme';
 import { rollEvent, pendingEvents } from '../core/events';
 import { showEvents } from './EventCard';
 import { IconText } from '../ui/icons';
+import { sfx } from '../ui/audio';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 export function playWeek() {
@@ -16,7 +17,7 @@ export function playWeek() {
 }
 export function runQueue() {
   if (UI.queue.length) { const { d, m } = UI.queue.shift(); preMatch(d, m); return; }
-  const wk = S.week, ss = S.season; const before = UI.week0 || S.money; const log = finishWeek(); rollEvent(); save(); UI.tier = null; bump();
+  const wk = S.week, ss = S.season; const before = UI.week0 || S.money; const log = finishWeek(); rollEvent(); save(); if (log.payday) setTimeout(() => sfx('cash'), 250); UI.tier = null; bump();
   const res = S.news.filter(n => n.s === ss && n.w === wk && ['good', 'bad', 'gold'].includes(n.c));
   openModal(() => (
     <View>

@@ -10,6 +10,7 @@ import Scene3D from './Scene3D';
 import { runQueue } from '../screens/flow';
 import { SET } from '../ui/settings';
 import { Ico } from '../ui/icons';
+import { sfx, buzz, music } from '../ui/audio';
 
 const SPEEDS = [1, 2, 4, 8];
 const STEP = { fps: 16000, moba: 1000, ball: 1150, duel: 650 };
@@ -39,7 +40,7 @@ export default function Live() {
   if (!Lr.current) {
     const { d, m } = UI.live; const A = teamOf(d, m.a), B = teamOf(d, m.b); const cA = teamCtx(A, d), cB = teamCtx(B, d); const kind = FAKE[d].kind; const bo = seriesBo(d, m.bo);
     let ca = A.user ? S.org.c1 : A.color, cb = B.user ? S.org.c1 : B.color; if (colorDist(ca, cb) < 120) cb = colorDist(ca, '#e8e8e8') > 200 ? '#e8e8e8' : '#3fa9f5';
-    const viz = { kind, d, ca, cb, pa: cA.players.map(p => ({ id: p.id, role: p.role })), pb: cB.players.map(p => ({ id: p.id, role: p.role })), map: 0, evSeq: 0, events: [] };
+    const viz = { kind, d, ca, cb, us: A.user ? 'A' : 'B', pa: cA.players.map(p => ({ id: p.id, role: p.role })), pb: cB.players.map(p => ({ id: p.id, role: p.role })), map: 0, evSeq: 0, events: [] };
     Lr.current = { d, m, A, B, cA, cB, kind, bo, need: Math.ceil(bo / 2), us: A.user ? 'A' : 'B', sa: 0, sb: 0, maps: [], acc: {}, speed: SET.speed || 1, phase: '', feed: [], cur: null, g: 0, sel: null, hrole: -1, viz, ready: false, shown: [0, 0], board: false, tm: null, hls: [], mvps: [] };
   }
   const L = Lr.current;
@@ -68,7 +69,7 @@ export default function Live() {
   const recordGame = () => { const g = L.cur; const aW = g.winner === 'A'; if (aW) L.sa++; else L.sb++; const wset = L.kind === 'duel' ? new Set([aW ? g.pA.id : g.pB.id]) : new Set((aW ? L.cA : L.cB).players.map(p => p.id)); mergeStats(L.acc, g.stats, wset); L.maps.push(L.kind === 'fps' ? { map: g.map, sa: g.sa, sb: g.sb } : L.kind === 'moba' ? { t: g.t, kA: g.kA, kB: g.kB, w: g.winner } : L.kind === 'ball' ? { map: g.arena, sa: g.sa, sb: g.sb, ot: g.ot } : { pa: g.pA.id, pb: g.pB.id, sa: g.sa, sb: g.sb, pens: g.pens }); L.g++; L.cur = null; L.ready = false; };
   const over = () => L.sa >= L.need || L.sb >= L.need;
   const mapDone = () => { const g = L.cur; L.mapMvp = mapMvp(L, g); if (L.mapMvp) L.mvps.push(L.mapMvp.id); if (L.kind === 'ball' || L.kind === 'duel') Object.entries(g.stats).forEach(([id, st]) => { if ((st.k || 0) >= 3) L.hls.push({ p: +id, t: 'ХЕТ-ТРИК', ic: 'tophat', side: L.cA.players.some(x => x.id === +id) ? 'A' : 'B', g: L.g + 1, at: '' }); }); recordGame(); if (over()) { endSeries(); return; } L.phase = 'between'; const last = L.maps[L.maps.length - 1]; const aW = (last.w || (last.sa > last.sb ? 'A' : 'B')) === 'A'; L.msg = `${tname(aW ? L.A : L.B)} берёт ${L.kind === 'fps' ? 'карту ' + mapName(L.d, last.map) : 'игру'}${L.kind !== 'moba' ? ` (${last.sa}:${last.sb}${last.pens ? ', пен. ' + last.pens.join(':') : ''})` : ''}`; rr(); sched(() => { if (L.kind === 'moba') startDraft(); else startGame(); }, 2600); };
-  const endSeries = () => { clear(); const { d, m, A, B, cA, cB } = L; const res = { win: L.sa > L.sb ? A.id : B.id, sa: L.sa, sb: L.sb, maps: L.maps }; seriesFinalize(L.acc, res, cA, cB); const m0 = S.money; m.res = res; applyResult(d, m); L.prize = S.money - m0; L.phase = 'end'; save(); rr(); };
+  const endSeries = () => { clear(); const { d, m, A, B, cA, cB } = L; const res = { win: L.sa > L.sb ? A.id : B.id, sa: L.sa, sb: L.sb, maps: L.maps }; seriesFinalize(L.acc, res, cA, cB); const m0 = S.money; m.res = res; applyResult(d, m); L.prize = S.money - m0; L.phase = 'end'; save(); const won = res.win === (L.us === 'A' ? A.id : B.id); sfx(won ? 'win' : 'lose'); buzz(won ? 'success' : 'error'); rr(); };
   const startGameSilent = () => { L.cur = makeGame(); };
   const finishFast = () => {
     clear();
@@ -81,6 +82,7 @@ export default function Live() {
   const skipGame = () => { if (!L.cur || L.phase !== 'play') return; clear(); L.cur.run(); L.shown = [L.cur.kA !== undefined ? L.cur.kA : L.cur.sa, L.cur.kB !== undefined ? L.cur.kB : L.cur.sb]; mapDone(); };
   const close = () => { clear(); UI.live = null; bump(); setTimeout(runQueue, 60); };
   useEffect(() => {
+    music(L.kind === 'ball' || L.kind === 'duel' ? 'crowd_loop' : null);
     if (L.kind === 'fps') { L.veto = { avail: [0, 1, 2, 3, 4, 5, 6], order: vetoOrder(L.bo), step: 0, picks: [], log: [] }; L.phase = 'veto'; vetoNext(); }
     else if (L.kind === 'moba') startDraft(); else startGame();
     return clear;

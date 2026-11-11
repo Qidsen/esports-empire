@@ -110,6 +110,8 @@ const FACILITIES = {
 
 // Season calendar
 const SEASON_WEEKS = 20;
+// Свободные агенты: в основном середняки; сильные — редкость, чаще возрастные ветераны
+function faPlayer(d) { const vet = rnd() < 0.07; const lvl = vet ? ri(58, 66) : Math.round(38 + 20 * Math.pow(rnd(), 1.6)); return genPlayer(d, ri(0, FAKE[d].size - 1), lvl, vet ? [28, 33] : [17, 27]); }
 function phaseOf(w) {
   if (w <= 14) return { k: 'league', n: 'Регулярный сезон', r: w };
   if (w === 15) return { k: 'po', n: 'Плей-офф · полуфиналы', r: 1 };
@@ -217,7 +219,7 @@ function buildWorld(d) {
     }
   }
   // free agents
-  for (let k = 0; k < 18; k++) { const p = genPlayer(d, k % FAKE[d].size, ri(44, 66)); S.players[p.id] = p; W.fa.push(p.id); }
+  for (let k = 0; k < 18; k++) { const p = faPlayer(d); p.role = k % FAKE[d].size; S.players[p.id] = p; W.fa.push(p.id); }
   S.world[d] = W;
   S.meta[d] = {};
   makeSchedule(d);
@@ -506,7 +508,7 @@ function finishWeek() {
   // markets
   if (S.week % 2 === 0) genOffers();
   if (S.week % 3 === 0) genStaffMarket();
-  DISC_ORDER.forEach(d => { const W = S.world[d]; if (rnd() < 0.5) { const p = genPlayer(d, ri(0, FAKE[d].size - 1), ri(42, 70)); S.players[p.id] = p; W.fa.push(p.id); } if (W.fa.length > 30) { const old = W.fa.shift(); delete S.players[old]; } if (Object.keys(S.divs).includes(d) && S.week % 4 === 0) refreshAcademy(d); aiTransfer(d); });
+  DISC_ORDER.forEach(d => { const W = S.world[d]; if (rnd() < 0.5) { const p = faPlayer(d); S.players[p.id] = p; W.fa.push(p.id); } if (W.fa.length > 30) { const old = W.fa.shift(); delete S.players[old]; } if (Object.keys(S.divs).includes(d) && S.week % 4 === 0) refreshAcademy(d); aiTransfer(d); });
   // creators
   S.creators.forEach(cr => { S.fans += cr.fans; cr.weeks--; }); S.creators = S.creators.filter(c => c.weeks > 0);
   log.money1 = S.money;
@@ -633,12 +635,13 @@ function newSeason() {
 // ---- actions ----
 function fmt(n) { n = Math.round(n); const a = Math.abs(n); if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e7 ? 1 : 2).replace(/\.0+$/, '') + 'M'; if (a >= 1e4) return (n / 1e3).toFixed(a >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'k'; return n.toLocaleString('ru-RU'); }
 function signDemand(p) {
-  const req = Math.max(0, (ovr(p) - 55) * 2.2);
-  const ut = userTeam(p.d); const tierBonus = ut ? (2 - ut.tier) * 12 : 0;
-  const eff = S.rep + tierBonus;
+  // сильные игроки не идут в слабые/безымянные команды: нужен уровень лиги и репутация
+  const req = Math.max(0, (ovr(p) - 50) * 2.6);
+  const ut = userTeam(p.d); const tierBonus = ut ? (2 - ut.tier) * 14 : 0;
+  const eff = S.rep + tierBonus + (ut ? Math.max(0, teamOvr(ut) - ovr(p) + 8) : 0);
   let mult = 1 + Math.max(0, req - eff) / 35;
   if (p.team === null && S.world[p.d].academy.includes(p.id)) mult = 1;
-  return { sal: Math.round(salaryFor(p) * mult / 10) * 10, refuse: mult > 2.2, mult };
+  return { sal: Math.round(salaryFor(p) * mult / 10) * 10, refuse: mult > 1.65, mult, need: Math.ceil(Math.max(0, req - 0.65 * 35 - tierBonus)) };
 }
 function feeFor(p) { if (!p.team) return S.world[p.d].academy.includes(p.id) ? Math.round(1500 + p.pot * 40) : 0; return Math.round(valueOf(p) * (T(p.team).tier === 0 ? 1.3 : 1)); }
 function signPlayer(p, years, feeOv, salOv) {

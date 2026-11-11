@@ -9,6 +9,7 @@ import { UI, bump, save, wipe, openModal, closeModal } from '../ui/store';
 import { T, Btn, Row, Seg, OrgLogo, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 import { SET, LANGS, GFX_OPTS, saveSettings } from '../ui/settings';
+import { sfx, buzz, applyMusicVolume } from '../ui/audio';
 
 // Логотип игры: щит с крыльями, короной-клинками и объёмной «E»
 export function GameLogo({ size = 120 }) {
@@ -95,6 +96,11 @@ function SettingsBody() {
       <T h s={18}>Настройки</T>
       <View><T mu s={11} style={{ marginBottom: 4 }}>Язык</T><Seg ac="#ff8a1f" value={SET.lang} onChange={v => { if (LANGS.find(l => l[0] === v)[2]) { SET.lang = v; up(); } }} items={LANGS.map(([k, n, ok]) => [k, ok ? n : n + ' · скоро'])} /></View>
       <View><T mu s={11} style={{ marginBottom: 4 }}>Качество 3D-трансляций</T><Seg ac="#ff8a1f" value={SET.gfx} onChange={v => { SET.gfx = v; up(); }} items={GFX_OPTS} /><T mu s={10} style={{ marginTop: 3 }}>Низкое — без теней и тонмаппинга, если телефон греется или 3D не показывается.</T></View>
+      <Row gap={10}>
+        <View style={{ flex: 1 }}><T mu s={11} style={{ marginBottom: 4 }}>Музыка</T><Seg ac="#ff8a1f" value={SET.music} onChange={v => { SET.music = v; up(); applyMusicVolume(); }} items={[[0, 'Выкл'], [0.3, 'Тихо'], [0.6, 'Норм'], [1, 'Громко']]} /></View>
+        <View style={{ flex: 1 }}><T mu s={11} style={{ marginBottom: 4 }}>Звуки</T><Seg ac="#ff8a1f" value={SET.sfx} onChange={v => { SET.sfx = v; up(); sfx('ui_click'); }} items={[[0, 'Выкл'], [0.45, 'Тихо'], [0.9, 'Норм'], [1.3, 'Громко']]} /></View>
+        <View style={{ width: 130 }}><T mu s={11} style={{ marginBottom: 4 }}>Вибрация</T><Seg ac="#ff8a1f" value={SET.haptics ? 1 : 0} onChange={v => { SET.haptics = !!v; up(); buzz('light'); }} items={[[1, 'Вкл'], [0, 'Выкл']]} /></View>
+      </Row>
       <View><T mu s={11} style={{ marginBottom: 4 }}>Скорость матчей по умолчанию</T><Seg ac="#ff8a1f" value={SET.speed} onChange={v => { SET.speed = v; up(); }} items={[[1, '1×'], [2, '2×'], [4, '4×']]} /></View>
       {S ? <Btn title="Патч реальных данных и сохранение" onPress={() => { closeModal(); UI.title = false; UI.tab = 'org'; UI.org = 'set'; bump(); }} /> : null}
       <Btn kind="pri" ac="#ff8a1f" title="Готово" onPress={closeModal} />
@@ -106,7 +112,7 @@ function openAbout() {
     <View style={{ gap: 6 }}>
       <Row gap={12}><GameLogo size={64} /><View style={{ flex: 1 }}><T h s={18}>Esports Empire</T><T mu s={11}>Симулятор киберспортивного менеджера · 5 дисциплин</T></View></Row>
       <T s={12}>CS2, Dota 2, Deadlock, Rocket League и EA SPORTS FC 27: собери организацию, нанимай игроков и персонал, веди переговоры, выигрывай лиги и мейджоры.</T>
-      <T mu s={10.5}>3D-модели: Quaternius (CC0). Иконки: game-icons.net (CC BY 3.0) — Lorc, Delapouite, Skoll, Sbed, Carl Olsen, DarkZaitzev, Zeromancer. Логотипы игр и команд принадлежат их владельцам и используются только в патче реальных данных.</T>
+      <T mu s={10.5}>3D-модели: Quaternius (CC0). Звуки интерфейса: Kenney (CC0); остальные звуки и музыка синтезированы для игры. Иконки: game-icons.net (CC BY 3.0) — Lorc, Delapouite, Skoll, Sbed, Carl Olsen, DarkZaitzev, Zeromancer. Логотипы игр и команд принадлежат их владельцам и используются только в патче реальных данных.</T>
       <Btn kind="pri" ac="#ff8a1f" title="Закрыть" onPress={closeModal} />
     </View>
   ));

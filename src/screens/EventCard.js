@@ -8,6 +8,7 @@ import { openModal, closeModal, save, bump } from '../ui/store';
 import { T, Btn, Row, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 import { Ico } from '../ui/icons';
+import { sfx, buzz } from '../ui/audio';
 
 function Card({ rec, onDone }) {
   const [res, setRes] = useState(null);
@@ -50,6 +51,7 @@ function Card({ rec, onDone }) {
 export function showEvents(then) {
   const q = pendingEvents();
   if (!q.length) { closeModal(); then && then(); return; }
+  sfx('event'); buzz('light');
   const rec = q[0];
   openModal(() => <Card key={rec.id + rec.w + rec.p} rec={rec} onDone={() => { if (S.evq && S.evq.includes(rec)) S.evq = S.evq.filter(r => r !== rec); showEvents(then); }} />);
 }

@@ -66,7 +66,7 @@ export default function PlayerPanel({ p, compact, back }) {
               {UI.mk !== 'acad' ? <>
                 {p.team && !TT(p.team).user ? <T mu s={11.5}>Оценка клуба: {money(feeFor(p))}</T> : null}
                 <T mu s={11.5}>Ожидает зарплату около ${fmt(signDemand(p).sal)}/нед{signDemand(p).mult > 1.05 ? ' (наценка за малоизвестный клуб)' : ''}</T>
-                <Btn style={{ marginTop: 8 }} kind="pri" ac={ac} disabled={signDemand(p).refuse || S.negot[p.id + ':' + S.season + ':' + S.week] === 'no'} title={signDemand(p).refuse ? 'Не пойдёт в ваш клуб' : S.negot[p.id + ':' + S.season + ':' + S.week] === 'no' ? 'Отказ на этой неделе' : '📝 Начать переговоры'} onPress={() => openNegotiation(p)} />
+                <Btn style={{ marginTop: 8 }} kind="pri" ac={ac} disabled={signDemand(p).refuse || S.negot[p.id + ':' + S.season + ':' + S.week] === 'no'} title={signDemand(p).refuse ? 'Не пойдёт: нужна лига выше или репутация' : S.negot[p.id + ':' + S.season + ':' + S.week] === 'no' ? 'Отказ на этой неделе' : '📝 Начать переговоры'} onPress={() => openNegotiation(p)} />
               </> : <Btn style={{ marginTop: 8 }} kind="pri" ac={ac} title={`В молодёжку · ${money(feeFor(p))}`} onPress={() => done(signYouth(p), '🌱 ' + pnick(p) + ' в молодёжке!')} />}
               {isLoanable(p) ? <Btn style={{ marginTop: 8 }} title={`Аренда до конца сезона · ${money(loanInCost(p))}`} onPress={() => done(loanIn(p), '🔄 Аренда оформлена')} /> : null}
             </Panel>

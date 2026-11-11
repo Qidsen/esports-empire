@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadModel, loadProps, makeActor, instanceTemplate } from '../assets';
 import { std, box, cyl, sph, lights, makeHero, Bursts, Tracers, glowSprite, gridTex, hash, rng, lerp, ease, camOrbit } from './common';
+import { sfx, buzz } from '../../ui/audio';
 
 // lane geometry helpers
 function polyPoint(pts, f) { // f in 0..1 along polyline
@@ -132,6 +133,7 @@ export function createMoba(scene, cam, viz) {
       const losers = (fight.side === 'A' ? pb : pa).map(x => x[0]); for (let k = 0; k < Math.min(fight.kw || 1, losers.length); k++) { const v = losers[k]; S.dead[v.id] = t + 3; S.dieAt = S.dieAt || {}; S.dieAt[v.id] = { pt: fightPt.clone(), t }; }
       S.fightAt = { pt: fightPt, side: fight.side, t0: viz.tickT0, ids: new Set([...pa, ...pb].map(x => x[0].id)) };
     }
+    evs.forEach(e => { if (e.type === 'fight') sfx('clash', e.big ? 1.2 : 0.8); if (e.type === 'tower' || e.type === 'hg') sfx('tower', 0.8); if (e.type === 'boss') sfx('roar'); if (e.type === 'end') { sfx('explosion', 0.8); } });
     evs.forEach(e => {
       if (e.type === 'tower' || e.type === 'hg') { const victimSide = e.side === 'A' ? 'B' : 'A'; const lst = S.towers[victimSide]; const idx = (e.side === 'A' ? g.twA : g.twB) - 1; const tw = lst[Math.min(lst.length - 1, Math.max(0, idx))]; if (tw && tw.userData.alive) { tw.userData.alive = 0; S.bursts.add(tw.position.clone().setY(3), e.side === 'A' ? viz.ca : viz.cb, 50, 9, 1.2, 0.9); S.focus.lerp(tw.position, 0.5); } }
       if (e.type === 'boss') { S.bossAlive = false; S.bossTimer = 4; S.bursts.add(bossPos.clone().setY(2), '#ffcf5a', 70, 10, 1.3, 1); }
