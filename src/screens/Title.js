@@ -102,6 +102,7 @@ function SettingsBody() {
         <View style={{ width: 130 }}><T mu s={11} style={{ marginBottom: 4 }}>Вибрация</T><Seg ac="#ff8a1f" value={SET.haptics ? 1 : 0} onChange={v => { SET.haptics = !!v; up(); buzz('light'); }} items={[[1, 'Вкл'], [0, 'Выкл']]} /></View>
       </Row>
       <View><T mu s={11} style={{ marginBottom: 4 }}>Скорость матчей по умолчанию</T><Seg ac="#ff8a1f" value={SET.speed} onChange={v => { SET.speed = v; up(); }} items={[[1, '1×'], [2, '2×'], [4, '4×']]} /></View>
+      {S ? <Btn title="Показать подсказки снова" onPress={() => { S.tips = {}; S.tipsOff = false; save(); closeModal(); }} /> : null}
       {S ? <Btn title="Патч реальных данных и сохранение" onPress={() => { closeModal(); UI.title = false; UI.tab = 'org'; UI.org = 'set'; bump(); }} /> : null}
       <Btn kind="pri" ac="#ff8a1f" title="Готово" onPress={closeModal} />
     </View>

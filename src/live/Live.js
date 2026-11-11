@@ -10,6 +10,7 @@ import Scene3D from './Scene3D';
 import { runQueue, afterMatch } from '../screens/flow';
 import { SET } from '../ui/settings';
 import { Ico } from '../ui/icons';
+import Tip from '../screens/Tips';
 import { sfx, buzz, music } from '../ui/audio';
 
 const SPEEDS = [1, 2, 4, 8];
@@ -123,6 +124,7 @@ export default function Live() {
         </View>
       ))} style={st.menuBtn}><Ico n="menu" size={18} color="#fff" /></Pressable> : null}
       {L.phase === 'end' ? <End L={L} onClose={close} /> : null}
+      {(() => { UI.livePhase = L.phase; return <Tip />; })()}
       </View>
     </View>
   );

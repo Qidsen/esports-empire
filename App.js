@@ -26,6 +26,7 @@ import { music, sfx } from './src/ui/audio';
 import * as G from './src/core/game';
 import './src/core/legacy';
 import TrophyShow from './src/screens/TrophyShow';
+import Tip from './src/screens/Tips';
 if (Platform.OS === 'web') globalThis.__APP = { G, UI, bump: () => bump() };
 const TABS = [['home', 'castle', 'Штаб'], ['roster', 'friends', 'Состав'], ['market', 'trade', 'Рынок'], ['comp', 'trophy', 'Турниры'], ['org', 'building', 'Клуб']];
 export const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
@@ -103,6 +104,7 @@ function Shell() {
         <TopBar />
         <View style={{ flex: 1 }}>{UI.neg && S.players[UI.neg.pid] ? <Negotiation key={UI.neg.pid} /> : <Scr />}</View>
       </View>
+      <Tip />
     </View>
   );
 }
