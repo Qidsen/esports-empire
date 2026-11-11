@@ -170,12 +170,10 @@ function genPool(p) {
   const list = heroList(p.d);
   p.pool = [];
   if (!list.length) { return; }
-  const fit = list.map((h, i) => [i, h]).filter(([i, h]) => h.r.includes(p.role));
-  const other = list.map((h, i) => [i, h]).filter(([i, h]) => !h.r.includes(p.role));
-  shuffle(fit); shuffle(other);
+  // в пул идут герои своей позиции: основная роль героя — в приоритете, гибкие (вторая роль) — реже
   const n = FAKE[p.d].kind === 'moba' ? ri(4, 6) : ri(2, 3);
-  fit.slice(0, n).forEach(([i]) => p.pool.push([i, clamp(Math.round(ovr(p) + gauss() * 12), 30, 99)]));
-  if (rnd() < 0.5 && other.length) p.pool.push([other[0][0], clamp(Math.round(ovr(p) - 10 + gauss() * 10), 25, 95)]);
+  const cand = list.map((h, i) => [i, h]).filter(([i, h]) => h.r.includes(p.role)).map(([i, h]) => [i, h.r[0] === p.role ? 3 : 1]);
+  for (let k = 0; k < n && cand.length; k++) { const c = wpick(cand, x => x[1]); cand.splice(cand.indexOf(c), 1); p.pool.push([c[0], clamp(Math.round(ovr(p) + gauss() * 12 - (c[1] === 1 ? 4 : 0)), 30, 99)]); }
 }
 function newStats() { return { mp: 0, k: 0, d: 0, a: 0, rt: 0, mvp: 0, w: 0 }; }
 function ovr(p) { return Math.round(p.mech * 0.35 + p.iq * 0.25 + p.tw * 0.15 + p.cl * 0.12 + p.con * 0.13); }
@@ -389,10 +387,10 @@ function offlineGain() {
 // ---- training ----
 // ---- миграция сохранений: роли героев из реального патча и пулы игроков под свою позицию ----
 function migrateHeroRoles(real) {
-  if (!S || S.heroFix === 4) return;
+  if (!S || S.heroFix === 5) return;
   if (S.patchOn && S.patchData && S.patchData.disciplines && real && real.disciplines) ['dota', 'dl'].forEach(d => { const P = S.patchData.disciplines[d], R = real.disciplines[d]; if (!P || !P.heroes || !R || !R.heroes) return; P.heroes.forEach(h => { const r = R.heroes.find(x => x.n === h.n); if (r && r.r) h.r = r.r; }); R.heroes.forEach(r => { if (!P.heroes.some(h => h.n === r.n)) P.heroes.push(Object.assign({}, r)); }); });
   Object.values(S.players).forEach(p => { if (p && FAKE[p.d] && FAKE[p.d].kind === 'moba') { const keep = p.pool && p.pool.length ? Math.max(...p.pool.map(x => x[1])) : null; genPool(p); if (keep !== null && p.pool.length) { const top = p.pool.slice().sort((a, b) => b[1] - a[1])[0]; top[1] = Math.max(top[1], Math.min(99, keep)); } } });
-  S.heroFix = 4;
+  S.heroFix = 5;
 }
 function ensureMeta() { if (S && !S.metaW) { metaMajor(true); S.patchNew = null; } }
 // ---- изучение нового героя: медленно, с потолком и ржавчиной остальных ----
@@ -648,7 +646,7 @@ function heroMeta(d, i) { return (S.meta[d] && S.meta[d][i]) || 0; }
 // ИИ-команды тоже подстраиваются под мету: понемногу учат усиленных героев своей роли
 function aiMetaAdapt() {
   ['dota', 'dl'].forEach(d => { const M = S.meta[d] || {}; const L = heroList(d); const top = Object.keys(M).map(Number).filter(i => M[i] > 0).sort((a, b) => M[b] - M[a]);
-    if (!top.length) return; S.world[d].teams.forEach(t => { if (t.user) return; starters(t).forEach(p => { if (rnd() > 0.3) return; const cand = top.filter(i => L[i] && L[i].r.includes(p.role)).slice(0, 4); if (!cand.length) return; const h = pick(cand); const cap = Math.min(95, ovr(p) + 4); p.pool = p.pool || []; let e = p.pool.find(x => x[0] === h); if (!e) { e = [h, Math.max(25, ovr(p) - 15)]; p.pool.push(e); if (p.pool.length > 8) { p.pool.sort((a, b) => b[1] - a[1]); p.pool.length = 8; } } e[1] = Math.min(cap, e[1] + 2 + rnd() * 2); }); }); });
+    if (!top.length) return; S.world[d].teams.forEach(t => { if (t.user) return; starters(t).forEach(p => { if (rnd() > 0.3) return; const cand = top.filter(i => L[i] && L[i].r[0] === p.role).slice(0, 4); if (!cand.length) return; const h = pick(cand); const cap = Math.min(95, ovr(p) + 4); p.pool = p.pool || []; let e = p.pool.find(x => x[0] === h); if (!e) { e = [h, Math.max(25, ovr(p) - 15)]; p.pool.push(e); if (p.pool.length > 8) { p.pool.sort((a, b) => b[1] - a[1]); p.pool.length = 8; } } e[1] = Math.min(cap, e[1] + 2 + rnd() * 2); }); }); });
 }
 
 function aiTransfer(d) {

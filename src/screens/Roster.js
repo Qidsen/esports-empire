@@ -70,7 +70,7 @@ function TeamSide({ d, only }) {
           {starters(t).map(p => (
             <View key={p.id} style={{ paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: C.line }}>
               <T s={11.5} style={{ marginBottom: 3 }}><Text style={{ fontFamily: F.h }}>{pnick(p)}</Text> <Text style={{ color: C.mu }}>{FAKE[d].roles[p.role]}</Text></T>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>{p.pool.slice().sort((a, b) => b[1] - a[1]).slice(0, 5).map(([h, pr]) => <T key={h} s={10.5} style={{ paddingHorizontal: 6, paddingVertical: 2, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6 }}>{heroName(d, h)} {pr}{heroMeta(d, h) > 0 ? ' ▲' : heroMeta(d, h) < 0 ? ' ▼' : ''}</T>)}</View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>{p.pool.slice().sort((a, b) => b[1] - a[1]).slice(0, 5).map(([h, pr]) => <T key={h} s={10.5} style={{ paddingHorizontal: 6, paddingVertical: 2, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6 }}>{heroName(d, h)} {Math.round(pr)}{heroMeta(d, h) > 0 ? ' ▲' : heroMeta(d, h) < 0 ? ' ▼' : ''}</T>)}</View>
             </View>
           ))}
         </Panel>
