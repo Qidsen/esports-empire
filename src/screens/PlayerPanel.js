@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { S, ovr, potView, pnick, pcc, FAKE, T as TT, tname, ttag, pack, heroName, heroMeta, ATTRS, upCost, doUp, isUserPlayer, starters, signDemand, feeFor, fmt, extendDemand, talk, releasePlayer, moodFactors, loanOut, loanOutTarget, promoteYouth, releaseYouth, isLoanable, loanIn, loanInCost, buyWithBid, acceptCounter, signYouth, salaryFor, agentDisc, buyChance, answerRaise, raiseTarget, TRAITS, traitOf, pairVal, sigMap, sigHero, mapName } from '../core/game';
+import { S, ovr, potView, pnick, pcc, FAKE, T as TT, tname, ttag, pack, heroName, heroMeta, ATTRS, upCost, doUp, isUserPlayer, starters, signDemand, feeFor, fmt, extendDemand, talk, releasePlayer, moodFactors, loanOut, loanOutTarget, promoteYouth, releaseYouth, isLoanable, loanIn, loanInCost, buyWithBid, acceptCounter, signYouth, salaryFor, agentDisc, buyChance, answerRaise, raiseTarget, TRAITS, traitOf, pairVal, sigMap, sigHero, mapName, heroList, learnCap, learnRate, setLearn, metaComfort } from '../core/game';
 import { UI, bump, toast, save, openModal, closeModal } from '../ui/store';
 import { T, H, Panel, Btn, Seg, Row, Stat, Bar, Ovr, Flag, Tag, Role, Stars, Sep } from '../ui/kit';
 import { C, F, ovrColor } from '../ui/theme';
@@ -20,6 +20,39 @@ export function PlayerScreen({ p, back = 'Назад' }) {
   );
 }
 const Mini = ({ l, v, c, sub }) => <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: C.line, minWidth: 64 }}><T mu s={9} style={{ fontFamily: F.h, letterSpacing: 1 }}>{l}</T>{typeof v === 'string' || typeof v === 'number' ? <T num s={15} style={c ? { color: c } : null}>{v}</T> : v}{sub ? <T mu s={9}>{sub}</T> : null}</View>;
+function HeroPool({ p, d, mine }) {
+  const L = heroList(d); const sig = sigHero(p); const mc = metaComfort(p); const moba = FAKE[d].kind === 'moba';
+  const learn = p.learn !== undefined && p.learn !== null ? p.learn : null; const le = learn !== null ? p.pool.find(x => x[0] === learn) : null;
+  return (
+    <Panel>
+      <H right={moba ? <T s={10.5} style={{ color: mc > 0.5 ? C.good : mc < -0.5 ? C.bad : C.mu }}>{mc > 0.5 ? 'герои в мете' : mc < -0.5 ? 'герои не в мете' : 'мета нейтральна'}</T> : null}>Герои</H>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>{p.pool.slice().sort((a, b) => b[1] - a[1]).map(([h, pr]) => { const mt = heroMeta(d, h); const off = L[h] && !L[h].r.includes(p.role); return (
+        <View key={h} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, backgroundColor: h === sig ? 'rgba(255,201,77,0.12)' : 'rgba(255,255,255,0.06)', borderWidth: h === learn ? 1 : 0, borderColor: C.blue, opacity: off ? 0.7 : 1 }}>
+          {h === sig ? <T s={10} style={{ color: C.gold }}>★</T> : null}<T s={11.5}>{heroName(d, h)}</T><T num s={11} style={{ color: ovrColor(pr) }}>{Math.round(pr)}</T>
+          {mt > 0 ? <T s={10} style={{ color: C.good }}>▲</T> : mt < 0 ? <T s={10} style={{ color: C.bad }}>▼</T> : null}
+        </View>); })}</View>
+      {mine && moba ? <View style={{ marginTop: 8 }}>
+        {le ? <View style={{ padding: 8, borderRadius: 9, backgroundColor: 'rgba(77,163,255,0.08)', borderWidth: 1, borderColor: 'rgba(77,163,255,0.35)' }}>
+          <Row><T s={12} style={{ flex: 1 }}>Учит: <T h s={12}>{heroName(d, learn)}</T> · {Math.round(le[1])}/{learnCap(p, learn)}</T><T s={11} style={{ color: C.blue }}>~+{learnRate(p, learn).toFixed(1)}/нед</T></Row>
+          <Bar v={le[1] / learnCap(p, learn) * 100} ac={C.blue} h={5} style={{ marginTop: 4 }} />
+          <T mu s={10} style={{ marginTop: 3 }}>Быстрее на скримах, с хорошим тренером и скрим-серверами. Пока учит, остальные герои (кроме коронного) немного ржавеют.</T>
+          <Row style={{ marginTop: 5 }}><Btn small title="Сменить героя" onPress={() => openLearn(p, d)} /><Btn small kind="bad" title="Остановить" onPress={() => { p.learn = null; save(); bump(); }} /></Row>
+        </View> : <Btn small title="📚 Учить нового героя" onPress={() => openLearn(p, d)} />}
+      </View> : null}
+    </Panel>
+  );
+}
+function openLearn(p, d) {
+  const L = heroList(d); const ids = L.map((h, i) => i).filter(i => L[i].r.includes(p.role)).sort((a, b) => (heroMeta(d, b) - heroMeta(d, a)) || (L[a].n < L[b].n ? -1 : 1));
+  const cur = h => { const e = (p.pool || []).find(x => x[0] === h); return e ? Math.round(e[1]) : null; };
+  openModal(() => <View>
+    <T h s={17}>Новый герой для {pnick(p)}</T>
+    <T mu s={11} style={{ marginBottom: 8 }}>Герои его позиции, сначала усиленные патчем. Потолок владения — около уровня игрока (+4). Освоение занимает несколько недель.</T>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{ids.map(h => { const mt = heroMeta(d, h); const c = cur(h); const cap = learnCap(p, h); const done = c !== null && c >= cap; return (
+      <Btn key={h} small disabled={done} title={L[h].n + (c !== null ? ' ' + c : '') + (mt > 0 ? ' ▲' : mt < 0 ? ' ▼' : '')} onPress={() => { setLearn(p, h); save(); bump(); closeModal(); toast('📚 ' + pnick(p) + ' учит ' + L[h].n); }} />); })}</View>
+    <Btn style={{ marginTop: 10 }} title="Закрыть" onPress={closeModal} />
+  </View>);
+}
 export default function PlayerPanel({ p, compact, back }) {
   const [bid, setBid] = useState(1.0); const [sal, setSal] = useState(1.0); const [yrs, setYrs] = useState(2); const [counter, setCounter] = useState(null);
   if (!p) return null;
@@ -57,7 +90,7 @@ export default function PlayerPanel({ p, compact, back }) {
             ))}
             {mine ? <T mu s={10.5} style={{ marginTop: 4 }}>Прокачка за очки тренировок. Выше потенциала не растёт.</T> : null}
           </Panel>
-          {p.pool && p.pool.length ? <Panel><H>Герои</H><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>{p.pool.slice().sort((a, b) => b[1] - a[1]).map(([h, pr]) => <View key={h} style={{ flexDirection: 'row', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.06)' }}><T s={11.5}>{heroName(d, h)}</T><T num s={11} style={{ color: ovrColor(pr) }}>{pr}</T>{heroMeta(d, h) > 0 ? <T s={10} style={{ color: C.good }}>▲</T> : heroMeta(d, h) < 0 ? <T s={10} style={{ color: C.bad }}>▼</T> : null}</View>)}</View></Panel> : null}
+          {p.pool && p.pool.length ? <HeroPool p={p} d={d} mine={mine} /> : null}
         </View>
         <View style={{ flex: 1 }}>
           {!mine && ut ? (

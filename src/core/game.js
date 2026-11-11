@@ -393,6 +393,20 @@ function migrateHeroRoles(real) {
   Object.values(S.players).forEach(p => { if (p && FAKE[p.d] && FAKE[p.d].kind === 'moba') { const keep = p.pool && p.pool.length ? Math.max(...p.pool.map(x => x[1])) : null; genPool(p); if (keep !== null && p.pool.length) { const top = p.pool.slice().sort((a, b) => b[1] - a[1])[0]; top[1] = Math.max(top[1], Math.min(99, keep)); } } });
   S.heroFix = 4;
 }
+// ---- изучение нового героя: медленно, с потолком и ржавчиной остальных ----
+function learnCap(p, h) { const hr = heroList(p.d)[h]; return Math.min(95, ovr(p) + (hr && hr.r.includes(p.role) ? 4 : -6)); }
+function learnRate(p, h) { const e = (p.pool || []).find(x => x[0] === h); const cur = e ? e[1] : 0; const cap = learnCap(p, h); if (cur >= cap) return 0; const wp = S.weekPlan || 'scrim'; const plan = wp === 'scrim' ? 1 : wp === 'rest' ? 0.35 : 0.6; return Math.max(0.5, (cap - cur) / 5) * plan * (1 + staffSk('coach', p.d) * 0.03 + S.fac.server * 0.04) * (traitOf(p) === 'work' ? 1.2 : 1); }
+function setLearn(p, h) { p.learn = h; if (!(p.pool || []).some(x => x[0] === h)) { p.pool = p.pool || []; p.pool.push([h, Math.max(25, ovr(p) - 22)]); } }
+function learnTick(p, d, an) {
+  if (p.learn === undefined || p.learn === null) return; const e = p.pool.find(x => x[0] === p.learn); if (!e) { p.learn = null; return; }
+  const before = e[1]; const g = learnRate(p, p.learn) * (0.7 + rnd() * 0.6); e[1] = Math.min(learnCap(p, p.learn), Math.round((e[1] + g) * 10) / 10);
+  // пока учит нового — остальные (кроме коронного) чуть ржавеют
+  const sig = sigHero(p); p.pool.forEach(x => { if (x !== e && x[0] !== sig) x[1] = Math.max(25, x[1] - 0.4); });
+  if (Math.floor(before / 10) < Math.floor(e[1] / 10) && e[1] >= 60) news('📚 ' + pnick(p) + ' осваивает ' + heroName(d, p.learn) + ': владение ' + Math.round(e[1]));
+  if (e[1] >= learnCap(p, p.learn)) { news('🎓 ' + pnick(p) + ' освоил ' + heroName(d, p.learn) + ' (' + Math.round(e[1]) + ')', 'good'); p.learn = null; }
+}
+// мета давит на игрока, если его коронные герои ослаблены
+function metaComfort(p) { if (!p.pool || FAKE[p.d].kind !== 'moba') return 0; const top = p.pool.slice().sort((a, b) => b[1] - a[1]).slice(0, 3); return top.reduce((a, x) => a + heroMeta(p.d, x[0]), 0) / 3; }
 // ---- сигнатурные карты и герои ----
 function sigMap(p) { if (FAKE[p.d].kind !== 'fps') return -1; return Math.floor(Math.abs(Math.sin(p.id * 17.31 + 1.7) * 43758.5453) % 1 * 7); }
 function sigHero(p) { if (!p.pool || !p.pool.length) return null; const L = heroList(p.d); const on = p.pool.filter(x => L[x[0]] && L[x[0]].r.includes(p.role)); const src = on.length ? on : p.pool; return src.slice().sort((a, b) => b[1] - a[1])[0][0]; }
@@ -529,6 +543,7 @@ function finishWeek() {
     t.prac = t.prac.map((v, i) => clamp(v + (dv.focus.includes(i) ? 3 + a * 0.25 + S.fac.analytics * 0.4 + S.fac.server * 0.3 : -0.6 + a * 0.05), 10, 100));
     t.chem = clamp(t.chem + 2 + (dv.train === 'tac' ? 1.5 : 0), 0, 100);
     if (FAKE[d].kind === 'moba') starters(t).forEach(p => p.pool.forEach(x => x[1] = clamp(x[1] + (a * 0.06 + S.fac.analytics * 0.1) * rnd(), 20, 99)));
+    if (FAKE[d].kind === 'moba') t.roster.forEach(i => { const p = S.players[i]; if (p) learnTick(p, d, a); });
   });
   DISC_ORDER.forEach(d => S.world[d].teams.forEach(t => { if (!t.user) { t.chem = clamp(t.chem + 1, 0, 95); t.prac = t.prac.map(v => clamp(v + gauss() * 2, 20, 98)); } }));
   // план недели: скримы / стрим-марафон / отдых
@@ -904,7 +919,7 @@ function aiDraftChoice(d, dr, cA, cB) {
 function autoDraft(d, cA, cB) { const dr = newDraft(); while (dr.step < draftOrder(d).length) draftApply(d, dr, cA, cB, aiDraftChoice(d, dr, cA, cB)); return dr; }
 function draftValue(d, dr, side, c) {
   let v = 0; const list = heroList(d);
-  dr.picks[side].forEach(({ h, pid }) => { const p = c.players.find(x => x.id === pid); const hr = list[h]; v += (hr.r.includes(p.role) ? 0 : -9) + (prof(p, h, d) - 60) * 0.15 + heroMeta(d, h) * 0.8; });
+  dr.picks[side].forEach(({ h, pid }) => { const p = c.players.find(x => x.id === pid); const hr = list[h]; v += (hr.r.includes(p.role) ? 0 : -9) + (prof(p, h, d) - 60) * 0.15 + heroMeta(d, h) * 1.1; });
   return v / 5 + (c.analyst || 0) * 0.15;
 }
 function scaleCurve(d, dr, side, t) { let v = 0; const list = heroList(d); dr.picks[side].forEach(({ h }) => { const s = list[h].s || 'm'; if (s === 'e') v += t < 15 ? 1.3 : t > 35 ? -0.9 : 0.2; else if (s === 'l') v += t < 15 ? -0.9 : t > 35 ? 1.5 : 0.1; else v += t >= 14 && t <= 32 ? 0.8 : 0; }); return v; }
@@ -923,7 +938,8 @@ class MobaGame {
     this.stats = {}; [cA, cB].forEach((c, ci) => c.players.forEach(p => { const s = newPS(); const pk = dr.picks[ci ? 'B' : 'A'].find(x => x.pid === p.id); s.h = pk ? pk.h : null; this.stats[p.id] = s; }));
     this.dvA = draftValue(d, dr, 'A', cA); this.dvB = draftValue(d, dr, 'B', cB);
     const avg = c => c.players.reduce((a, p) => a + pSkill(p), 0) / c.players.length;
-    this.baseA = avg(cA) * 0.7 + baseMod(cA) + this.dvA + gauss() * 3; this.baseB = avg(cB) * 0.7 + baseMod(cB) + this.dvB + gauss() * 3;
+    const mc = c => c.players.reduce((x, p) => x + metaComfort(p), 0) / c.players.length * 0.35;
+    this.baseA = avg(cA) * 0.7 + baseMod(cA) + this.dvA + mc(cA) + gauss() * 3; this.baseB = avg(cB) * 0.7 + baseMod(cB) + this.dvB + mc(cB) + gauss() * 3;
   }
   // коллы: смок-ганк (внезапная драка с бонусом), пуш линии (башня, но риск перехода), босс (драка за Рошана)
   canCall(side, k) { if (this.done || this.calls[side]) return false; if (this.t < this.cd[side][k]) return false; if (k === 'boss') return this.t >= Math.max(10, this.bossAt - 1); if (k === 'smoke') return this.t >= 3; if (k === 'push') return this.t >= 5; return true; }
@@ -1245,6 +1261,6 @@ export { mediaWeekly, tpWeekly };
 export { leagueWeekly };
 export { leaguePosFactor, weeksToPayday, goalProgress, makeGoal };
 export { raiseTarget };
-export { sigMap, sigHero, marketWeek, onHook, migrateHeroRoles };
+export { sigMap, sigHero, marketWeek, onHook, migrateHeroRoles, learnCap, learnRate, setLearn, metaComfort };
 export { TRAITS, traitOf, pairVal, pairAdd, pairDelta, teamPairs };
 export { ATTRS,BallGame,CC_WEIGHTED,COUNTRIES,CREATOR_TYPES,DISC_ORDER,DRAFT_ORDER_5,DRAFT_ORDER_6,DW,DuelGame,ENTRY_ROLE,EVENTS,FACILITIES,FAKE,FIRST,FLAG,FpsMap,H,KW,LAST,MobaGame,NICK_A,NICK_SUF,NWS,PRIZE,RL_SHOOT,SEASON_WEEKS,SPONSOR_NAMES,STAFF_TYPES,T,TEAM_A,TEAM_B,TEAM_COLORS,acceptCounter,advanceWC,agentDisc,aiDraftChoice,aiTransfer,aiVetoChoice,alignOvr,applyPatchNames,applyResult,autoDraft,autoVeto,avgR,baseMod,bestPlayerFor,buildFac,buildWorld,buyChance,buyDivision,buyWithBid,canUp,clamp,divCost,divRep,doUp,draftApply,draftOrder,draftTaken,draftValue,ensureFive,extendDemand,facCost,fcPair,feeFor,finishWeek,fmt,fpsRating,gauss,genNick,genOffers,genPlayer,genPool,genStaff,genStaffMarket,genTeamName,heroList,heroMeta,heroName,hireCreator,hireStaff,idleTick,isLoanable,isUserPlayer,loanIn,loanInCost,loanOut,loanOutTarget,makeSchedule,mapName,maxDivs,mergeStats,metaShift,mobaRating,moodFactors,negKey,newCareer,newDraft,newPS,newSeason,newStats,news,nid,offlineCapH,offlineGain,ovr,pSkill,pack,passiveRate,pcc,phaseOf,pick,pnick,potView,prof,promoteYouth,quickSeries,randomEvent,refreshAcademy,releasePlayer,releaseYouth,respondOffer,ri,rnd,salaryFor,scaleCurve,scrim,seasonManagement,sellPlayer,seriesBo,seriesFinalize,setupFinals,setupPlayoffs,setupWC,shuffle,sig,signDemand,signPlayer,signYouth,sponsorSlots,staffOf,staffSk,standings,starters,stream,talk,teamColor,teamCtx,teamOf,teamOvr,tname,tpRate,ttag,unlockDivision,upCost,userMatchesThisWeek,userTeam,userTeamIds,validatePatch,valueOf,vetoOrder,weekMatches,weeklyCosts,weeklyGrowth,weeklyManagement,weeklySponsor,wpick };
