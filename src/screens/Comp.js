@@ -1,13 +1,14 @@
 import React from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { S, userTeam, standings, teamOf, tname, teamOvr, pack, FAKE, seriesBo, PRIZE, fmt } from '../core/game';
-import { UI, bump, openModal } from '../ui/store';
-import { T, H, Panel, Seg, Row, TeamLogo, Ovr, Tag } from '../ui/kit';
+import { UI, bump, openModal, closeModal, save, toast } from '../ui/store';
+import { T, H, Panel, Seg, Row, TeamLogo, Ovr, Tag, Btn, teamKey } from '../ui/kit';
+import { pickImageDataUri } from '../ui/pick';
 import { C, F, alpha } from '../ui/theme';
 import { DiscChips, PRow } from './Roster';
 
 const money = n => '$' + fmt(n);
-function teamModal(t) { openModal(() => <View><Row style={{ marginBottom: 10 }}><TeamLogo t={t} size={50} /><View style={{ flex: 1 }}><T h s={20}>{tname(t)}</T><T mu>{pack(t.d).leagues[t.tier]} · OVR {teamOvr(t)} · {t.rec.w}-{t.rec.l}</T></View></Row>{t.roster.map(i => S.players[i] && <PRow key={i} p={S.players[i]} d={t.d} onPress={() => { }} />)}</View>); }
+function teamModal(t) { openModal(() => <View><Row style={{ marginBottom: 10 }}><TeamLogo t={t} size={50} /><View style={{ flex: 1 }}><T h s={20}>{tname(t)}</T><T mu>{pack(t.d).leagues[t.tier]} · OVR {teamOvr(t)} · {t.rec.w}-{t.rec.l}</T></View></Row>{!t.user ? <Row style={{ marginBottom: 8 }}><Btn small title="📷 Свой логотип команды" onPress={async () => { try { const u = await pickImageDataUri(200000); if (u) { S.customLogos = S.customLogos || {}; S.customLogos[teamKey(t)] = u; save(); closeModal(); toast('✅ Логотип команды обновлён'); bump(); } } catch (e) { toast('⚠️ ' + e); } }} />{S.customLogos && S.customLogos[teamKey(t)] ? <Btn small kind="bad" title="Сбросить" onPress={() => { delete S.customLogos[teamKey(t)]; save(); closeModal(); bump(); }} /> : null}</Row> : null}{t.roster.map(i => S.players[i] && <PRow key={i} p={S.players[i]} d={t.d} onPress={() => { }} />)}</View>); }
 function Match({ d, m }) {
   const a = teamOf(d, m.a), b = teamOf(d, m.b); const r = m.res;
   return (

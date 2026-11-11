@@ -106,7 +106,8 @@ function patchLogo(name) {
   if (_plSrc !== P) { _plSrc = P; _pl = {}; Object.values(P.disciplines).forEach(dd => (dd.teams || []).forEach(t => { if (t.name && t.logo) _pl[t.name] = t.logo; })); }
   return _pl[name] || null;
 }
-export function teamLogoUri(t) { if (!t) return null; if (t.user) return S.org.logo || null; if (S.patchOn && t.real && t.real.name) return patchLogo(t.real.name) || TEAM_LOGOS[t.real.name] || null; return null; }
+export function teamKey(t) { return S.patchOn && t.real && t.real.name ? t.real.name : (t.fake && t.fake.name) || ''; }
+export function teamLogoUri(t) { if (!t) return null; if (t.user) return S.org.logo || null; const cu = S.customLogos && S.customLogos[teamKey(t)]; if (cu) return cu; if (S.patchOn && t.real && t.real.name) return patchLogo(t.real.name) || TEAM_LOGOS[t.real.name] || null; return null; }
 export const OrgLogo = ({ size = 40 }) => S.org.logo ? <ImgLogo uri={S.org.logo} size={size} /> : <Logo c1={S.org.c1} c2={S.org.c2} tag={S.org.tag} size={size} />;
 export const TeamLogo = ({ t, size }) => { const u = teamLogoUri(t); if (u) return <ImgLogo uri={u} size={size} />; return t.user ? <Logo c1={S.org.c1} c2={S.org.c2} tag={S.org.tag} size={size} /> : <Logo c1={t.color} c2="#05070b" tag={ttag(t)} size={size} />; };
 export function Stars({ lo, hi }) { const f = v => Math.max(1, Math.min(5, Math.round((v - 40) / 12))); const a = f(lo), b = f(hi); return <Text style={{ fontSize: 11, color: C.gold }}>{'★'.repeat(a)}<Text style={{ opacity: 0.45 }}>{'★'.repeat(b - a)}</Text><Text style={{ opacity: 0.15 }}>{'★'.repeat(5 - b)}</Text></Text>; }
