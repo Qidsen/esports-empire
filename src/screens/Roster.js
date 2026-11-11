@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, useWindowDimensions } from 'react-native';
 import { S, userTeam, starters, ovr, pnick, pcc, FAKE, DISC_ORDER, pack, teamOvr, standings, staffOf, STAFF_TYPES, mapName, heroName, heroMeta, fmt, divCost, divRep, buyDivision, maxDivs } from '../core/game';
 import { UI, bump, toast, save } from '../ui/store';
 import { T, H, Panel, Btn, Seg, Chips, Row, Stat, Bar, Ovr, Flag, Tag, Role, TeamLogo, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
-import PlayerPanel from './PlayerPanel';
+import PlayerPanel, { PlayerScreen } from './PlayerPanel';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 export function DiscChips({ all }) { return <Chips ac={UI.d && FAKE[UI.d].color} value={UI.d} onChange={d => { UI.d = d; UI.sel = null; UI.tier = null; bump(); }} items={DISC_ORDER.filter(d => all || S.divs[d]).map(d => [d, `${pack(d).game}${S.divs[d] ? '' : ' 🔒'}`, !S.divs[d], d])} />; }
@@ -16,7 +16,7 @@ export function PRow({ p, d, right, onPress }) {
       <Flag cc={pcc(p)} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Row gap={5}><T h s={13} n={1} style={{ flexShrink: 1 }}>{pnick(p)}</T>{p.standin ? <Tag t="стенд-ин" c={C.bad} /> : null}{p.loanIn ? <Tag t="аренда" c={C.blue} /> : null}{p.transferReq ? <Tag t="!" c={C.bad} /> : null}</Row>
-        <T mu s={10}>{p.age} л. · форма {p.form > 0 ? '+' : ''}{p.form} · мораль {p.mor}</T>
+        <T mu s={10} n={1}>{p.age} л. · форма {p.form > 0 ? '+' : ''}{p.form} · мораль {p.mor}</T>
       </View>
       {right}
       <Ovr o={ovr(p)} s={19} />
@@ -86,12 +86,14 @@ function TeamSide({ d }) {
   );
 }
 export default function Roster() {
+  const { width: WW } = useWindowDimensions(); const narrow = WW < 1100;
   const d = UI.d; if (!d) return null;
   if (!S.divs[d]) return <View style={{ flex: 1, padding: 10 }}><DiscChips all /><View style={{ width: 420, alignSelf: 'center' }}><UnlockCard d={d} /></View></View>;
   const t = userTeam(d); const dv = S.divs[d]; const st = starters(t); const bench = t.roster.map(i => S.players[i]).filter(p => p && !st.includes(p));
   const youth = (dv.youth || []).map(i => S.players[i]).filter(Boolean); const out = (dv.out || []).map(i => S.players[i]).filter(Boolean);
   const pos = standings(d, t.tier).findIndex(x => x.id === t.id) + 1; const mor = Math.round(st.reduce((a, p) => a + p.mor, 0) / st.length);
   const sel = UI.sel && S.players[UI.sel] && S.players[UI.sel].d === d ? S.players[UI.sel] : null;
+  if (narrow && sel) return <PlayerScreen p={sel} back="К составу" />;
   return (
     <View style={{ flex: 1, padding: 10 }}>
       <DiscChips all />

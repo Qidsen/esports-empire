@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { S, ovr, potView, pnick, pcc, FAKE, T as TT, tname, ttag, pack, heroName, heroMeta, ATTRS, upCost, doUp, isUserPlayer, starters, signDemand, feeFor, fmt, extendDemand, talk, releasePlayer, moodFactors, loanOut, loanOutTarget, promoteYouth, releaseYouth, isLoanable, loanIn, loanInCost, buyWithBid, acceptCounter, signYouth, salaryFor, agentDisc, buyChance } from '../core/game';
 import { UI, bump, toast, save, openModal, closeModal } from '../ui/store';
 import { T, H, Panel, Btn, Seg, Row, Stat, Bar, Ovr, Flag, Tag, Role, Stars, Sep } from '../ui/kit';
@@ -9,7 +9,16 @@ const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 function confirm(text, yes, fn) { openModal(() => <View><T h s={18}>Подтверждение</T><T style={{ marginVertical: 10 }}>{text}</T><Row><Btn style={{ flex: 1 }} title="Отмена" onPress={closeModal} /><Btn style={{ flex: 1 }} kind="pri" ac={S.org.c1} title={yes} onPress={() => { closeModal(); fn(); }} /></Row></View>); }
 function statLbl(d) { const k = FAKE[d].kind; if (k === 'ball') return ['Голы', 'Сейвы', 'Пасы']; if (k === 'duel') return ['Голы', 'Пропущ.', '']; return ['Убийства', 'Смерти', 'Ассисты']; }
 
-export default function PlayerPanel({ p, compact }) {
+// Полноэкранная карточка игрока для телефона: список → профиль → назад.
+export function PlayerScreen({ p, back = 'Назад' }) {
+  return (
+    <View style={{ flex: 1, padding: 10 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }}><PlayerPanel p={p} back={back} /></ScrollView>
+    </View>
+  );
+}
+const Mini = ({ l, v, c, sub }) => <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: C.line, minWidth: 64 }}><T mu s={9} style={{ fontFamily: F.h, letterSpacing: 1 }}>{l}</T>{typeof v === 'string' || typeof v === 'number' ? <T num s={15} style={c ? { color: c } : null}>{v}</T> : v}{sub ? <T mu s={9}>{sub}</T> : null}</View>;
+export default function PlayerPanel({ p, compact, back }) {
   const [bid, setBid] = useState(1.0); const [sal, setSal] = useState(1.0); const [yrs, setYrs] = useState(2); const [counter, setCounter] = useState(null);
   if (!p) return null;
   const d = p.d; const ac = FAKE[d].color; const o = ovr(p); const [lo, hi] = potView(p); const mine = isUserPlayer(p) || (p.loanOut && S.divs[d] && p.loanOut.owner === S.divs[d].team);
@@ -18,18 +27,19 @@ export default function PlayerPanel({ p, compact }) {
   const done = (e, ok) => { if (e) toast(e); else { toast(ok); save(); } bump(); };
   return (
     <View>
-      <Row gap={12} style={{ marginBottom: 10 }}>
-        <Ovr o={o} s={40} style={{ minWidth: 60 }} />
-        <View style={{ flex: 1 }}>
-          <Row gap={6}><Flag cc={pcc(p)} s={18} /><T h s={22} n={1} style={{ flexShrink: 1 }}>{pnick(p)}</T>{p.youth ? <Tag t="молодёжка" c={C.good} /> : null}{p.loanIn ? <Tag t="аренда" c={C.blue} /> : null}{p.loanOut ? <Tag t="в аренде" c={C.gold} /> : null}{p.transferReq ? <Tag t="хочет уйти" c={C.bad} /> : null}</Row>
-          <T mu s={12}>{FAKE[d].roles[p.role]} · {p.age} лет · {pack(d).game} · {t ? tname(t) : 'свободный агент'}</T>
+      <Row gap={10} style={{ marginBottom: 10 }}>
+        {back ? <Btn small title={'‹ ' + back} onPress={() => { UI.sel = null; bump(); }} /> : null}
+        <Ovr o={o} s={34} style={{ minWidth: 50 }} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Row gap={6}><Flag cc={pcc(p)} s={16} /><T h s={19} n={1} style={{ flexShrink: 1 }}>{pnick(p)}</T>{p.youth ? <Tag t="молодёжка" c={C.good} /> : null}{p.loanIn ? <Tag t="аренда" c={C.blue} /> : null}{p.loanOut ? <Tag t="в аренде" c={C.gold} /> : null}{p.transferReq ? <Tag t="хочет уйти" c={C.bad} /> : null}</Row>
+          <T mu s={11} n={1}>{FAKE[d].roles[p.role]} · {p.age} лет · {t ? tname(t) : 'свободный агент'}</T>
         </View>
-      </Row>
-      <Row style={{ marginBottom: 10 }}>
-        <Stat label="Потенц." value={<Stars lo={lo} hi={hi} />} sub={lo === hi ? String(hi) : lo + '–' + hi} />
-        <Stat label="Форма" value={(p.form > 0 ? '+' : '') + p.form} color={p.form >= 0 ? C.good : C.bad} />
-        <Stat label="Мораль" value={p.mor} color={p.mor >= 60 ? C.good : p.mor >= 35 ? C.gold : C.bad} />
-        <Stat label="Зарплата" value={'$' + fmt(p.sal)} sub={'рынок $' + fmt(salaryFor(p))} />
+        <Row gap={6}>
+          <Mini l="ПОТЕНЦ." v={<Stars lo={lo} hi={hi} />} sub={lo === hi ? String(hi) : lo + '–' + hi} />
+          <Mini l="ФОРМА" v={(p.form > 0 ? '+' : '') + p.form} c={p.form >= 0 ? C.good : C.bad} />
+          <Mini l="МОРАЛЬ" v={p.mor} c={p.mor >= 60 ? C.good : p.mor >= 35 ? C.gold : C.bad} />
+          <Mini l="ЗАРПЛАТА" v={'$' + fmt(p.sal)} />
+        </Row>
       </Row>
       <View style={{ flexDirection: compact ? 'column' : 'row', gap: 10 }}>
         <View style={{ flex: 1 }}>
@@ -48,13 +58,6 @@ export default function PlayerPanel({ p, compact }) {
           {p.pool && p.pool.length ? <Panel><H>Герои</H><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>{p.pool.slice().sort((a, b) => b[1] - a[1]).map(([h, pr]) => <View key={h} style={{ flexDirection: 'row', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, backgroundColor: 'rgba(255,255,255,0.06)' }}><T s={11.5}>{heroName(d, h)}</T><T num s={11} style={{ color: ovrColor(pr) }}>{pr}</T>{heroMeta(d, h) > 0 ? <T s={10} style={{ color: C.good }}>▲</T> : heroMeta(d, h) < 0 ? <T s={10} style={{ color: C.bad }}>▼</T> : null}</View>)}</View></Panel> : null}
         </View>
         <View style={{ flex: 1 }}>
-          {mine ? <Panel><H>Настроение</H>{moodFactors(p).map(([txt, v], i) => <Row key={i} style={{ paddingVertical: 2 }}><T s={12} style={{ width: 18, color: v > 0 ? C.good : v < 0 ? C.bad : C.mu }}>{v > 0 ? '▲' : v < 0 ? '▼' : '•'}</T><T s={12} style={{ flex: 1 }}>{txt}</T></Row>)}</Panel> : null}
-          <Panel>
-            <H>Статистика сезона</H>
-            <Row><Stat label="Игр" value={p.st.mp} /><Stat label="Рейтинг" value={p.st.mp ? (p.st.rt / p.st.mp).toFixed(2) : '—'} /><Stat label="MVP" value={p.st.mvp} /></Row>
-            <T mu s={11} style={{ marginTop: 6 }}>{lb[0]} {p.st.k} · {lb[1]} {p.st.d}{lb[2] ? ' · ' + lb[2] + ' ' + p.st.a : ''} · Карьера: {p.car.mp} игр</T>
-          </Panel>
-          {mine && !p.loanOut ? <MineActions p={p} done={done} /> : null}
           {!mine && ut ? (
             <Panel ac={ac}>
               {p.team && !TT(p.team).user ? <>
@@ -72,6 +75,13 @@ export default function PlayerPanel({ p, compact }) {
               {isLoanable(p) ? <Btn style={{ marginTop: 8 }} title={`Аренда до конца сезона · ${money(loanInCost(p))}`} onPress={() => done(loanIn(p), '🔄 Аренда оформлена')} /> : null}
             </Panel>
           ) : null}
+          {mine ? <Panel><H>Настроение</H>{moodFactors(p).map(([txt, v], i) => <Row key={i} style={{ paddingVertical: 2 }}><T s={12} style={{ width: 18, color: v > 0 ? C.good : v < 0 ? C.bad : C.mu }}>{v > 0 ? '▲' : v < 0 ? '▼' : '•'}</T><T s={12} style={{ flex: 1 }}>{txt}</T></Row>)}</Panel> : null}
+          <Panel>
+            <H>Статистика сезона</H>
+            <Row><Stat label="Игр" value={p.st.mp} /><Stat label="Рейтинг" value={p.st.mp ? (p.st.rt / p.st.mp).toFixed(2) : '—'} /><Stat label="MVP" value={p.st.mvp} /></Row>
+            <T mu s={11} style={{ marginTop: 6 }}>{lb[0]} {p.st.k} · {lb[1]} {p.st.d}{lb[2] ? ' · ' + lb[2] + ' ' + p.st.a : ''} · Карьера: {p.car.mp} игр</T>
+          </Panel>
+          {mine && !p.loanOut ? <MineActions p={p} done={done} /> : null}
         </View>
       </View>
     </View>

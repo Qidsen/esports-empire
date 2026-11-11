@@ -1,14 +1,15 @@
 import React from 'react';
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, useWindowDimensions } from 'react-native';
 import { S, userTeam, ovr, pnick, FAKE, potView, feeFor, signDemand, fmt, T as TT, ttag, tname, teamOf, isLoanable, loanInCost, respondOffer, refreshAcademy, pack } from '../core/game';
 import { UI, bump, toast, save } from '../ui/store';
 import { T, H, Panel, Btn, Seg, Chips, Row, Stars, Tag } from '../ui/kit';
 import { C } from '../ui/theme';
 import { DiscChips, PRow } from './Roster';
-import PlayerPanel from './PlayerPanel';
+import PlayerPanel, { PlayerScreen } from './PlayerPanel';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 export default function Market() {
+  const { width: WW } = useWindowDimensions(); const narrow = WW < 1100;
   const d = UI.d; if (!d || !S.divs[d]) { UI.d = Object.keys(S.divs)[0]; }
   const dd = UI.d; const W = S.world[dd]; const ut = userTeam(dd); const ac = FAKE[dd].color;
   let list = [];
@@ -19,6 +20,7 @@ export default function Market() {
   list = list.filter(p => p && (UI.mkRole < 0 || p.role === UI.mkRole)).sort((a, b) => ovr(b) - ovr(a)).slice(0, 50);
   const sel = UI.sel && S.players[UI.sel] && S.players[UI.sel].d === dd ? S.players[UI.sel] : null;
   const offers = S.tOffers.filter(o => S.players[o.pid]);
+  if (narrow && sel && UI.mk !== 'offers') return <PlayerScreen p={sel} back="К рынку" />;
   return (
     <View style={{ flex: 1, padding: 10 }}>
       <DiscChips />
@@ -47,7 +49,7 @@ export default function Market() {
         </ScrollView>
       ) : (
         <View style={{ flex: 1, flexDirection: 'row', gap: 10 }}>
-          <View style={{ width: 380 }}>
+          <View style={narrow ? { flex: 1 } : { width: 380 }}>
             <Chips ac={ac} value={UI.mkRole} onChange={v => { UI.mkRole = v; bump(); }} items={[[-1, 'Все'], ...FAKE[dd].roles.map((r, i) => [i, r])]} />
             {UI.mk === 'acad' ? <T mu s={10.5} style={{ marginBottom: 6 }}>Таланты 15–17 лет: дёшево, высокий потенциал. Подписываются в молодёжку. Обновление раз в 4 недели.</T> : null}
             {UI.mk === 'loan' ? <T mu s={10.5} style={{ marginBottom: 6 }}>Аренда до конца сезона: платишь взнос и зарплату, игрок возвращается в клуб в межсезонье.</T> : null}
@@ -62,9 +64,9 @@ export default function Market() {
               </ScrollView>
             </Panel>
           </View>
-          <ScrollView style={{ flex: 1 }}>
+          {narrow ? null : <ScrollView style={{ flex: 1 }}>
             {sel ? <Panel><PlayerPanel p={sel} /></Panel> : <Panel><T mu>Выбери игрока слева, чтобы посмотреть профиль, торговаться о цене и зарплате, взять в аренду или подписать в молодёжку.</T></Panel>}
-          </ScrollView>
+          </ScrollView>}
         </View>
       )}
     </View>
