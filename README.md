@@ -44,4 +44,4 @@
 ## 3D других дисциплин
 Герои Dota 2 — Quaternius Knight (CC0), Deadlock и футболисты — Quaternius Cyberpunk Character (CC0), деревья/башни/здания — Quaternius Nature, RTS и Buildings (CC0). Машины Rocket League — Kenney Car Kit «race-future» (CC0/MIT, текстура запечена в цвета вершин).
 
-Музыка — Komiku и Soft and Furious (CC0, через сборник CC0-Music). Иконки интерфейса — [game-icons.net](https://game-icons.net) (CC BY 3.0): Lorc, Delapouite, Skoll, Sbed, Carl Olsen, DarkZaitzev, Zeromancer. Пути SVG лежат в `src/ui/iconPaths.js`.
+Музыка — написана для игры. Иконки интерфейса — [game-icons.net](https://game-icons.net) (CC BY 3.0): Lorc, Delapouite, Skoll, Sbed, Carl Olsen, DarkZaitzev, Zeromancer. Пути SVG лежат в `src/ui/iconPaths.js`.

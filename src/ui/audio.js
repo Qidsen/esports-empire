@@ -15,8 +15,8 @@ const SRC = {
 };
 // Музыка: треки CC0 (Komiku, Soft and Furious), можно выбрать в настройках
 export const TRACKS = [
-  ['m_menu', 'Меню', require('../../assets/music/m_epic.m4a')],
-  ['m_hub', 'Штаб', require('../../assets/music/m_lucidity.m4a')],
+  ['m_menu', 'Меню', require('../../assets/music/m_menu.m4a')],
+  ['m_hub', 'Штаб', require('../../assets/music/m_hub.m4a')],
 ]
 TRACKS.forEach(([k, , r]) => { SRC[k] = r; });
 function trackFor(slot) { return slot === 'music_menu' ? 'm_menu' : 'm_hub'; }

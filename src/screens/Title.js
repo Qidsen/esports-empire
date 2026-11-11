@@ -1,6 +1,7 @@
 // Главное меню: логотип игры, продолжить / новая игра / настройки / об игре.
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image, useWindowDimensions } from 'react-native';
+const LOGO = require('../../assets/logo.png');
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Defs, LinearGradient as SG, RadialGradient, Stop, Circle, G, Line } from 'react-native-svg';
@@ -115,9 +116,9 @@ function SettingsBody() {
 function openAbout() {
   openModal(() => (
     <View style={{ gap: 6 }}>
-      <Row gap={12}><GameLogo size={64} /><View style={{ flex: 1 }}><T h s={18}>Esports Empire</T><T mu s={11}>Симулятор киберспортивного менеджера · 5 дисциплин</T></View></Row>
+      <Row gap={12}><Image source={LOGO} style={{ width: 64, height: 64 }} resizeMode="contain" /><View style={{ flex: 1 }}><T h s={18}>Esports Empire</T><T mu s={11}>Симулятор киберспортивного менеджера · 5 дисциплин</T></View></Row>
       <T s={12}>CS2, Dota 2, Deadlock, Rocket League и EA SPORTS FC 27: собери организацию, нанимай игроков и персонал, веди переговоры, выигрывай лиги и мейджоры.</T>
-      <T mu s={10.5}>3D-модели: Quaternius (CC0). Музыка: Komiku и Soft and Furious (CC0). Звуки интерфейса: Kenney (CC0); остальные звуки синтезированы для игры. Иконки: game-icons.net (CC BY 3.0) — Lorc, Delapouite, Skoll, Sbed, Carl Olsen, DarkZaitzev, Zeromancer. Логотипы игр и команд принадлежат их владельцам и используются только в патче реальных данных.</T>
+      <T mu s={10.5}>3D-модели: Quaternius (CC0). Музыка написана для Esports Empire. Звуки: Kenney (CC0) и синтезированные для игры. Иконки: game-icons.net (CC BY 3.0) — Lorc, Delapouite, Skoll, Sbed, Carl Olsen, DarkZaitzev, Zeromancer. Логотипы игр и команд принадлежат их владельцам и используются только в патче реальных данных.</T>
       <Btn kind="pri" ac="#ff8a1f" title="Закрыть" onPress={closeModal} />
     </View>
   ));
@@ -134,22 +135,16 @@ export function openGameMenu() {
 }
 
 export default function Title() {
-  const ins = useSafeAreaInsets();
+  const ins = useSafeAreaInsets(); const { height: H } = useWindowDimensions();
   const divs = S ? Object.keys(S.divs) : [];
   return (
     <View style={{ flex: 1, backgroundColor: '#05070c' }}>
       <Backdrop />
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: Math.max(ins.left, 20) + 16, paddingRight: Math.max(ins.right, 20) + 16, paddingVertical: Math.max(ins.top, 12), gap: 30 }}>
         <View style={{ flex: 1.15, alignItems: 'flex-start' }}>
-          <Row gap={16}>
-            <GameLogo size={118} />
-            <View>
-              <Text style={{ fontFamily: F.hx, fontSize: 38, color: C.tx, letterSpacing: 2, lineHeight: 40 }}>ESPORTS</Text>
-              <Text style={{ fontFamily: F.hx, fontSize: 38, color: '#ff8a2e', letterSpacing: 2, lineHeight: 40 }}>EMPIRE</Text>
-              <Text style={{ fontFamily: F.h, fontSize: 9.5, color: C.mu, letterSpacing: 3.5, marginTop: 4 }}>ESPORTS MANAGER SIMULATOR</Text>
-            </View>
-          </Row>
-          <Row gap={8} style={{ marginTop: 18 }}>{DISC_ORDER.map(d => <GameIcon key={d} d={d} size={26} />)}</Row>
+          <Image source={LOGO} resizeMode="contain" style={{ width: Math.min(H * 0.5, 230) * 1.006, height: Math.min(H * 0.5, 230) }} />
+          <Text style={{ fontFamily: F.h, fontSize: 9.5, color: C.mu, letterSpacing: 3.5, marginTop: 6 }}>ESPORTS MANAGER SIMULATOR</Text>
+          <Row gap={8} style={{ marginTop: 10 }}>{DISC_ORDER.map(d => <GameIcon key={d} d={d} size={26} />)}</Row>
           {S ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, padding: 10, paddingRight: 16, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: C.line }}>
               <OrgLogo size={40} />
