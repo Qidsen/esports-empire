@@ -19,7 +19,7 @@ export function runQueue() {
       <T h s={20}>Итоги недели {wk}</T>
       <T mu style={{ marginBottom: 10 }}>Сезон {ss}</T>
       <Row style={{ marginBottom: 10 }}>
-        {[['Спонсоры', '+' + fmt(log.spons), C.good], ['Расходы', '−' + fmt(log.cost), C.bad], ['Итого', money(S.money - before), S.money - before >= 0 ? C.good : C.bad]].map(([l, v, c]) => (
+        {(log.payday ? [['Доходы месяца', '+' + fmt(log.payday.league + log.payday.spons + log.payday.media), C.good], ['Расходы месяца', '−' + fmt(log.payday.cost), C.bad], ['Итого за неделю', money(S.money - before), S.money - before >= 0 ? C.good : C.bad]] : [['Призовые и бонусы', money(S.money - before), S.money - before >= 0 ? C.good : C.bad], ['До дня выплат', (4 - ((S.week - 1) % 4)) + ' нед.', C.tx], ['Очки тренировок', '+' + fmt(log.tp || 0), C.blue]]).map(([l, v, c]) => (
           <View key={l} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 8, borderWidth: 1, borderColor: C.line }}><T mu s={9.5} style={{ fontFamily: F.hm, letterSpacing: 1 }}>{l.toUpperCase()}</T><T h s={18} style={{ color: c }}>{v}</T></View>
         ))}
       </Row>

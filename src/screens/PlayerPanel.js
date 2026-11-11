@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { S, ovr, potView, pnick, pcc, FAKE, T as TT, tname, ttag, pack, heroName, heroMeta, ATTRS, upCost, doUp, isUserPlayer, starters, signDemand, feeFor, fmt, extendDemand, talk, releasePlayer, moodFactors, loanOut, loanOutTarget, promoteYouth, releaseYouth, isLoanable, loanIn, loanInCost, buyWithBid, acceptCounter, signYouth, salaryFor, agentDisc, buyChance, answerRaise } from '../core/game';
+import { S, ovr, potView, pnick, pcc, FAKE, T as TT, tname, ttag, pack, heroName, heroMeta, ATTRS, upCost, doUp, isUserPlayer, starters, signDemand, feeFor, fmt, extendDemand, talk, releasePlayer, moodFactors, loanOut, loanOutTarget, promoteYouth, releaseYouth, isLoanable, loanIn, loanInCost, buyWithBid, acceptCounter, signYouth, salaryFor, agentDisc, buyChance, answerRaise, raiseTarget } from '../core/game';
 import { UI, bump, toast, save, openModal, closeModal } from '../ui/store';
 import { T, H, Panel, Btn, Seg, Row, Stat, Bar, Ovr, Flag, Tag, Role, Stars, Sep } from '../ui/kit';
 import { C, F, ovrColor } from '../ui/theme';
@@ -98,8 +98,8 @@ function MineActions({ p, done }) {
     <>
       {p.wantRaise ? <Panel ac={C.gold}>
         <H>Просит повышения</H>
-        <T mu s={11.5} style={{ marginBottom: 8 }}>Сейчас ${fmt(p.sal)}/нед, рынок ${fmt(salaryFor(p))}/нед. Отказ ударит по морали.</T>
-        <Row><Btn small style={{ flex: 1 }} kind="good" title={`Поднять до $${fmt(salaryFor(p))}`} onPress={() => { toast(answerRaise(p, 'accept')); save(); bump(); }} /><Btn small style={{ flex: 1 }} kind="bad" title="Отказать" onPress={() => { toast(answerRaise(p, 'reject')); save(); bump(); }} /></Row>
+        <T mu s={11.5} style={{ marginBottom: 8 }}>Сейчас ${fmt(p.sal)}/нед, просит ${fmt(raiseTarget(p))}/нед (+{Math.round((raiseTarget(p) / p.sal - 1) * 100)}%). Отказ ударит по морали.</T>
+        <Row><Btn small style={{ flex: 1 }} kind="good" title={`Поднять до $${fmt(raiseTarget(p))}`} onPress={() => { toast(answerRaise(p, 'accept')); save(); bump(); }} /><Btn small style={{ flex: 1 }} kind="bad" title="Отказать" onPress={() => { toast(answerRaise(p, 'reject')); save(); bump(); }} /></Row>
       </Panel> : null}
       <Panel>
         <H>Контракт</H>

@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { S, mediaWeekly, tpWeekly, leagueWeekly, fmt, userTeam, weekMatches, standings, teamOf, tname, teamOvr, seriesBo, pack, FAKE, weeklySponsor, weeklyCosts, phaseOf, pnick } from '../core/game';
+import { S, mediaWeekly, tpWeekly, leagueWeekly, leaguePosFactor, fmt, userTeam, weekMatches, standings, teamOf, tname, teamOvr, seriesBo, pack, FAKE, weeklySponsor, weeklyCosts, phaseOf, pnick } from '../core/game';
 import { UI, bump, save, openModal, closeModal } from '../ui/store';
 import { T, Btn, Row, TeamLogo, Tag, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
@@ -52,17 +52,19 @@ function WeekPlan() {
   );
 }
 function Finance() {
-  const rows = [['Выплаты лиги', leagueWeekly()], ['Спонсоры', weeklySponsor()], ['Медиа', mediaWeekly()], ['Зарплаты и база', -weeklyCosts()]];
+  const pf = leaguePosFactor(); const L = S.ledger || { cost: 0, spons: 0, media: 0, league: 0 };
+  const left = 4 - ((S.week - 1) % 4);
+  const rows = [['Выплаты лиги ×' + pf.toFixed(2), leagueWeekly() * 4 * pf], ['Спонсоры', weeklySponsor() * 4], ['Медиа', mediaWeekly() * 4], ['Зарплаты и база', -weeklyCosts() * 4]];
   const net = rows.reduce((a, r) => a + r[1], 0);
   return (
     <Card>
-      <Cap right={<Pressable onPress={() => { UI.tab = 'org'; UI.org = 'spons'; bump(); }}><T s={11} style={{ color: S.org.c1, fontFamily: F.h }}>Спонсоры ›</T></Pressable>}>ФИНАНСЫ ЗА НЕДЕЛЮ</Cap>
+      <Cap right={<Pressable onPress={() => { UI.tab = 'org'; UI.org = 'spons'; bump(); }}><T s={11} style={{ color: S.org.c1, fontFamily: F.h }}>Спонсоры ›</T></Pressable>}>ФИНАНСЫ · МЕСЯЦ</Cap>
       <Row style={{ alignItems: 'flex-end', marginBottom: 6 }}>
         <View style={{ flex: 1 }}><T mu s={10.5}>Бюджет</T><Text style={{ fontFamily: F.hx, fontSize: 24, color: S.money < 0 ? C.bad : C.tx }}>{money(S.money)}</Text></View>
-        <View style={{ alignItems: 'flex-end' }}><T mu s={10.5}>Итог недели</T><Text style={{ fontFamily: F.hx, fontSize: 20, color: net >= 0 ? C.good : C.bad }}>{(net >= 0 ? '+' : '−') + money(Math.abs(net)).replace('−', '')}</Text></View>
+        <View style={{ alignItems: 'flex-end' }}><T mu s={10.5}>Выплата через {left} нед.</T><Text style={{ fontFamily: F.hx, fontSize: 20, color: net >= 0 ? C.good : C.bad }}>{(net >= 0 ? '+' : '−') + money(Math.abs(Math.round(net))).replace('−', '')}</Text></View>
       </Row>
-      {rows.map(([n, v]) => <Row key={n} style={{ paddingVertical: 2 }}><T s={12.5} style={{ flex: 1, color: C.mu }}>{n}</T><T num s={13} style={{ color: v >= 0 ? C.good : C.bad }}>{(v >= 0 ? '+' : '−') + money(Math.abs(v)).replace('−', '')}</T></Row>)}
-      <Row style={{ marginTop: 6 }}><T s={12} style={{ flex: 1 }}>Очки тренировок</T><T num s={13} style={{ color: C.blue }}>{fmt(S.tp)} <Text style={{ color: C.mu, fontSize: 11 }}>(+{tpWeekly()}/нед)</Text></T></Row>
+      {rows.map(([n, v]) => <Row key={n} style={{ paddingVertical: 2 }}><T s={12.5} style={{ flex: 1, color: C.mu }}>{n}</T><T num s={13} style={{ color: v >= 0 ? C.good : C.bad }}>{(v >= 0 ? '+' : '−') + money(Math.abs(Math.round(v))).replace('−', '')}</T></Row>)}
+      <T mu s={10} style={{ marginTop: 5 }}>Прогноз на месяц. Призовые за победы — сразу после матча. Выплата лиги зависит от места в таблице.</T>
     </Card>
   );
 }

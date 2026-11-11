@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, Platform, Pressable } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import { S, FACILITIES, facCost, buildFac, STAFF_TYPES, staffOf, hireStaff, sponsorSlots, CREATOR_TYPES, hireCreator, DISC_ORDER, pack, FAKE, userTeam, teamOvr, fmt, news, applyPatchNames, validatePatch, maxDivs } from '../core/game';
+import { S, FACILITIES, facCost, buildFac, STAFF_TYPES, staffOf, hireStaff, sponsorSlots, CREATOR_TYPES, hireCreator, DISC_ORDER, pack, FAKE, userTeam, teamOvr, fmt, news, applyPatchNames, validatePatch, maxDivs, makeGoal, goalProgress } from '../core/game';
 import { REAL_PATCH } from '../core/realPatch';
 import { PATCH_ICONS } from '../core/patchIcons';
 import { pickImageDataUri } from '../ui/pick';
@@ -48,8 +48,17 @@ export default function Org() {
             <Btn kind={S.money >= c ? 'pri' : undefined} ac={S.org.c1} disabled={l >= 10 || S.money < c} title={l >= 10 ? 'MAX' : 'Улучшить · ' + money(c)} onPress={() => { const e = buildFac(k); if (e) toast(e); else save(); bump(); }} />
           </Panel></View>); })}</View> : null}
         {sec === 'spons' ? <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}><Panel><H>Активные · {S.sponsors.length}/{sponsorSlots()}</H>{S.sponsors.length ? S.sponsors.map(s => <View key={s.id} style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.line }}><T h s={13}>{s.name}</T><T mu s={11}>+${fmt(s.weekly)}/нед · +${fmt(s.win)} за победу · ещё {s.weeks} нед.</T></View>) : <T mu>Нет спонсоров</T>}<T mu s={10.5} style={{ marginTop: 6 }}>Слоты: +1 за каждые 20 репутации и за каждые 3 уровня офиса.</T></Panel></View>
-          <View style={{ flex: 1 }}><Panel><H>Предложения</H>{S.offers.map(o => <Row key={o.id} style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.line }}><View style={{ flex: 1 }}><T h s={13}>{o.name}</T><T mu s={11}>+${fmt(o.weekly)}/нед · +${fmt(o.win)}/победа · {o.weeks} нед. · бонус {money(o.sign)}</T></View><Btn small kind="pri" ac={S.org.c1} disabled={S.sponsors.length >= sponsorSlots()} title="Подписать" onPress={() => { S.sponsors.push(o); S.money += o.sign; S.offers = S.offers.filter(x => x !== o); news('🤝 Новый спонсор: ' + o.name); save(); toast('Контракт подписан! +' + money(o.sign)); bump(); }} /></Row>)}<T mu s={10.5} style={{ marginTop: 6 }}>Новые предложения каждые 2 недели. Бизнес-менеджер делает их щедрее.</T></Panel></View>
+          <View style={{ flex: 1 }}><Panel><H>Активные · {S.sponsors.length}/{sponsorSlots()}</H>{S.sponsors.length ? S.sponsors.map(s => { const g = s.goal; const pr = g ? goalProgress(g) : null; return (
+            <View key={s.id} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line }}>
+              <Row><T h s={14} style={{ flex: 1 }}>{s.name}</T><Tag t={'ур. ' + (s.lvl || 1)} c={C.gold} /></Row>
+              <T mu s={11}>+${fmt(s.weekly)}/нед · +${fmt(s.win)} за победу · ещё {s.weeks} нед.</T>
+              {g ? <View style={{ marginTop: 5, padding: 7, borderRadius: 8, backgroundColor: 'rgba(255,201,77,0.07)', borderWidth: 1, borderColor: 'rgba(255,201,77,0.25)' }}>
+                <Row><T s={11.5} style={{ flex: 1 }}>🎯 {g.t}</T><T mu s={10}>ещё {Math.max(0, g.left)} нед.</T></Row>
+                <Row gap={6} style={{ marginTop: 4 }}><Bar v={pr[1] ? pr[0] / pr[1] * 100 : 0} ac={C.gold} h={5} style={{ flex: 1 }} /><T num s={10.5}>{g.k === 'top' ? (pr[2] ? pr[2] + '-е место' : '') : fmt(pr[0]) + '/' + fmt(pr[1])}</T></Row>
+                <T mu s={10} style={{ marginTop: 3 }}>Награда: ${fmt(Math.round(s.weekly * 3 * (s.lvl || 1) / 50) * 50)} и улучшение контракта на 20%</T>
+              </View> : <T mu s={10.5}>Задача появится в конце недели</T>}
+            </View>); }) : <T mu>Нет спонсоров</T>}<T mu s={10.5} style={{ marginTop: 6 }}>Слоты: +1 за каждые 20 репутации и за каждые 3 уровня офиса.</T></Panel></View>
+          <View style={{ flex: 1 }}><Panel><H>Предложения</H>{S.offers.map(o => <Row key={o.id} style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.line }}><View style={{ flex: 1 }}><T h s={13}>{o.name}</T><T mu s={11}>+${fmt(o.weekly)}/нед · +${fmt(o.win)}/победа · {o.weeks} нед. · бонус {money(o.sign)}</T></View><Btn small kind="pri" ac={S.org.c1} disabled={S.sponsors.length >= sponsorSlots()} title="Подписать" onPress={() => { o.lvl = 1; o.goal = makeGoal(o); S.sponsors.push(o); S.money += o.sign; S.offers = S.offers.filter(x => x !== o); news('🤝 Новый спонсор: ' + o.name); save(); toast('Контракт подписан! +' + money(o.sign)); bump(); }} /></Row>)}<T mu s={10.5} style={{ marginTop: 6 }}>Новые предложения каждые 2 недели. Бизнес-менеджер делает их щедрее.</T></Panel></View>
         </View> : null}
         {sec === 'media' ? <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}><Panel><H>Контент-мейкеры · {S.creators.length}/3</H>{S.creators.length ? S.creators.map((c, i) => <View key={i} style={{ paddingVertical: 6 }}><T h s={13}>{c.n}</T><T mu s={11}>+${fmt(c.inc * 2500)}/нед · +{c.fans} фанатов/нед · ещё {c.weeks} нед.</T></View>) : <T mu>Стримеры приносят пассивный доход и фанатов.</T>}</Panel></View>

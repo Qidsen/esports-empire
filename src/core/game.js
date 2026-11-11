@@ -176,10 +176,10 @@ function ovr(p) { return Math.round(p.mech * 0.35 + p.iq * 0.25 + p.tw * 0.15 + 
 // Ответ на просьбу о повышении: 'accept' — до рыночной, 'reject' — отказ.
 function answerRaise(p, how) {
   if (!p.wantRaise) return null;
-  if (how === 'accept') { p.sal = salaryFor(p); p.wantRaise = false; p.raiseCD = 12; p.mor = clamp(p.mor + 12, 0, 100); return pnick(p) + ': новая зарплата $' + fmt(p.sal) + '/нед, игрок доволен'; }
+  if (how === 'accept') { p.sal = raiseTarget(p); p.wantRaise = false; p.raiseCD = 12; p.mor = clamp(p.mor + 12, 0, 100); return pnick(p) + ': новая зарплата $' + fmt(p.sal) + '/нед, игрок доволен'; }
   p.wantRaise = false; p.raiseCD = 8; p.mor = clamp(p.mor - 10, 0, 100); return pnick(p) + ' расстроен отказом (−мораль), вернётся к вопросу позже';
 }
-function salaryFor(p) { const o = ovr(p); return Math.max(150, Math.round(Math.pow(Math.max(1, (o - 35) / 10), 2.6) * 120 / 10) * 10); }
+function salaryFor(p) { const o = ovr(p); return Math.max(150, Math.round(Math.pow(Math.max(1, (o - 35) / 10), 2.5) * 80 / 10) * 10); }
 function valueOf(p) { const af = p.age <= 20 ? 1.6 : p.age <= 23 ? 1.35 : p.age <= 26 ? 1.1 : p.age <= 29 ? 0.8 : 0.5; const pf = 1 + Math.max(0, p.pot - ovr(p)) / 40; return Math.round(salaryFor(p) * 30 * af * pf / 100) * 100; }
 function alignOvr(p, target) { for (let k = 0; k < 40; k++) { const o = ovr(p); if (Math.abs(o - target) < 1) break; const dlt = target > o ? 1 : -1;['mech', 'iq', 'tw', 'cl', 'con'].forEach(a => p[a] = clamp(p[a] + dlt, 25, 99)); } p.pot = Math.min(99, ovr(p) + (p.age < 21 ? 5 : p.age < 24 ? 3 : 1)); p.pool.forEach(x => x[1] = clamp(Math.round(ovr(p) + gauss() * 8), 30, 99)); p.sal = salaryFor(p); }
 
@@ -292,10 +292,39 @@ function setupWC(d) {
 function advanceWC(d) { const C = S.world[d].wc; const last = C.rounds[C.rounds.length - 1]; const w = last.map(m => m.res.win); if (w.length === 1) { C.champ = w[0]; return; } const nr = []; for (let i = 0; i < w.length; i += 2) nr.push({ a: w[i], b: w[i + 1], tier: -1, res: null, bo: w.length === 2 ? 5 : 3, wc: C.rounds.length + 1 }); C.rounds.push(nr); }
 
 // ---- prize & economy ----
-const PRIZE = { win: [9000, 3500, 1200], po: [[60000, 25000], [20000, 8000], [7000, 2500]], wc: [500000, 200000, 80000, 30000] };
+const PRIZE = { win: [22000, 8000, 3000], po: [[60000, 25000], [20000, 8000], [7000, 2500]], wc: [500000, 200000, 80000, 30000] };
 // Еженедельные доходы (никакого пассивного дохода в реальном времени — только игровые недели)
 const LEAGUE_PAY = [9000, 4000, 2200];
 function leagueWeekly() { return Object.keys(S.divs).reduce((a, d) => a + LEAGUE_PAY[userTeam(d).tier], 0); }
+// Выплата лиги зависит от места в таблице: 1-е место ×1.4 … последнее ×0.7
+function leaguePosFactor() { const ds = Object.keys(S.divs); if (!ds.length) return 1; let f = 0; ds.forEach(d => { const ut = userTeam(d); const st = standings(d, ut.tier); const pos = st.findIndex(t => t.id === ut.id); f += 1.4 - 0.7 * pos / Math.max(1, st.length - 1); }); return f / ds.length; }
+function weeksToPayday() { return 4 - ((S.week - 1) % 4) - 1 + 1; }
+// ---- спонсорские задачи ----
+function makeGoal(sp) {
+  const kinds = ['wins', 'fans', 'top', 'wins'];
+  const k = kinds[Math.floor(rnd() * kinds.length)];
+  const lvl = sp.lvl || 1;
+  if (k === 'wins') { const n = 2 + Math.min(2, Math.floor((lvl - 1) / 2)); return { k, n, base: S.stats.wins, left: 4, t: 'Выиграть ' + n + ' матча за 4 недели' }; }
+  if (k === 'fans') { const n = Math.round(S.fans * (1.08 + 0.03 * lvl) / 50) * 50; return { k, n, left: 5, t: 'Набрать ' + fmt(n) + ' фанатов за 5 недель' }; }
+  const n = Math.max(1, 5 - lvl); return { k, n, left: 4, t: 'Быть в топ-' + n + ' своей лиги через 4 недели' };
+}
+function goalProgress(g) {
+  if (g.k === 'wins') return [Math.min(g.n, S.stats.wins - g.base), g.n];
+  if (g.k === 'fans') return [Math.min(g.n, S.fans), g.n];
+  const best = Math.min(...Object.keys(S.divs).map(d => { const ut = userTeam(d); return standings(d, ut.tier).findIndex(t => t.id === ut.id) + 1; }));
+  return [best <= g.n ? 1 : 0, 1, best];
+}
+function sponsorGoalsTick() {
+  S.sponsors.forEach(sp => {
+    if (!sp.goal) { sp.lvl = sp.lvl || 1; sp.goal = makeGoal(sp); return; }
+    const g = sp.goal; g.left--; const [a, b] = goalProgress(g);
+    const done = g.k === 'top' ? (g.left <= 0 && a >= b) : a >= b;
+    if (done) {
+      const bonus = Math.round(sp.weekly * 3 * sp.lvl / 50) * 50; S.money += bonus; sp.lvl++; sp.weekly = Math.round(sp.weekly * 1.2 / 50) * 50; sp.win = Math.round(sp.win * 1.2 / 50) * 50; sp.weeks += 4;
+      news('🏅 ' + sp.name + ': задача выполнена! Бонус $' + fmt(bonus) + ', контракт улучшен до ур. ' + sp.lvl, 'gold'); sp.goal = makeGoal(sp);
+    } else if (g.left <= 0) { news('📉 ' + sp.name + ': задача «' + g.t + '» не выполнена', 'bad'); sp.goal = makeGoal(sp); }
+  });
+}
 function mediaWeekly() { let m = 400 + S.fans * 0.5 * (1 + 0.3 * S.fac.studio) * (1 + staffSk('media') * 0.02); S.creators.forEach(c => m += c.inc * 2500); return Math.round(m / 10) * 10; }
 function tpWeekly() { const ndiv = Object.keys(S.divs).length; return Math.round(60 * (1 + 0.35 * S.fac.house) * (1 + 0.15 * (ndiv - 1))); }
 function passiveRate() { let r = 0.5 + S.fans * 0.00012 * (1 + 0.3 * S.fac.studio) * (1 + staffSk('media') * 0.02); S.creators.forEach(c => r += c.inc); return r; }
@@ -404,9 +433,18 @@ function finishWeek() {
   // sim remaining matches
   DISC_ORDER.forEach(d => { weekMatches(d).forEach(m => { if (!m.res) { m.res = quickSeries(d, m); applyResult(d, m); } }); });
   // economy
-  const c = weeklyCosts(); S.money -= c; log.cost = c;
-  const sp = weeklySponsor(); S.money += sp; log.spons = sp;
-  const md = mediaWeekly(); S.money += md; log.media = md; const lp = leagueWeekly(); S.money += lp; log.league = lp; const tpg = tpWeekly(); S.tp += tpg; log.tp = tpg;
+  // экономика: начисления копятся весь месяц, выплата — раз в 4 недели (день выплат)
+  const L0 = S.ledger || (S.ledger = { cost: 0, spons: 0, media: 0, league: 0 });
+  L0.cost += weeklyCosts(); L0.spons += weeklySponsor(); L0.media += mediaWeekly(); L0.league += leagueWeekly();
+  const tpg = tpWeekly(); S.tp += tpg; log.tp = tpg;
+  sponsorGoalsTick();
+  if (S.week % 4 === 0) {
+    const pf = leaguePosFactor(); const league = Math.round(L0.league * pf);
+    const net = league + L0.spons + L0.media - L0.cost; S.money += net;
+    log.payday = { league, pf, spons: L0.spons, media: L0.media, cost: L0.cost, net };
+    news('🗓️ День выплат: ' + (net >= 0 ? '+$' : '−$') + fmt(Math.abs(net)) + ' (лига $' + fmt(league) + ', спонсоры $' + fmt(L0.spons) + ', медиа $' + fmt(L0.media) + ', расходы $' + fmt(L0.cost) + ')', net >= 0 ? 'good' : 'bad');
+    S.ledger = { cost: 0, spons: 0, media: 0, league: 0 };
+  }
   S.sponsors.forEach(s => s.weeks--); const ended = S.sponsors.filter(s => s.weeks <= 0); ended.forEach(s => news('📄 Контракт со спонсором ' + s.name + ' завершён'));
   S.sponsors = S.sponsors.filter(s => s.weeks > 0);
   // growth
@@ -467,7 +505,7 @@ function applyResult(d, m) {
   [A, B].forEach(t => {
     if (!t.user) return;
     const won = t === W;
-    if (won) { S.stats.wins++; } else S.stats.losses++;
+    if (won) { S.stats.wins++; S.fans += Math.round(40 + S.fans * 0.015 * (1 + S.fac.marketing * 0.2)); } else S.stats.losses++;
     let prize = 0;
     if (!m.po && !m.wc) { if (won) prize = PRIZE.win[t.tier]; }
     if (m.po === 2) prize = PRIZE.po[t.tier][won ? 0 : 1];
@@ -544,13 +582,15 @@ function newSeason() {
     p.ctr--;
     const t = T(p.team);
     if (p.ctr <= 0) {
-      if (t && t.user) { p.team = null; p.bench = false; t.roster = t.roster.filter(i => i !== p.id); S.world[p.d].fa.push(p.id); news('👋 Контракт ' + pnick(p) + ' истёк — он ушёл в свободные агенты', 'bad'); }
+      if (t && t.user && p.mor >= 45 && !p.transferReq) { p.ctr = 1; p.sal = raiseTarget(p); p.wantRaise = false; p.raiseCD = 10; news('📝 ' + pnick(p) + ' продлил контракт на сезон ($' + fmt(p.sal) + '/нед)'); }
+      else if (t && t.user) { p.team = null; p.bench = false; t.roster = t.roster.filter(i => i !== p.id); S.world[p.d].fa.push(p.id); news('👋 Контракт ' + pnick(p) + ' истёк — он ушёл в свободные агенты', 'bad'); }
       else { p.ctr = ri(1, 3); p.sal = salaryFor(p); }
     }
     if (p.age >= 32 && rnd() < 0.3 && t && !t.user) { const np = genPlayer(p.d, p.role, ovr(p) - 3, [17, 20]); np.team = t.id; S.players[np.id] = np; t.roster[t.roster.indexOf(p.id)] = np.id; p.team = null; news('🎖️ ' + pnick(p) + ' завершает карьеру'); }
   });
   // AI teams fill to 5
   DISC_ORDER.forEach(d => S.world[d].teams.forEach(t => { if (!t.user) { const sz = FAKE[d].size; while (starters(t).length < sz) { const roles = starters(t).map(p => p.role); const r = [...Array(sz).keys()].find(x => !roles.includes(x)); const p = genPlayer(d, r === undefined ? 0 : r, 50 + (2 - t.tier) * 10); p.team = t.id; S.players[p.id] = p; t.roster.push(p.id); } } }));
+  Object.keys(S.divs).forEach(d => fillUserLineup(d));
   S.season++; S.week = 1;
   DISC_ORDER.forEach(d => makeSchedule(d));
   news('📅 Стартует сезон ' + S.season + '!');
@@ -582,7 +622,8 @@ function signPlayer(p, years, feeOv, salOv) {
   return null;
 }
 function releasePlayer(p) { const t = T(p.team); const comp = p.sal * 6; S.money -= comp; t.roster = t.roster.filter(i => i !== p.id); p.team = null; p.bench = false; S.world[p.d].fa.push(p.id); news('🚪 ' + pnick(p) + ' покидает ' + S.org.tag + ' (компенсация $' + fmt(comp) + ')'); }
-function extendDemand(p) { return Math.round(salaryFor(p) * (1 + Math.max(0, p.mor < 50 ? 0.25 : 0)) * 1.1 / 10) * 10; }
+function raiseTarget(p) { const mk = salaryFor(p); return Math.max(p.sal, Math.round(Math.min(mk, p.sal * 1.35, p.sal + (mk - p.sal) * 0.6) / 10) * 10); }
+function extendDemand(p) { return Math.round(Math.max(p.sal * 1.05, raiseTarget(p) * (p.mor < 50 ? 1.1 : 1)) / 10) * 10; }
 function hireStaff(s) { const exist = staffOf(s.type, s.d); const sign = s.sal * 4; if (S.money < sign) return 'Не хватает денег на подписной бонус'; exist.forEach(e => delete S.staff[e.id]); S.money -= sign; S.staff[s.id] = s; S.staffMarket = S.staffMarket.filter(x => x.id !== s.id); news('🤝 Нанят ' + STAFF_TYPES[s.type].n.toLowerCase() + ': ' + s.name + (s.d ? ' (' + pack(s.d).game + ')' : '')); return null; }
 function facCost(k) { return Math.round(FACILITIES[k].base * Math.pow(1.85, S.fac[k]) / 100) * 100; }
 function buildFac(k) { if (S.fac[k] >= 10) return 'Максимум'; const c = facCost(k); if (S.money < c) return 'Не хватает денег'; S.money -= c; S.fac[k]++; news('🏗️ ' + FACILITIES[k].n + ' → уровень ' + S.fac[k]); return null; }
@@ -1013,9 +1054,11 @@ function weeklyManagement() {
     const yb = S.fac.academy * 0.07 + staffSk('youth') * 0.05;
     dv.youth.forEach(i => { const p = S.players[i]; if (!p) return; ATTRS.forEach(([a]) => { p.xp[a] = (p.xp[a] || 0) + yb * (0.5 + rnd()); while (p.xp[a] >= 1) { p.xp[a] -= 1; if (ovr(p) < p.pot) p[a] = Math.min(99, p[a] + 1); } }); p.mor = clamp(p.mor + 1, 0, 100); });
     dv.out.forEach(i => { const p = S.players[i]; if (!p) return; ATTRS.forEach(([a]) => { p.xp[a] = (p.xp[a] || 0) + 0.25 * (0.5 + rnd()); while (p.xp[a] >= 1) { p.xp[a] -= 1; if (ovr(p) < p.pot) p[a] = Math.min(99, p[a] + 1); } }); p.mor = clamp(p.mor + 1, 0, 100); });
-    // отступные: богатый клуб может выкупить игрока, заплатив сумму отступных
+    // отступные: если сумма низкая (×2), сильный клуб может выкупить игрока — сначала предупреждение
     ut.roster.map(i => S.players[i]).filter(p => p && p.clause && !p.loanIn).forEach(p => {
-      if (rnd() < 0.05 * Math.max(0, (valueOf(p) * 2.2 - p.clause) / Math.max(1, valueOf(p)) + 0.3)) { const buyers = S.world[d].teams.filter(t => !t.user && t.tier <= ut.tier && t.roster.length < 7); if (buyers.length && ut.roster.length > FAKE[d].size) { const tb = pick(buyers); news('💥 ' + tname(tb) + ' активировали отступные ' + pnick(p) + ' ($' + fmt(p.clause) + ')', 'bad'); sellPlayer(p, tb, p.clause); p.clause = null; } }
+      p.clauseW = (p.clauseW || 0) + 1; if (p.clauseW < 12 || p.clause > valueOf(p) * 2.5 || ut.roster.length <= FAKE[d].size) return;
+      if (!p.clauseWarn && rnd() < 0.06) { p.clauseWarn = 3; news('👀 Клубы интересуются ' + pnick(p) + ': его отступные ($' + fmt(p.clause) + ') выглядят дёшево. Продли контракт, чтобы убрать отступные.', 'bad'); return; }
+      if (p.clauseWarn) { p.clauseWarn--; if (p.clauseWarn === 0 && rnd() < 0.5) { const buyers = S.world[d].teams.filter(t => !t.user && t.tier <= ut.tier && t.roster.length < 7); if (buyers.length) { const tb = pick(buyers); news('💥 ' + tname(tb) + ' активировали отступные ' + pnick(p) + ' — +$' + fmt(p.clause), 'bad'); sellPlayer(p, tb, p.clause); p.clause = null; } } }
     });
     // incoming offers
     if (rnd() < 0.3 + S.rep / 400) {
@@ -1029,6 +1072,18 @@ function weeklyManagement() {
   });
   S.tOffers.forEach(o => o.weeks--); S.tOffers = S.tOffers.filter(o => o.weeks > 0 && S.players[o.pid] && isUserPlayer(S.players[o.pid]));
   if (S.fac.office) S.rep = clamp(S.rep + S.fac.office * 0.02, 0, 100);
+}
+// Если в составе не хватает игроков на позиции — подписываем лучшего доступного свободного агента на сезон
+function fillUserLineup(d) {
+  const ut = userTeam(d); const sz = FAKE[d].size;
+  for (let role = 0; role < sz; role++) {
+    if (ut.roster.some(i => S.players[i] && S.players[i].role === role)) continue;
+    const W = S.world[d]; let cand = W.fa.map(i => S.players[i]).filter(p => p && p.role === role).sort((a, b) => ovr(b) - ovr(a))[0];
+    if (!cand) { cand = genPlayer(d, role, 50); S.players[cand.id] = cand; W.fa.push(cand.id); }
+    W.fa = W.fa.filter(i => i !== cand.id); cand.team = ut.id; cand.ctr = 1; cand.sal = Math.round(salaryFor(cand) * 0.9 / 10) * 10; cand.bench = false; cand.mor = 70; cand.raiseCD = 10; ut.roster.push(cand.id);
+    news('🧩 На позицию ' + FAKE[d].roles[role] + ' временно подписан ' + pnick(cand) + ' (контракт на сезон)', 'bad');
+  }
+  ensureFive(ut, d);
 }
 function seasonManagement() {
   Object.keys(S.divs).forEach(d => {
@@ -1050,4 +1105,6 @@ function seasonManagement() {
 export { answerRaise };
 export { mediaWeekly, tpWeekly };
 export { leagueWeekly };
+export { leaguePosFactor, weeksToPayday, goalProgress, makeGoal };
+export { raiseTarget };
 export { ATTRS,BallGame,CC_WEIGHTED,COUNTRIES,CREATOR_TYPES,DISC_ORDER,DRAFT_ORDER_5,DRAFT_ORDER_6,DW,DuelGame,ENTRY_ROLE,EVENTS,FACILITIES,FAKE,FIRST,FLAG,FpsMap,H,KW,LAST,MobaGame,NICK_A,NICK_SUF,NWS,PRIZE,RL_SHOOT,SEASON_WEEKS,SPONSOR_NAMES,STAFF_TYPES,T,TEAM_A,TEAM_B,TEAM_COLORS,acceptCounter,advanceWC,agentDisc,aiDraftChoice,aiTransfer,aiVetoChoice,alignOvr,applyPatchNames,applyResult,autoDraft,autoVeto,avgR,baseMod,bestPlayerFor,buildFac,buildWorld,buyChance,buyDivision,buyWithBid,canUp,clamp,divCost,divRep,doUp,draftApply,draftOrder,draftTaken,draftValue,ensureFive,extendDemand,facCost,fcPair,feeFor,finishWeek,fmt,fpsRating,gauss,genNick,genOffers,genPlayer,genPool,genStaff,genStaffMarket,genTeamName,heroList,heroMeta,heroName,hireCreator,hireStaff,idleTick,isLoanable,isUserPlayer,loanIn,loanInCost,loanOut,loanOutTarget,makeSchedule,mapName,maxDivs,mergeStats,metaShift,mobaRating,moodFactors,negKey,newCareer,newDraft,newPS,newSeason,newStats,news,nid,offlineCapH,offlineGain,ovr,pSkill,pack,passiveRate,pcc,phaseOf,pick,pnick,potView,prof,promoteYouth,quickSeries,randomEvent,refreshAcademy,releasePlayer,releaseYouth,respondOffer,ri,rnd,salaryFor,scaleCurve,scrim,seasonManagement,sellPlayer,seriesBo,seriesFinalize,setupFinals,setupPlayoffs,setupWC,shuffle,sig,signDemand,signPlayer,signYouth,sponsorSlots,staffOf,staffSk,standings,starters,stream,talk,teamColor,teamCtx,teamOf,teamOvr,tname,tpRate,ttag,unlockDivision,upCost,userMatchesThisWeek,userTeam,userTeamIds,validatePatch,valueOf,vetoOrder,weekMatches,weeklyCosts,weeklyGrowth,weeklyManagement,weeklySponsor,wpick };
