@@ -468,7 +468,7 @@ function finishWeek() {
   // meta patch
   if (S.week % 5 === 0) metaShift();
   // random event
-  if (rnd() < 0.35) randomEvent();
+  if (rnd() < 0.15) randomEvent();
   // markets
   if (S.week % 2 === 0) genOffers();
   if (S.week % 3 === 0) genStaffMarket();
@@ -686,12 +686,25 @@ class FpsMap {
     this.stats = {}; [...cA.players, ...cB.players].forEach(p => this.stats[p.id] = newPS());
     this.boostA = 0; this.boostB = 0; this.toA = 4; this.toB = 4;
     this.otStart = null;
+    // коллы менеджера и склонности ИИ (какой сайт любит атаковать, как часто стакает)
+    this.call = { A: { buy: 'auto', tac: 'auto' }, B: { buy: 'auto', tac: 'auto' } }; this.tHist = [];
+    this.bias = { A: 0.3 + rnd() * 0.4, B: 0.3 + rnd() * 0.4 }; this.read = { A: 0.3 + rnd() * 0.4, B: 0.3 + rnd() * 0.4 };
     // agents for valo
     if (d === 'valo') { [cA, cB].forEach(c => { const used = new Set(); c.players.forEach(p => { const best = (p.pool || []).filter(x => !used.has(x[0])).sort((a, b) => b[1] - a[1])[0]; if (best) { used.add(best[0]); this.stats[p.id].ag = best[0]; this.stats[p.id].agp = best[1]; } }); }); }
     this.modA = this.teamMod(cA) + gauss() * 3; this.modB = this.teamMod(cB) + gauss() * 3;
   }
   teamMod(c) { let m = baseMod(c) + ((c.prac[this.map] || 50) - 50) * 0.22; if (this.d === 'valo') { const l = c.players.map(p => this.stats[p.id].agp || 50); m += (l.reduce((a, b) => a + b, 0) / l.length - 60) * 0.06; } return m; }
   buy(mon, ls, round) { if (round === 0 || round === 12 || (this.otStart !== null && (round - this.otStart) % 6 === 0)) return 'pistol'; if (mon >= 3900) return 'full'; if (mon >= 2000 && (ls >= 2 || round === 11 || round === 23)) return 'force'; if (mon >= 2600 && rnd() < 0.35) return 'force'; return 'eco'; }
+  // бонус атаки: раш в стак — провал, раш мимо стака — открытый сайт, дефолт наказывает любой стак
+  static tacMod(t, ct) { if (t === 'def') return ct === 'std' ? 0 : 3; if (ct === 'std') return 1; return t === ct ? -6 : 5; }
+  pickTac(side, isCT) {
+    const c = this.call[side].tac; if (c && c !== 'auto') return isCT && c === 'def' ? 'std' : c;
+    if (!isCT) { if (rnd() < 0.35) return 'def'; return rnd() < this.bias[side] ? 'A' : 'B'; }
+    // ИИ-защита читает последние раунды атаки и иногда стакает
+    const last = this.tHist.slice(-4); if (last.length < 2 || rnd() > this.read[side]) return 'std';
+    const a = last.filter(x => x === 'A').length; return a * 2 > last.length ? 'A' : a * 2 < last.length ? 'B' : 'std';
+  }
+  setCall(side, k, v) { this.call[side][k] = v; }
   timeout(side) { if (side === 'A' && this.toA > 0) { this.toA--; this.boostA = 3; return true; } if (side === 'B' && this.toB > 0) { this.toB--; this.boostB = 3; return true; } return false; }
   nextRound() {
     if (this.done) return null;
@@ -699,11 +712,19 @@ class FpsMap {
     // AI timeout logic
     if (!cB.user && this.lsB >= 3 && this.toB > 0 && rnd() < 0.6) this.timeout('B');
     if (!cA.user && this.lsA >= 3 && this.toA > 0 && rnd() < 0.6) this.timeout('A');
-    const bA = this.buy(this.monA, this.lsA, r), bB = this.buy(this.monB, this.lsB, r);
+    // закуп: «авто» или ручной колл менеджера (действует на один раунд)
+    const callBuy = (side, mon, ls) => { const auto = this.buy(mon, ls, r); const c = this.call[side].buy; if (!c || c === 'auto' || auto === 'pistol') return auto; if (c === 'full') return mon >= 3900 ? 'full' : mon >= 1500 ? 'force' : 'eco'; if (c === 'force') return mon >= 1500 ? 'force' : 'eco'; return 'eco'; };
+    const bA = callBuy('A', this.monA, this.lsA), bB = callBuy('B', this.monB, this.lsB);
+    this.call.A.buy = 'auto'; this.call.B.buy = 'auto';
+    // тактика: атака (A/B раш или дефолт) против защиты (стак A/B или стандарт)
+    const tSide = this.ctA ? 'B' : 'A', ctSide = this.ctA ? 'A' : 'B';
+    const tT = this.pickTac(tSide, false), tCT = this.pickTac(ctSide, true);
+    const tm = FpsMap.tacMod(tT, tCT); const site = tT === 'def' ? (rnd() < this.bias[tSide] ? 'A' : 'B') : tT;
+    this.tHist.push(site);
     const BUY = { pistol: 0, full: 0, force: -4, eco: -10 };
     const cost = { pistol: 800, full: 3900, force: Math.min(this.monA, 2600), eco: 300 };
     const spend = (b, mon) => b === 'full' ? 3900 : b === 'force' ? Math.min(mon, 2700) : b === 'pistol' ? 800 : 250;
-    this.monA -= spend(bA, this.monA); this.monB -= spend(bB, this.monB);
+    this.monA -= spend(bA, this.monA); this.monB -= spend(bB, this.monB); const mA = this.monA, mB = this.monB;
     // survivors with weapons carry over? keep simple
     const aliveA = cA.players.slice(), aliveB = cB.players.slice();
     const ev = []; let first = true;
@@ -711,8 +732,8 @@ class FpsMap {
     const sideMod = (isA) => { const ct = isA ? this.ctA : !this.ctA; return ct ? 0.6 : 0; };
     if (this.dayA === undefined) { this.dayA = gauss() * 4; this.dayB = gauss() * 4; }
     const swing = gauss() * 7;
-    const extA = swing + this.dayA + this.modA + BUY[bA] + (this.boostA > 0 ? 3 : 0) + sideMod(true) + (this.opts.liveA || 0);
-    const extB = this.dayB + this.modB + BUY[bB] + (this.boostB > 0 ? 3 : 0) + sideMod(false) + (this.opts.liveB || 0);
+    const extA = swing + this.dayA + this.modA + BUY[bA] + (this.boostA > 0 ? 3 : 0) + sideMod(true) + (this.opts.liveA || 0) + (tSide === 'A' ? tm : -tm);
+    const extB = this.dayB + this.modB + BUY[bB] + (this.boostB > 0 ? 3 : 0) + sideMod(false) + (this.opts.liveB || 0) + (tSide === 'B' ? tm : -tm);
     const wsel = (alive, first, side) => wpick(alive, p => { let w = 1; if (first) { if (p.role === ENTRY_ROLE[this.d]) w = 2.4; else if (p.role === AWP_ROLE[this.d]) w = 1.5; else if (p.role === SUP_ROLE[this.d]) w = 0.6; } return w * (0.6 + p.mech / 120); });
     const sk = (p, alone, n, styl, isFirst) => { let s = pSkill(p) * 0.55 + p.mech * 0.25 + (alone ? p.cl * 0.3 : p.iq * 0.2); if (styl === 'agr') s += isFirst ? 3 : -1; if (styl === 'pas') s += isFirst ? -1.5 : 1.5; if (styl === 'bal') s += 0.5; s += (p.con - 60) * 0.03 * gauss() + gauss() * (8 - p.con / 20); return s; };
     while (aliveA.length && aliveB.length) {
@@ -738,20 +759,20 @@ class FpsMap {
     else { this.sb++; this.monB += 3250 + (how === 'bomb' ? 300 : 0); this.lsB = 0; this.lsA++; this.monA += 1400 + 500 * Math.min(this.lsA - 1, 4); }
     this.monA = Math.min(this.monA, 16000); this.monB = Math.min(this.monB, 16000);
     if (this.boostA > 0) this.boostA--; if (this.boostB > 0) this.boostB--;
-    const rec = { n: r + 1, A: aWon, ev, how, bA, bB, surv, ctA: this.ctA, sa: this.sa, sb: this.sb };
+    const rec = { n: r + 1, A: aWon, ev, how, bA, bB, surv, ctA: this.ctA, sa: this.sa, sb: this.sb, tT, tCT, site, tm, mA, mB };
     this.hist.push(rec);
     this.round++;
     // halves / end
     const lim = 13;
     if (this.otStart === null) {
-      if (this.round === 12) { this.ctA = !this.ctA; this.monA = this.monB = 800; this.lsA = this.lsB = 0; rec.half = true; }
+      if (this.round === 12) { this.ctA = !this.ctA; this.tHist = []; this.monA = this.monB = 800; this.lsA = this.lsB = 0; rec.half = true; }
       if (this.sa >= lim || this.sb >= lim) this.finish();
       else if (this.sa === 12 && this.sb === 12) { this.otStart = this.round; this.monA = this.monB = 10000; this.lsA = this.lsB = 0; rec.ot = true; }
     } else {
       const k = this.round - this.otStart; const baseS = 12 + Math.floor((k - 1) / 6) * 3;
       const need = 12 + (Math.floor((k - 1) / 6) + 1) * 3 + 1;
       if (this.sa >= need || this.sb >= need) this.finish();
-      else { if (k % 6 === 3) { this.ctA = !this.ctA; this.monA = this.monB = 10000; } if (k % 6 === 0) { this.monA = this.monB = 10000; rec.ot = true; } }
+      else { if (k % 6 === 3) { this.ctA = !this.ctA; this.tHist = []; this.monA = this.monB = 10000; } if (k % 6 === 0) { this.monA = this.monB = 10000; rec.ot = true; } }
     }
     return rec;
   }
@@ -817,13 +838,19 @@ class MobaGame {
     this.done = false; this.winner = null; this.leadHist = [0]; this.feed = [];
     this.buffA = 0; this.buffB = 0; this.bossAt = FAKE[d].bossAt || 15; this.dragA = 0; this.dragB = 0; this.nextDrag = 5;
     this.styleA = cA.style; this.styleB = cB.style;
+    this.calls = { A: null, B: null }; this.cd = { A: { smoke: 0, push: 0, boss: 0 }, B: { smoke: 0, push: 0, boss: 0 } }; this.ovx = { A: 0, B: 0 };
     this.stats = {}; [cA, cB].forEach((c, ci) => c.players.forEach(p => { const s = newPS(); const pk = dr.picks[ci ? 'B' : 'A'].find(x => x.pid === p.id); s.h = pk ? pk.h : null; this.stats[p.id] = s; }));
     this.dvA = draftValue(d, dr, 'A', cA); this.dvB = draftValue(d, dr, 'B', cB);
     const avg = c => c.players.reduce((a, p) => a + pSkill(p), 0) / c.players.length;
     this.baseA = avg(cA) * 0.7 + baseMod(cA) + this.dvA + gauss() * 3; this.baseB = avg(cB) * 0.7 + baseMod(cB) + this.dvB + gauss() * 3;
   }
+  // коллы: смок-ганк (внезапная драка с бонусом), пуш линии (башня, но риск перехода), босс (драка за Рошана)
+  canCall(side, k) { if (this.done || this.calls[side]) return false; if (this.t < this.cd[side][k]) return false; if (k === 'boss') return this.t >= Math.max(10, this.bossAt - 1); if (k === 'smoke') return this.t >= 3; if (k === 'push') return this.t >= 5; return true; }
+  callCD(side, k) { return Math.max(0, this.cd[side][k] - this.t); }
+  doCall(side, k) { if (!this.canCall(side, k)) return false; this.calls[side] = k; this.cd[side][k] = this.t + { smoke: 6, push: 6, boss: 8 }[k]; return true; }
+  aiCall(side) { if (this.calls[side] || rnd() > 0.1) return; const ld = side === 'A' ? this.lead : -this.lead; if (ld > 2500 && this.canCall(side, 'boss')) this.doCall(side, 'boss'); else if (ld > 1500 && this.canCall(side, 'push')) this.doCall(side, 'push'); else if (this.canCall(side, 'smoke') && rnd() < 0.5) this.doCall(side, 'smoke'); }
   styleAdj(st, t) { if (st === 'agr') return t < 25 ? 2.5 : -1.5; if (st === 'farm') return t < 20 ? -1.5 : 2.2; return 0.4; }
-  power(side) { const t = this.t; const isA = side === 'A'; const c = isA ? this.cA : this.cB; return (isA ? this.baseA : this.baseB) + scaleCurve(this.d, this.dr, side, t) + this.styleAdj(c.style, t) + ((isA ? this.buffA : this.buffB) > 0 ? 5 : 0) + ((isA ? this.dragA : this.dragB) >= 4 ? 3 : 0) + gauss() * 4 + (isA ? (this.opts.liveA || 0) : 0); }
+  power(side) { const t = this.t; const isA = side === 'A'; const c = isA ? this.cA : this.cB; return (this.mods ? this.mods[side] : 0) + (isA ? this.baseA : this.baseB) + scaleCurve(this.d, this.dr, side, t) + this.styleAdj(c.style, t) + ((isA ? this.buffA : this.buffB) > 0 ? 5 : 0) + ((isA ? this.dragA : this.dragB) >= 4 ? 3 : 0) + gauss() * 4 + (isA ? (this.opts.liveA || 0) : 0); }
   give(side, n, victimSide) {
     const c = side === 'A' ? this.cA : this.cB, v = side === 'A' ? this.cB : this.cA; const kw = KW[this.d], dw = DW[this.d];
     const ks = []; for (let i = 0; i < n; i++) { const k = wpick(c.players, p => kw[p.role] * (0.6 + p.mech / 150)); const vic = wpick(v.players, p => dw[p.role]); this.stats[k.id].k++; this.stats[vic.id].d++; c.players.forEach(p => { if (p !== k && rnd() < 0.5) this.stats[p.id].a++; }); ks.push([k, vic]); }
@@ -832,13 +859,21 @@ class MobaGame {
   tick() {
     if (this.done) return [];
     this.t++; const t = this.t; const ev = [];
+    if (!this.cA.user) this.aiCall('A'); if (!this.cB.user) this.aiCall('B');
+    // применяем коллы этого хода
+    const cl = { A: this.calls.A, B: this.calls.B }; this.calls = { A: null, B: null };
+    this.mods = { A: 0, B: 0 }; let force = false, bossFight = null, pushSide = null;
+    ['A', 'B'].forEach(s => { const k = cl[s]; if (!k) return; ev.push({ t, type: 'call', side: s, call: k });
+      if (k === 'smoke') { force = true; this.mods[s] += cl[s === 'A' ? 'B' : 'A'] === 'smoke' ? 0 : rnd() < 0.35 ? -3 : 3.5; }
+      if (k === 'push') { pushSide = s; this.mods[s] -= 3; }
+      if (k === 'boss') { force = true; bossFight = s; const ld = s === 'A' ? this.lead : -this.lead; this.mods[s] += ld > 0 ? 1 : -3; } });
     const pA = this.power('A'), pB = this.power('B'); const diff = pA - pB;
     this.lead += diff * 7 + gauss() * 650;
     if (this.buffA > 0) this.buffA--; if (this.buffB > 0) this.buffB--;
     // fight
     const fp = 0.28 + Math.min(0.35, t * 0.007);
     let fightW = null;
-    if (rnd() < fp) {
+    if (force || rnd() < fp) {
       const pw = sig(diff / 24 + this.lead / 16000);
       const aW = rnd() < pw; fightW = aW ? 'A' : 'B';
       const kw = ri(1, 2) + (t > 22 ? ri(0, 2) : 0) + (rnd() < 0.08 ? 2 : 0); const kl = ri(0, Math.max(0, kw - 1));
@@ -853,11 +888,13 @@ class MobaGame {
       const ld = this.lead; const side = ld > 0 ? 'A' : 'B';
       const ch = 0.07 + Math.abs(ld) / 45000 + (fightW === side ? 0.25 : 0);
       const tot = FAKE[this.d].towers;
-      if (rnd() < ch) { if (side === 'A' && this.twA < tot - 2) { this.twA++; this.lead += 450; ev.push({ t, type: 'tower', side: 'A', n: this.twA }); } else if (side === 'B' && this.twB < tot - 2) { this.twB++; this.lead -= 450; ev.push({ t, type: 'tower', side: 'B', n: this.twB }); } }
+      if (pushSide && fightW !== (pushSide === 'A' ? 'B' : 'A') && rnd() < 0.45) { const ps = pushSide; if (ps === 'A' && this.twA < tot - 2) { this.twA++; this.lead += 250; ev.push({ t, type: 'tower', side: 'A', n: this.twA }); } else if (ps === 'B' && this.twB < tot - 2) { this.twB++; this.lead -= 250; ev.push({ t, type: 'tower', side: 'B', n: this.twB }); } }
+      else if (rnd() < ch) { if (side === 'A' && this.twA < tot - 2) { this.twA++; this.lead += 450; ev.push({ t, type: 'tower', side: 'A', n: this.twA }); } else if (side === 'B' && this.twB < tot - 2) { this.twB++; this.lead -= 450; ev.push({ t, type: 'tower', side: 'B', n: this.twB }); } }
       else if (fightW && fightW !== side && rnd() < 0.2) { if (fightW === 'A' && this.twA < tot - 2) { this.twA++; ev.push({ t, type: 'tower', side: 'A', n: this.twA }); } else if (fightW === 'B' && this.twB < tot - 2) { this.twB++; ev.push({ t, type: 'tower', side: 'B', n: this.twB }); } }
     }
     // boss
-    if (t >= this.bossAt && fightW && rnd() < 0.45) { if (fightW === 'A') this.buffA = 4; else this.buffB = 4; this.lead += (fightW === 'A' ? 1 : -1) * 800; ev.push({ t, type: 'boss', side: fightW }); this.bossAt = t + 8; }
+    if (bossFight && fightW && t >= Math.max(10, this.bossAt - 1)) { if (fightW === 'A') this.buffA = 4; else this.buffB = 4; this.lead += (fightW === 'A' ? 1 : -1) * 800; ev.push({ t, type: 'boss', side: fightW, stolen: fightW !== bossFight }); this.bossAt = t + 8; }
+    else if (t >= this.bossAt && fightW && rnd() < 0.45) { if (fightW === 'A') this.buffA = 4; else this.buffB = 4; this.lead += (fightW === 'A' ? 1 : -1) * 800; ev.push({ t, type: 'boss', side: fightW }); this.bossAt = t + 8; }
     // end
     const tot = FAKE[this.d].towers;
     const tryEnd = (side) => { const tw = side === 'A' ? this.twA : this.twB; const ld = side === 'A' ? this.lead : -this.lead; if (tw >= tot - 4 && fightW === side && (ld > 4000 || ev.some(e => e.big)) && rnd() < 0.55) return true; if (t >= 48 && fightW === side && ev.some(e => e.big) && rnd() < 0.5) return true; return false; };

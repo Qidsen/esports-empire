@@ -4,15 +4,18 @@ import { S, userMatchesThisWeek, finishWeek, quickSeries, applyResult, teamOf, p
 import { UI, bump, openModal, closeModal, save, toast } from '../ui/store';
 import { T, Btn, TeamLogo, Ovr, Row, Panel } from '../ui/kit';
 import { C, F } from '../ui/theme';
+import { rollEvent, pendingEvents } from '../core/events';
+import { showEvents } from './EventCard';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 export function playWeek() {
   if (UI.live) return;
+  if (pendingEvents().length) { showEvents(() => playWeek()); return; }
   UI.queue = userMatchesThisWeek(); UI.week0 = S.money; runQueue();
 }
 export function runQueue() {
   if (UI.queue.length) { const { d, m } = UI.queue.shift(); preMatch(d, m); return; }
-  const wk = S.week, ss = S.season; const before = UI.week0 || S.money; const log = finishWeek(); save(); UI.tier = null; bump();
+  const wk = S.week, ss = S.season; const before = UI.week0 || S.money; const log = finishWeek(); rollEvent(); save(); UI.tier = null; bump();
   const res = S.news.filter(n => n.s === ss && n.w === wk && ['good', 'bad', 'gold'].includes(n.c));
   openModal(() => (
     <View>
@@ -24,7 +27,7 @@ export function runQueue() {
         ))}
       </Row>
       {res.length ? res.map((n, i) => <T key={i} s={12.5} style={{ color: n.c === 'good' ? '#c6f7da' : n.c === 'bad' ? '#ffd0d5' : C.gold, paddingVertical: 4 }}>{n.t}</T>) : <T mu>На этой неделе твоих матчей не было.</T>}
-      <Btn kind="pri" ac={S.org.c1} title="Дальше" onPress={closeModal} style={{ marginTop: 12 }} />
+      <Btn kind="pri" ac={S.org.c1} title={pendingEvents().length ? 'Дальше · ⚡ событие' : 'Дальше'} onPress={() => showEvents()} style={{ marginTop: 12 }} />
     </View>
   ));
   UI.week0 = 0;

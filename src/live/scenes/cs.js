@@ -123,7 +123,7 @@ export function createCs(scene, cam, viz) {
   function planRound(rec) {
     const G = S.G; const M = G.M; const R = rng(rec.n * 97 + (viz.map || 0) * 13);
     const sideT = !rec.ctA ? 'A' : 'B';
-    const sk = hash(rec.n * 3.3 + (viz.map || 0)) > 0.5 ? 'A' : 'B'; const ok = sk === 'A' ? 'B' : 'A';
+    const sk = rec.site || (hash(rec.n * 3.3 + (viz.map || 0)) > 0.5 ? 'A' : 'B'); const ok = sk === 'A' ? 'B' : 'A';
     const site = M.pts[sk], other = M.pts[ok];
     const mid = G.placeCell('Middle') || G.placeCell('TopofMid') || null;
     const tMain = G.path(M.pts.T, site); const tMid = mid ? G.path(M.pts.T, mid).concat(G.path(mid, site).slice(1)) : tMain;
@@ -134,9 +134,9 @@ export function createCs(scene, cam, viz) {
       if (isT) {
         const base = (i >= 3 && mid ? tMid : tMain); const s0 = Math.floor(base.length * (0.5 + i * 0.03 + R() * 0.04));
         const pts = base.slice(Math.min(s0, base.length - 2)).concat([G.near(site, 0.5, 3.2, R)]).map(wpos);
-        st = { path: pts, t0: 0.06 + i * 0.025, t1: 0.52 + i * 0.03, pos: pts[0].clone() };
+        const rush = rec.tT && rec.tT !== 'def'; st = { path: pts, t0: (rush ? 0.04 : 0.08) + i * 0.025, t1: (rush ? 0.46 : 0.56) + i * 0.03, pos: pts[0].clone() };
       } else {
-        const holdOther = i >= 3; const hc = G.near(holdOther ? other : site, 2, 7, R); const hold = wpos(hc);
+        const stk = rec.tCT; const holdOther = stk === sk ? i >= 4 : stk && stk !== 'std' ? i >= 1 : i >= 3; const hc = G.near(holdOther ? other : site, 2, 7, R); const hold = wpos(hc);
         const rot = holdOther ? G.path(hc, G.near(site, 2, 5, R)).map(wpos) : null;
         st = { hold, rot, t0: 0.42 + R() * 0.08, t1: 0.74 + R() * 0.08, pos: hold.clone() };
       }

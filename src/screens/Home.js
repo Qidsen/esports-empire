@@ -6,6 +6,8 @@ import { S, mediaWeekly, tpWeekly, leagueWeekly, leaguePosFactor, fmt, userTeam,
 import { UI, bump, save, openModal, closeModal } from '../ui/store';
 import { T, Btn, Row, TeamLogo, Tag, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
+import { pendingEvents } from '../core/events';
+import { showEvents } from './EventCard';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 const Card = ({ children, style, ac }) => <View style={[{ backgroundColor: 'rgba(14,20,34,0.85)', borderRadius: 16, borderWidth: 1, borderColor: ac ? alpha(ac, 0.45) : C.line, padding: 14 }, style]}>{children}</View>;
@@ -73,6 +75,7 @@ function News() {
   return (
     <Card style={{ flex: 1 }}>
       <Cap right={<Pressable onPress={allNews}><T s={11} style={{ color: S.org.c1, fontFamily: F.h }}>Все ›</T></Pressable>}>НОВОСТИ</Cap>
+      {pendingEvents().length ? <Pressable onPress={() => showEvents()} style={{ padding: 8, borderRadius: 10, backgroundColor: alpha(S.org.c1, 0.14), borderWidth: 1, borderColor: alpha(S.org.c1, 0.5), marginBottom: 6 }}><T s={12.5} style={{ color: C.tx, fontFamily: F.h }}>⚡ Требует решения: {pendingEvents().length} ›</T></Pressable> : null}
       {S.tOffers.length ? <Pressable onPress={() => { UI.tab = 'market'; UI.mk = 'offers'; bump(); }} style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(255,201,77,0.1)', borderWidth: 1, borderColor: 'rgba(255,201,77,0.4)', marginBottom: 6 }}><T s={12.5} style={{ color: C.gold, fontFamily: F.h }}>📨 Предложения за игроков: {S.tOffers.length} ›</T></Pressable> : null}
       {S.news.slice(0, 5).map((n, i) => <Text key={i} numberOfLines={2} style={{ fontFamily: F.b, fontSize: 13, color: n.c === 'good' ? '#c6f7da' : n.c === 'bad' ? '#ffd0d5' : n.c === 'gold' ? C.gold : C.tx, paddingVertical: 4, borderBottomWidth: i < 4 ? 1 : 0, borderBottomColor: C.line }}>{n.t}</Text>)}
     </Card>

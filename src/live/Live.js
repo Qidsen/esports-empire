@@ -83,11 +83,12 @@ export default function Live() {
       {L.phase === 'play' ? <>
         {L.kind !== 'fps' && L.kind !== 'moba' ? <Feed L={L} /> : null}
         {L.board ? <Board L={L} /> : null}
+        {L.kind === 'fps' && L.cur ? <CsCalls L={L} rr={rr} /> : null}
         <View style={st.bottom}>
           <Seg ac={FAKE[L.d].color} style={{ width: 170 }} value={L.speed} onChange={v => { L.speed = v; rr(); }} items={SPEEDS.map(s => [s, s + '×'])} />
-          <Seg ac={FAKE[L.d].color} style={{ flex: 1 }} value={usC().style} onChange={v => { usC().style = v; S.divs[L.d].style = v; rr(); }} items={styleOpts(L.d)} />
+          {L.kind === 'moba' ? <MobaCalls L={L} rr={rr} /> : L.kind === 'fps' ? <View style={{ flex: 1 }} /> : <Seg ac={FAKE[L.d].color} style={{ flex: 1 }} value={usC().style} onChange={v => { usC().style = v; S.divs[L.d].style = v; rr(); }} items={styleOpts(L.d)} />}
           {L.kind === 'fps' ? <Btn small title={`⏸ Тайм-аут ${L.us === 'A' ? L.cur.toA : L.cur.toB}`} disabled={(L.us === 'A' ? L.cur.toA : L.cur.toB) <= 0} onPress={() => { if (L.cur.timeout(L.us)) { toast('⏸ Тайм-аут: +сила на 3 раунда'); rr(); } }} /> : null}
-          <Btn small title="Табло" onPress={() => { L.board = !L.board; rr(); }} />
+          {L.kind !== 'moba' ? <Btn small title="Табло" onPress={() => { L.board = !L.board; rr(); }} /> : null}
           <Btn small title="⏭ Игра" onPress={skipGame} />
           <Btn small title="⏩ Серия" onPress={finishFast} />
         </View>
@@ -106,6 +107,51 @@ export default function Live() {
     </View>
   );
 }
+// ===== Решения по ходу матча =====
+const CALLS = [['smoke', '🌫', 'Смок-ганк'], ['push', '⬆', 'Пуш линии'], ['boss', '🐉', null]];
+function MobaCalls({ L, rr }) {
+  const g = L.cur; if (!g || !g.canCall) return <View style={{ flex: 1 }} />; const us = L.us; const ac = FAKE[L.d].color; const pend = g.calls[us];
+  return (
+    <View style={{ flex: 1, flexDirection: 'row', gap: 5 }}>
+      {CALLS.map(([k, ic, n]) => { const ok = g.canCall(us, k); const cd = g.callCD(us, k); const lbl = n || pack(L.d).boss; const on = pend === k; return (
+        <Pressable key={k} disabled={!ok} onPress={() => { if (g.doCall(us, k)) { toast(ic + ' ' + lbl + ': команда выполняет'); rr(); } }} style={{ flex: 1, height: 34, borderRadius: 9, borderWidth: 1, borderColor: on ? ac : ok ? alpha(ac, 0.55) : C.line, backgroundColor: on ? alpha(ac, 0.35) : ok ? alpha(ac, 0.14) : 'rgba(255,255,255,0.03)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4, opacity: ok || on ? 1 : 0.45 }}>
+          <Text style={{ fontSize: 13 }}>{ic}</Text>
+          <Text numberOfLines={1} style={{ fontFamily: F.h, fontSize: 10.5, color: C.tx, textTransform: 'uppercase' }}>{lbl}{on ? ' …' : cd ? ' · ' + cd : ''}</Text>
+        </Pressable>); })}
+    </View>
+  );
+}
+const BUYS = [['auto', 'Авто'], ['eco', 'Эко'], ['force', 'Форс'], ['full', 'Фулл']];
+const TAC_T = { A: 'Раш A', B: 'Раш B', def: 'Дефолт' }, TAC_CT = { A: 'Стак A', B: 'Стак B', def: 'Стандарт' };
+function CsCalls({ L, rr }) {
+  const g = L.cur; if (!g || !g.call) return null; const us = L.us, op = us === 'A' ? 'B' : 'A'; const ac = FAKE[L.d].color;
+  const ct = (us === 'A') === g.ctA; const TT = ct ? TAC_CT : TAC_T; const cur = L.viz.round; const mon = cur ? (us === 'A' ? cur.mA : cur.mB) : 800; const c = g.call[us];
+  const H = g.done ? g.hist : g.hist.slice(0, -1); const last = H[H.length - 1]; const sk = staffSk('analyst', L.d);
+  // атаки соперника на этой карте — что видит аналитик
+  const oppT = H.filter(r => (r.ctA ? 'B' : 'A') === op && r.site); const nA = oppT.filter(r => r.site === 'A').length;
+  let hint = null;
+  if (sk && oppT.length >= 2) { const err = Math.max(0, 12 - sk) * 2; const pa = Math.max(0, Math.min(100, Math.round(nA / oppT.length * 100 + (Math.sin(g.round * 7.1 + sk) * err)))); hint = `📊 Соперник в атаке: A ${pa}% · B ${100 - pa}%`; }
+  else if (!sk) hint = 'Без аналитика не видно, куда чаще ходит соперник';
+  let lastT = null; if (last && last.tT) { const usT = (last.ctA ? 'B' : 'A') === us; const mine = usT ? TAC_T[last.tT] : TAC_CT[last.tCT === 'std' ? 'def' : last.tCT]; const theirs = usT ? TAC_CT[last.tCT === 'std' ? 'def' : last.tCT] : TAC_T[last.tT]; const good = usT ? last.tm > 0 : last.tm < 0; const bad = usT ? last.tm < 0 : last.tm > 0; lastT = <Text style={cc.info}>Р{last.n}: мы {mine} · они {theirs} <Text style={{ color: good ? C.good : bad ? C.bad : C.mu }}>{good ? '✓ переиграли' : bad ? '✗ прочитали нас' : '='}</Text></Text>; }
+  const seg = (items, val, on) => <View style={cc.seg}>{items.map(([k, n]) => { const a = val === k; return <Pressable key={k} onPress={() => on(k)} style={[cc.si, a ? { backgroundColor: alpha(ac, 0.3), borderColor: ac } : null]}><Text numberOfLines={1} style={[cc.st, a ? { color: '#fff' } : null]}>{n}</Text></Pressable>; })}</View>;
+  return (
+    <View style={cc.box}>
+      <View style={cc.row}><Text style={cc.cap}>ЗАКУП</Text>{seg(BUYS, c.buy, v => { g.setCall(us, 'buy', v); rr(); })}<Text style={[cc.mon, { color: mon >= 3000 ? C.good : mon >= 1200 ? C.gold : C.bad }]}>${mon}</Text></View>
+      <View style={cc.row}><Text style={cc.cap}>{ct ? 'ЗАЩИТА' : 'АТАКА'}</Text>{seg([['auto', 'Авто'], ['A', TT.A], ['B', TT.B], ['def', TT.def]], c.tac, v => { g.setCall(us, 'tac', v); rr(); })}</View>
+      {lastT || <Text style={cc.info}>Коллы действуют со следующего раунда</Text>}{hint ? <Text style={cc.info}>{hint}</Text> : null}
+    </View>
+  );
+}
+const cc = StyleSheet.create({
+  box: { position: 'absolute', bottom: 62, alignSelf: 'center', width: 330, backgroundColor: 'rgba(6,9,15,0.82)', borderRadius: 10, borderWidth: 1, borderColor: C.line2, padding: 5, gap: 3 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  cap: { width: 48, fontFamily: F.h, fontSize: 8.5, letterSpacing: 1, color: 'rgba(255,255,255,0.6)' },
+  seg: { flex: 1, flexDirection: 'row', gap: 3 },
+  si: { flex: 1, height: 22, borderRadius: 6, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.03)' },
+  st: { fontFamily: F.hm, fontSize: 9.5, color: 'rgba(255,255,255,0.7)' },
+  mon: { width: 46, textAlign: 'right', fontFamily: F.hx, fontSize: 11 },
+  info: { fontFamily: F.b, fontSize: 9, color: 'rgba(255,255,255,0.7)', paddingLeft: 2 },
+});
 // ===== HUD MOBA: счёт, нетворс, перевес, таблицы игроков, мини-карта =====
 const FARM = { dota: [1.4, 1.2, 1.0, 0.72, 0.6], dl: [1.25, 0.95, 1.15, 1.1, 0.75, 0.9] };
 function mobaRows(L) {
@@ -306,6 +352,8 @@ function evText(L, e) {
   if (e.type === 'fight') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> {e.big ? 'выигрывают тимфайт' : 'стычка'} {e.kw}:{e.kl} · {nick(e.killer)} → {nick(e.victim)}</T>;
   if (e.type === 'tower') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> {L.d === 'dl' ? 'ломают ' + (e.n <= 3 ? 'Guardian' : e.n <= 6 ? 'Walker' : e.n <= 9 ? 'Base Guardian' : 'Shrine') : 'сносят башню'} ({e.n})</T>;
   if (e.type === 'hg') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> заходят на базу!</T>;
+  if (e.type === 'call') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> {{ smoke: '🌫 уходят в смок', push: '⬆ давят линию', boss: '🐉 идут на ' + pack(L.d).boss }[e.call]}</T>;
+  if (e.type === 'boss' && e.stolen) return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> отбивают {pack(L.d).boss}!</T>;
   if (e.type === 'boss') return <T s={11.5}><Text style={{ color: c, fontFamily: F.hm }}>{tm(e.side)}</Text> забирают {pack(L.d).boss}</T>;
   if (e.type === 'end') return <T h s={12} style={{ color: c }}>{tm(e.side)} уничтожают {pack(L.d).base}!</T>;
   if (e.type === 'goal') return <T s={12}>⚽ <Text style={{ color: c, fontFamily: F.h }}>ГОЛ! {nick(e.p)}</Text>{e.as ? <Text style={{ color: C.mu }}> пас {nick(e.as)}</Text> : null}{e.ot ? ' 🏆 золотой гол' : ''}</T>;
