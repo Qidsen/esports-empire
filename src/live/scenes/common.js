@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 
-export function makeRenderer(gl) {
+export function makeRenderer(gl, gfx = 0) {
   const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
   const canvas = { width: w, height: h, style: {}, addEventListener() { }, removeEventListener() { }, clientWidth: w, clientHeight: h, getContext: () => gl };
-  const r = new THREE.WebGLRenderer({ canvas, context: gl, antialias: true, powerPreference: 'high-performance' });
-  r.debug.checkShaderErrors = false;
+  if (!gl.getContextAttributes) gl.getContextAttributes = () => ({ alpha: true, antialias: false, depth: true, stencil: false, premultipliedAlpha: true, preserveDrawingBuffer: false });
+  const r = new THREE.WebGLRenderer({ canvas, context: gl, antialias: false, powerPreference: 'high-performance' });
   r.setPixelRatio(1); r.setSize(w, h, false);
-  r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFShadowMap;
-  r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
+  r.shadowMap.enabled = gfx === 0; r.shadowMap.type = THREE.PCFShadowMap;
+  r.toneMapping = gfx >= 2 ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
   r.outputColorSpace = THREE.SRGBColorSpace;
   return r;
 }

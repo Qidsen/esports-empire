@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { S, ovr, potView, pnick, pcc, FAKE, T as TT, tname, ttag, pack, heroName, heroMeta, ATTRS, upCost, doUp, isUserPlayer, starters, signDemand, feeFor, fmt, extendDemand, talk, releasePlayer, moodFactors, loanOut, loanOutTarget, promoteYouth, releaseYouth, isLoanable, loanIn, loanInCost, buyWithBid, acceptCounter, signYouth, salaryFor, agentDisc, buyChance } from '../core/game';
+import { S, ovr, potView, pnick, pcc, FAKE, T as TT, tname, ttag, pack, heroName, heroMeta, ATTRS, upCost, doUp, isUserPlayer, starters, signDemand, feeFor, fmt, extendDemand, talk, releasePlayer, moodFactors, loanOut, loanOutTarget, promoteYouth, releaseYouth, isLoanable, loanIn, loanInCost, buyWithBid, acceptCounter, signYouth, salaryFor, agentDisc, buyChance, answerRaise } from '../core/game';
 import { UI, bump, toast, save, openModal, closeModal } from '../ui/store';
 import { T, H, Panel, Btn, Seg, Row, Stat, Bar, Ovr, Flag, Tag, Role, Stars, Sep } from '../ui/kit';
 import { C, F, ovrColor } from '../ui/theme';
@@ -101,9 +101,14 @@ function MineActions({ p, done }) {
   }
   return (
     <>
+      {p.wantRaise ? <Panel ac={C.gold}>
+        <H>Просит повышения</H>
+        <T mu s={11.5} style={{ marginBottom: 8 }}>Сейчас ${fmt(p.sal)}/нед, рынок ${fmt(salaryFor(p))}/нед. Отказ ударит по морали.</T>
+        <Row><Btn small style={{ flex: 1 }} kind="good" title={`Поднять до $${fmt(salaryFor(p))}`} onPress={() => { toast(answerRaise(p, 'accept')); save(); bump(); }} /><Btn small style={{ flex: 1 }} kind="bad" title="Отказать" onPress={() => { toast(answerRaise(p, 'reject')); save(); bump(); }} /></Row>
+      </Panel> : null}
       <Panel>
         <H>Контракт</H>
-        <Row><T style={{ flex: 1 }}>${fmt(p.sal)}/нед · ещё {p.ctr} сез.{p.loanIn ? ' · аренда' : ''}</T>{!p.loanIn ? <Btn small title="Продлить" onPress={() => { const sal = extendDemand(p); confirm(`${pnick(p)} готов продлить на 2 сезона за $${fmt(sal)}/нед (сейчас $${fmt(p.sal)}).`, 'Продлить', () => { p.sal = sal; p.ctr += 2; p.mor = Math.min(100, p.mor + 6); p.wantRaise = false; save(); bump(); toast('📝 Контракт продлён'); }); }} /> : null}</Row>
+        <Row><T style={{ flex: 1 }}>${fmt(p.sal)}/нед · ещё {p.ctr} сез.{p.loanIn ? ' · аренда' : ''}</T>{!p.loanIn ? <Btn small title="Продлить" onPress={() => { const sal = extendDemand(p); confirm(`${pnick(p)} готов продлить на 2 сезона за $${fmt(sal)}/нед (сейчас $${fmt(p.sal)}).`, 'Продлить', () => { p.sal = sal; p.ctr += 2; p.wantRaise = false; p.raiseCD = 12; p.mor = Math.min(100, p.mor + 6); p.wantRaise = false; save(); bump(); toast('📝 Контракт продлён'); }); }} /> : null}</Row>
       </Panel>
       <Panel>
         <H>Разговор</H>

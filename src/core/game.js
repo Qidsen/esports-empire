@@ -173,6 +173,12 @@ function genPool(p) {
 }
 function newStats() { return { mp: 0, k: 0, d: 0, a: 0, rt: 0, mvp: 0, w: 0 }; }
 function ovr(p) { return Math.round(p.mech * 0.35 + p.iq * 0.25 + p.tw * 0.15 + p.cl * 0.12 + p.con * 0.13); }
+// Ответ на просьбу о повышении: 'accept' — до рыночной, 'reject' — отказ.
+function answerRaise(p, how) {
+  if (!p.wantRaise) return null;
+  if (how === 'accept') { p.sal = salaryFor(p); p.wantRaise = false; p.raiseCD = 12; p.mor = clamp(p.mor + 12, 0, 100); return pnick(p) + ': новая зарплата $' + fmt(p.sal) + '/нед, игрок доволен'; }
+  p.wantRaise = false; p.raiseCD = 8; p.mor = clamp(p.mor - 10, 0, 100); return pnick(p) + ' расстроен отказом (−мораль), вернётся к вопросу позже';
+}
 function salaryFor(p) { const o = ovr(p); return Math.max(150, Math.round(Math.pow(Math.max(1, (o - 35) / 10), 2.6) * 120 / 10) * 10); }
 function valueOf(p) { const af = p.age <= 20 ? 1.6 : p.age <= 23 ? 1.35 : p.age <= 26 ? 1.1 : p.age <= 29 ? 0.8 : 0.5; const pf = 1 + Math.max(0, p.pot - ovr(p)) / 40; return Math.round(salaryFor(p) * 30 * af * pf / 100) * 100; }
 function alignOvr(p, target) { for (let k = 0; k < 40; k++) { const o = ovr(p); if (Math.abs(o - target) < 1) break; const dlt = target > o ? 1 : -1;['mech', 'iq', 'tw', 'cl', 'con'].forEach(a => p[a] = clamp(p[a] + dlt, 25, 99)); } p.pot = Math.min(99, ovr(p) + (p.age < 21 ? 5 : p.age < 24 ? 3 : 1)); p.pool.forEach(x => x[1] = clamp(Math.round(ovr(p) + gauss() * 8), 30, 99)); p.sal = salaryFor(p); }
@@ -231,7 +237,7 @@ function unlockDivision(d, free) {
   weakest.roster.forEach(pid => { const p = S.players[pid]; p.team = null; p.bench = false; W.fa.push(pid); });
   weakest.fake = { name: S.org.name, tag: S.org.tag }; weakest.real = null; weakest.user = true; weakest.color = S.org.c1; weakest.coach = 0; weakest.roster = []; weakest.chem = 30;
   weakest.prac = Array.from({ length: 7 }, () => ri(35, 55));
-  for (let r = 0; r < FAKE[d].size; r++) { const p = genPlayer(d, r, 51, [17, 24]); p.team = weakest.id; p.sal = Math.round(p.sal * 0.8 / 10) * 10; p.ctr = 2; S.players[p.id] = p; weakest.roster.push(p.id); }
+  for (let r = 0; r < FAKE[d].size; r++) { const p = genPlayer(d, r, 51, [17, 24]); p.team = weakest.id; p.sal = Math.round(p.sal * 0.9 / 10) * 10; p.ctr = 2; p.raiseCD = 8; S.players[p.id] = p; weakest.roster.push(p.id); }
   S.divs[d] = { team: weakest.id, style: 'bal', train: 'bal', focus: [], since: S.season, youth: [], out: [] };
   // starter staff
   const c = genStaff('coach', d, 5); S.staff[c.id] = c;
@@ -558,7 +564,7 @@ function signPlayer(p, years, feeOv, salOv) {
   const W = S.world[d];
   if (p.team) { const ot = T(p.team); ot.roster = ot.roster.filter(i => i !== p.id); const np = genPlayer(d, p.role, ovr(p) - 6); np.team = ot.id; S.players[np.id] = np; ot.roster.push(np.id); }
   W.fa = W.fa.filter(i => i !== p.id); W.academy = W.academy.filter(i => i !== p.id);
-  p.team = ut.id; p.sal = salOv || dm.sal; p.ctr = years; p.bench = starters(ut).length >= 5; p.mor = 80; ut.roster.push(p.id);
+  p.team = ut.id; p.sal = salOv || dm.sal; p.ctr = years; p.raiseCD = 10; p.wantRaise = false; p.bench = starters(ut).length >= 5; p.mor = 80; ut.roster.push(p.id);
   ut.chem = Math.max(0, ut.chem - 6);
   news('✍️ ' + S.org.tag + ' подписывает ' + pnick(p) + (fee ? ' за $' + fmt(fee) : ''));
   return null;
@@ -989,8 +995,8 @@ function moodFactors(p) {
 function weeklyManagement() {
   Object.keys(S.divs).forEach(d => {
     const ut = userTeam(d), dv = S.divs[d]; dv.youth = dv.youth || []; dv.out = dv.out || [];
-    const st = starters(ut);
-    ut.roster.forEach(i => { const p = S.players[i]; if (!p || p.standin) return; let dm = st.includes(p) ? 1 : (p.age <= 19 ? 0 : -2); if (p.sal < salaryFor(p) * 0.75) { dm -= 2; if (!p.wantRaise) { p.wantRaise = true; news('💬 ' + pnick(p) + ' недоволен зарплатой и просит пересмотреть контракт', 'bad'); } } else p.wantRaise = false; p.mor = clamp(p.mor + dm, 0, 100); if (p.mor < 25 && !p.transferReq) { p.transferReq = true; news('📢 ' + pnick(p) + ' просит выставить его на трансфер!', 'bad'); } if (p.mor > 55) p.transferReq = false; if (p.ctr === 1 && S.week === 12 && !p.loanIn) news('⏳ У ' + pnick(p) + ' последний год контракта — продли, иначе уйдёт бесплатно', 'bad'); });
+    const st = starters(ut); let raisedThisWeek = false;
+    ut.roster.forEach(i => { const p = S.players[i]; if (!p || p.standin) return; let dm = st.includes(p) ? 1 : (p.age <= 19 ? 0 : -2); if (p.raiseCD > 0) p.raiseCD--; const under = p.sal < salaryFor(p) * 0.7; if (!under) p.wantRaise = false; else if (p.wantRaise) dm -= 1; else if (!p.raiseCD && !p.loanIn && !raisedThisWeek && rnd() < 0.35) { p.wantRaise = true; raisedThisWeek = true; news('💬 ' + pnick(p) + ' вырос как игрок и просит пересмотреть зарплату', 'bad'); } p.mor = clamp(p.mor + dm, 0, 100); if (p.mor < 25 && !p.transferReq) { p.transferReq = true; news('📢 ' + pnick(p) + ' просит выставить его на трансфер!', 'bad'); } if (p.mor > 55) p.transferReq = false; if (p.ctr === 1 && S.week === 12 && !p.loanIn) news('⏳ У ' + pnick(p) + ' последний год контракта — продли, иначе уйдёт бесплатно', 'bad'); });
     const yb = S.fac.academy * 0.07 + staffSk('youth') * 0.05;
     dv.youth.forEach(i => { const p = S.players[i]; if (!p) return; ATTRS.forEach(([a]) => { p.xp[a] = (p.xp[a] || 0) + yb * (0.5 + rnd()); while (p.xp[a] >= 1) { p.xp[a] -= 1; if (ovr(p) < p.pot) p[a] = Math.min(99, p[a] + 1); } }); p.mor = clamp(p.mor + 1, 0, 100); });
     dv.out.forEach(i => { const p = S.players[i]; if (!p) return; ATTRS.forEach(([a]) => { p.xp[a] = (p.xp[a] || 0) + 0.25 * (0.5 + rnd()); while (p.xp[a] >= 1) { p.xp[a] -= 1; if (ovr(p) < p.pot) p[a] = Math.min(99, p[a] + 1); } }); p.mor = clamp(p.mor + 1, 0, 100); });
@@ -1024,4 +1030,5 @@ function seasonManagement() {
   S.tOffers = [];
 }
 
+export { answerRaise };
 export { ATTRS,BallGame,CC_WEIGHTED,COUNTRIES,CREATOR_TYPES,DISC_ORDER,DRAFT_ORDER_5,DRAFT_ORDER_6,DW,DuelGame,ENTRY_ROLE,EVENTS,FACILITIES,FAKE,FIRST,FLAG,FpsMap,H,KW,LAST,MobaGame,NICK_A,NICK_SUF,NWS,PRIZE,RL_SHOOT,SEASON_WEEKS,SPONSOR_NAMES,STAFF_TYPES,T,TEAM_A,TEAM_B,TEAM_COLORS,acceptCounter,advanceWC,agentDisc,aiDraftChoice,aiTransfer,aiVetoChoice,alignOvr,applyPatchNames,applyResult,autoDraft,autoVeto,avgR,baseMod,bestPlayerFor,buildFac,buildWorld,buyChance,buyDivision,buyWithBid,canUp,clamp,divCost,divRep,doUp,draftApply,draftOrder,draftTaken,draftValue,ensureFive,extendDemand,facCost,fcPair,feeFor,finishWeek,fmt,fpsRating,gauss,genNick,genOffers,genPlayer,genPool,genStaff,genStaffMarket,genTeamName,heroList,heroMeta,heroName,hireCreator,hireStaff,idleTick,isLoanable,isUserPlayer,loanIn,loanInCost,loanOut,loanOutTarget,makeSchedule,mapName,maxDivs,mergeStats,metaShift,mobaRating,moodFactors,negKey,newCareer,newDraft,newPS,newSeason,newStats,news,nid,offlineCapH,offlineGain,ovr,pSkill,pack,passiveRate,pcc,phaseOf,pick,pnick,potView,prof,promoteYouth,quickSeries,randomEvent,refreshAcademy,releasePlayer,releaseYouth,respondOffer,ri,rnd,salaryFor,scaleCurve,scrim,seasonManagement,sellPlayer,seriesBo,seriesFinalize,setupFinals,setupPlayoffs,setupWC,shuffle,sig,signDemand,signPlayer,signYouth,sponsorSlots,staffOf,staffSk,standings,starters,stream,talk,teamColor,teamCtx,teamOf,teamOvr,tname,tpRate,ttag,unlockDivision,upCost,userMatchesThisWeek,userTeam,userTeamIds,validatePatch,valueOf,vetoOrder,weekMatches,weeklyCosts,weeklyGrowth,weeklyManagement,weeklySponsor,wpick };
