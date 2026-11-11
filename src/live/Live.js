@@ -11,7 +11,7 @@ import { runQueue } from '../screens/flow';
 import { SET } from '../ui/settings';
 
 const SPEEDS = [1, 2, 4, 8];
-const STEP = { fps: 16000, moba: 1000, ball: 1150, duel: 190 };
+const STEP = { fps: 16000, moba: 1000, ball: 1150, duel: 650 };
 function styleOpts(d) { const k = FAKE[d].kind; if (k === 'moba') return [['agr', 'Давление'], ['bal', 'Баланс'], ['farm', 'Фарм']]; if (k === 'ball') return [['agr', 'Прессинг'], ['bal', 'Ротации'], ['pas', 'Оборона']]; if (k === 'duel') return [['agr', 'Атака'], ['bal', 'Баланс'], ['pas', 'Контратаки']]; return [['agr', 'Агрессия'], ['bal', 'Стандарт'], ['pas', 'Осторожно']]; }
 function colorDist(a, b) { const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; const x = p(a), y = p(b); return Math.abs(x[0] - y[0]) + Math.abs(x[1] - y[1]) + Math.abs(x[2] - y[2]); }
 
@@ -35,14 +35,16 @@ export default function Live() {
   const startDraft = () => { L.draft = newDraft(); L.phase = 'draft'; L.sel = null; draftNext(); };
   const draftNext = () => { const dr = L.draft; const ord = draftOrder(L.d); if (dr.step >= ord.length) { L.ready = true; L.phase = 'between'; L.msg = 'Драфт завершён — в бой!'; rr(); sched(startGame, 1500); return; } if (ord[dr.step][0] === L.us) { rr(); return; } rr(); sched(() => { draftApply(L.d, dr, L.cA, L.cB, aiDraftChoice(L.d, dr, L.cA, L.cB)); draftNext(); }, 650); };
   const makeGame = () => { const d = L.d; if (L.kind === 'fps') return new FpsMap(d, L.cA, L.cB, L.veto.picks[L.sa + L.sb]); if (L.kind === 'moba') return new MobaGame(d, L.cA, L.cB, L.draft); if (L.kind === 'ball') { L.arena = L.arena || shuffle([0, 1, 2, 3, 4, 5, 6]); return new BallGame(d, L.cA, L.cB, L.arena[(L.sa + L.sb) % 7]); } const [pa, pb] = fcPair(L.cA, L.cB, L.g, L.sa, L.sb, L.need); L.viz.pa = [{ id: pa.id, role: pa.role }]; L.viz.pb = [{ id: pb.id, role: pb.role }]; return new DuelGame(d, pa, pb, L.cA, L.cB); };
-  const startGame = () => { L.feed = []; L.cur = makeGame(); L.ready = false; L.phase = 'play'; L.shown = [0, 0]; const v = L.viz; v.game = L.cur; v.round = null; v.events = []; if (L.kind === 'fps') v.map = L.cur.map; rr(); sched(step, 700); };
+  const startGame = () => { L.feed = []; L.cur = makeGame(); L.ready = false; L.phase = 'play'; L.shown = [0, 0]; const v = L.viz; v.game = L.cur; v.round = null; v.events = []; v.vg = { A: 0, B: 0 }; v.busy = false; if (L.kind === 'fps') v.map = L.cur.map; rr(); sched(step, 700); };
   const step = () => {
     if (L.phase !== 'play') return; const g = L.cur; const v = L.viz; const now = Date.now(); let delay = STEP[L.kind];
+    // мяч/футбол: ждём, пока сцена доиграет текущий эпизод (гол, удар), чтобы счёт не убегал вперёд картинки
+    if ((L.kind === 'duel' || L.kind === 'ball') && v.busy && (!v.busySince || now - v.busySince < 15000)) { if (!v.busySince) v.busySince = now; L.shown = [Math.min(g.sa, (v.vg || {}).A || 0), Math.min(g.sb, (v.vg || {}).B || 0)]; rr(); L.tm = setTimeout(step, 120); return; } v.busySince = 0;
     if (L.kind === 'fps') { const r = g.nextRound(); if (r) { L.feed.unshift(r); if (L.feed.length > 6) L.feed.length = 6; v.round = r; v.roundT0 = now; v.roundDur = STEP.fps / L.speed; } }
-    else { const ev = g.tick(); v.events = ev; v.evSeq++; v.tickT0 = now; v.tickDur = STEP[L.kind] / L.speed; ev.forEach(e => L.feed.unshift(e)); if (L.feed.length > 8) L.feed.length = 8; if (ev.some(e => e.type === 'goal')) delay += L.kind === 'duel' ? 2400 : 1800; }
-    if (L.kind !== 'fps') L.shown = [g.kA !== undefined ? g.kA : g.sa, g.kB !== undefined ? g.kB : g.sb];
+    else { const ev = g.tick(); v.events = ev; v.evSeq++; v.tickT0 = now; v.tickDur = STEP[L.kind] / L.speed; ev.forEach(e => L.feed.unshift(e)); if (L.feed.length > 8) L.feed.length = 8; if (ev.some(e => e.type === 'goal')) delay += 300; }
+    if (L.kind === 'moba') L.shown = [g.kA, g.kB]; else if (L.kind !== 'fps') L.shown = [Math.min(g.sa, (v.vg || {}).A || 0), Math.min(g.sb, (v.vg || {}).B || 0)];
     rr();
-    if (g.done) { L.tm = setTimeout(() => { L.shown = [g.kA !== undefined ? g.kA : g.sa, g.kB !== undefined ? g.kB : g.sb]; mapDone(); }, (L.kind === 'fps' ? STEP.fps : 2500) / L.speed); return; }
+    if (g.done) { const t0 = Date.now(); const fin = () => { if ((L.kind === 'duel' || L.kind === 'ball') && v.busy && Date.now() - t0 < 20000) { L.shown = [Math.min(g.sa, (v.vg || {}).A || 0), Math.min(g.sb, (v.vg || {}).B || 0)]; rr(); L.tm = setTimeout(fin, 150); return; } L.shown = [g.kA !== undefined ? g.kA : g.sa, g.kB !== undefined ? g.kB : g.sb]; mapDone(); }; L.tm = setTimeout(fin, (L.kind === 'fps' ? STEP.fps : 2500) / L.speed); return; }
     sched(() => { if (L.kind === 'fps') L.shown = [g.sa, g.sb]; step(); }, delay + (L.kind === 'fps' ? 250 : 0));
   };
   const recordGame = () => { const g = L.cur; const aW = g.winner === 'A'; if (aW) L.sa++; else L.sb++; const wset = L.kind === 'duel' ? new Set([aW ? g.pA.id : g.pB.id]) : new Set((aW ? L.cA : L.cB).players.map(p => p.id)); mergeStats(L.acc, g.stats, wset); L.maps.push(L.kind === 'fps' ? { map: g.map, sa: g.sa, sb: g.sb } : L.kind === 'moba' ? { t: g.t, kA: g.kA, kB: g.kB, w: g.winner } : L.kind === 'ball' ? { map: g.arena, sa: g.sa, sb: g.sb, ot: g.ot } : { pa: g.pA.id, pb: g.pB.id, sa: g.sa, sb: g.sb, pens: g.pens }); L.g++; L.cur = null; L.ready = false; };
@@ -70,7 +72,7 @@ export default function Live() {
   const showScene = L.phase === 'play' || L.phase === 'between' || L.phase === 'veto' || L.phase === 'draft';
   return (
     <View style={{ flex: 1, backgroundColor: '#04060a' }}>
-      {showScene && L.phase !== 'veto' && L.phase !== 'draft' ? <Scene3D key={'g' + L.g} viz={L.viz} style={StyleSheet.absoluteFill} /> : <LinearGradient colors={[alpha(FAKE[L.d].color, 0.25), '#04060a']} style={StyleSheet.absoluteFill} />}
+      {showScene && L.phase !== 'veto' && L.phase !== 'draft' ? <Scene3D key={'g' + L.g} viz={L.viz} style={L.kind === 'moba' ? { position: 'absolute', left: padL + 232, right: padR + 232, top: 56, bottom: 62, borderRadius: 10, overflow: 'hidden' } : StyleSheet.absoluteFill} /> : <LinearGradient colors={[alpha(FAKE[L.d].color, 0.25), '#04060a']} style={StyleSheet.absoluteFill} />}
       <LinearGradient colors={['rgba(0,0,0,0.65)', 'rgba(0,0,0,0)']} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 90 }} pointerEvents="none" />
       <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80 }} pointerEvents="none" />
       <LinearGradient colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']} locations={[0, 0.18, 0.82, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} pointerEvents="none" />
@@ -162,7 +164,7 @@ function MobaHud({ L }) {
         <Text style={mh.lead}>{lead === 0 ? 'равенство' : 'перевес ' + ttag(lead > 0 ? L.A : L.B) + ' +' + k1(Math.abs(lead))}</Text>
         <Text style={mh.tw}>башни {g.twA}:{g.twB}</Text>
       </View>
-      <View style={mh.mm} pointerEvents="none"><MiniMap L={L} /></View>
+      <View style={mh.mm} pointerEvents="none"><MiniMap L={L} size={104} /></View>
       <View style={mh.feed} pointerEvents="none">{lastEv.map((e, i) => <View key={i} style={{ opacity: 1 - i * 0.25, backgroundColor: 'rgba(6,9,15,0.7)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: 2 }}>{evText(L, e)}</View>)}</View>
       {table(A, 'A')}{table(B, 'B')}
     </>
@@ -178,10 +180,10 @@ const mh = StyleSheet.create({
   ct: { fontFamily: F.hx, fontSize: 15, color: '#fff' }, cs: { fontFamily: F.h, fontSize: 7.5, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 },
   nwBar: { position: 'absolute', top: 44, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(6,9,15,0.75)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 4 },
   nwT: { fontFamily: F.hx, fontSize: 11 }, lead: { fontFamily: F.h, fontSize: 10, color: '#ffd27a' }, tw: { fontFamily: F.h, fontSize: 10, color: 'rgba(255,255,255,0.7)' },
-  mm: { position: 'absolute', right: 10, top: 6 },
-  feed: { position: 'absolute', left: 10, top: 56, width: 200 },
-  table: { position: 'absolute', bottom: 62, width: 232, backgroundColor: 'rgba(6,9,15,0.78)', borderRadius: 6, paddingVertical: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', height: 22, paddingRight: 6 },
+  mm: { position: 'absolute', right: 10, bottom: 66 },
+  feed: { position: 'absolute', left: 10, bottom: 66, width: 222 },
+  table: { position: 'absolute', top: 56, width: 222, backgroundColor: 'rgba(14,20,34,0.92)', borderRadius: 8, paddingVertical: 3, borderWidth: 1, borderColor: C.line },
+  row: { flexDirection: 'row', alignItems: 'center', height: 24, paddingRight: 6 },
   head: { height: 15 }, hc: { fontFamily: F.h, fontSize: 8.5, color: 'rgba(255,255,255,0.55)', letterSpacing: 0.8, paddingLeft: 8 },
   nick: { fontFamily: F.hm, fontSize: 10.5, color: '#fff' }, hero: { fontFamily: F.b, fontSize: 8.5, color: 'rgba(255,255,255,0.55)' },
   v: { fontFamily: F.hx, fontSize: 10, color: '#fff', textAlign: 'right' }, cLvl: { width: 22, textAlign: 'right' }, cKda: { width: 54, textAlign: 'right' }, cNw: { width: 40, textAlign: 'right' },

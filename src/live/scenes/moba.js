@@ -85,9 +85,11 @@ export function createMoba(scene, cam, viz) {
   function skinHero(h) {
     if (!S.heroTpl || h.userData.actor) return;
     const col = h.userData.side === 'A' ? viz.ca : viz.cb;
-    const a = dl ? makeActor(S.heroTpl, { tint: [[/^Main$/, col], [/^Accent$/, '#e8ecf4'], [/Accent_Dark/, '#1b1f27']], hide: [/^Sword$/], height: 2.7 })
-      : makeActor(S.heroTpl, { tint: [[/Armor/, col], [/Boots/, new THREE.Color(col).multiplyScalar(0.45).getStyle()]], height: 2.7 });
+    const a = dl ? makeActor(S.heroTpl, { tint: [[/^Main$/, col], [/^Accent$/, '#e8ecf4'], [/Accent_Dark/, '#1b1f27']], hide: [/^Sword$/], height: 3.4 })
+      : makeActor(S.heroTpl, { tint: [[/Armor/, col], [/Boots/, new THREE.Color(col).multiplyScalar(0.45).getStyle()]], height: 3.4 });
     h.children.forEach(c => { if (c.isMesh) c.visible = false; }); if (h.userData.crest) h.userData.crest.visible = false;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.5, 24), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; h.add(ring);
+    const gl = glowSprite(col, 4.2, 0.55); gl.position.y = 0.3; h.add(gl);
     h.add(a); h.userData.actor = a; a.userData.fighter.play(dl ? 'Idle_Gun_Pointing' : 'Idle', 0);
   }
   // boss
@@ -100,24 +102,27 @@ export function createMoba(scene, cam, viz) {
   const ensure = () => { [...viz.pa.map(p => [p, 'A']), ...viz.pb.map(p => [p, 'B'])].forEach(([p, side], i) => { if (!S.heroes[p.id]) { const h = makeHero(side === 'A' ? viz.ca : viz.cb, p.role + (side === 'A' ? 0 : 1), 0.95); h.userData.side = side; h.userData.role = p.role; scene.add(h); S.heroes[p.id] = h; skinHero(h); const b = side === 'A' ? baseA : baseB; h.position.copy(b).add(V((i % 3 - 1) * 1.5, 0)); S.targets[p.id] = h.position.clone(); S.prevPos[p.id] = h.position.clone(); } }); };
   function laneOfRole(side, role) { if (dl) return [0, 1, 2, 0, 1, 2][role]; const safe = side === 'A' ? 2 : 0, off = side === 'A' ? 0 : 2; return [safe, 1, off, off, safe][role]; }
   function frontF(lead) { return Math.max(0.2, Math.min(0.8, 0.5 + lead / 30000)); } // fraction from A end
+  // Реализм: каждый стоит на своей линии; в драку приходят только ближайшие + ротации саппортов; ходят с ограниченной скоростью
   function retarget(g) {
     const t = g.t; const lead = g.lead; const evs = viz.events || [];
     const fight = evs.find(e => e.type === 'fight'); const ff = frontF(lead);
-    const groupLane = fight ? laneOrder[(g.t * 7) % 3] : laneOrder[Math.floor(t / 4) % 3];
-    const fightPt = polyPoint(lanes[groupLane], ff);
-    [...viz.pa.map(p => [p, 'A']), ...viz.pb.map(p => [p, 'B'])].forEach(([p, side], i) => {
-      const h = S.heroes[p.id]; if (!h) return; S.prevPos[p.id] = h.position.clone();
+    const all = [...viz.pa.map((p, i) => [p, 'A', i]), ...viz.pb.map((p, i) => [p, 'B', i])];
+    const laneOf = (p, side) => { let li = laneOfRole(side, p.role); if (t >= 14 && (p.role >= 3 || (dl && p.role === 4))) li = laneOrder[Math.floor((t + p.role) / 5) % 3]; return li; };
+    all.forEach(([p, side, i]) => {
+      const h = S.heroes[p.id]; if (!h) return;
       if (S.dead[p.id] && S.dead[p.id] > t) { S.targets[p.id] = (side === 'A' ? baseA : baseB).clone().add(V((i % 3 - 1) * 1.6, (i % 2) * 1.5)); return; }
-      let pt;
-      if (t < 10 && !fight) { const li = laneOfRole(side, p.role); pt = polyPoint(lanes[li], side === 'A' ? ff - 0.06 : ff + 0.06); }
-      else { pt = fightPt.clone().add(V(side === 'A' ? -2.5 : 2.5, (i % 3 - 1) * 1.8)); if (!fight) pt.add(V(side === 'A' ? -3 : 3, side === 'A' ? 3 : -3)); }
-      pt.add(V((hash(p.id + t) - 0.5) * 2, (hash(p.id * 2 + t) - 0.5) * 2));
+      const li = laneOf(p, side); const off = (side === 'A' ? -0.035 : 0.035) - (p.role >= 3 ? (side === 'A' ? 0.02 : -0.02) : 0);
+      const pt = polyPoint(lanes[li], Math.max(0.06, Math.min(0.94, ff + off))).add(V((hash(p.id + t) - 0.5) * 2.4, (hash(p.id * 2 + t) - 0.5) * 2.4));
       S.targets[p.id] = pt;
     });
     if (fight) {
-      const losers = (fight.side === 'A' ? viz.pb : viz.pa).slice(); for (let k = 0; k < Math.min(fight.kw, losers.length); k++) { const v = losers[(k + t) % losers.length]; S.dead[v.id] = t + 2; }
-      S.fightAt = { pt: fightPt, side: fight.side, t0: viz.tickT0 };
-      S.focus.lerp(fightPt, 0.6);
+      const li = laneOrder[(g.t * 7) % 3]; const fightPt = polyPoint(lanes[li], ff);
+      const n = Math.max(2, Math.min(dl ? 6 : 5, 2 + (fight.kw || 1) + (fight.kl || 0)));
+      const pickNear = side => all.filter(x => x[1] === side && !(S.dead[x[0].id] > t)).sort((x, y) => S.heroes[x[0].id].position.distanceTo(fightPt) - S.heroes[y[0].id].position.distanceTo(fightPt)).slice(0, n);
+      const pa = pickNear('A'), pb = pickNear('B');
+      [...pa, ...pb].forEach(([p, side], k) => { S.targets[p.id] = fightPt.clone().add(V(side === 'A' ? -2.2 : 2.2, (k % 3 - 1) * 1.6)); });
+      const losers = (fight.side === 'A' ? pb : pa).map(x => x[0]); for (let k = 0; k < Math.min(fight.kw || 1, losers.length); k++) { const v = losers[k]; S.dead[v.id] = t + 3; S.dieAt = S.dieAt || {}; S.dieAt[v.id] = { pt: fightPt.clone(), t }; }
+      S.fightAt = { pt: fightPt, side: fight.side, t0: viz.tickT0, ids: new Set([...pa, ...pb].map(x => x[0].id)) };
     }
     evs.forEach(e => {
       if (e.type === 'tower' || e.type === 'hg') { const victimSide = e.side === 'A' ? 'B' : 'A'; const lst = S.towers[victimSide]; const idx = (e.side === 'A' ? g.twA : g.twB) - 1; const tw = lst[Math.min(lst.length - 1, Math.max(0, idx))]; if (tw && tw.userData.alive) { tw.userData.alive = 0; S.bursts.add(tw.position.clone().setY(3), e.side === 'A' ? viz.ca : viz.cb, 50, 9, 1.2, 0.9); S.focus.lerp(tw.position, 0.5); } }
@@ -133,12 +138,17 @@ export function createMoba(scene, cam, viz) {
       const u = Math.min(1, Math.max(0, (now - (viz.tickT0 || now)) / (viz.tickDur || 1)));
       Object.entries(S.heroes).forEach(([id, h]) => {
         const a = S.prevPos[id], b = S.targets[id]; if (!a || !b) return;
-        const prev = h.position.clone(); h.position.lerpVectors(a, b, ease(u)); h.position.y = Math.abs(Math.sin(now / 260 + +id)) * 0.08;
-        const dead = S.dead[id] && g && S.dead[id] > g.t; h.visible = true; h.userData.mat.opacity = 1;
+        const prev = h.position.clone(); const deadNow = S.dead[id] && g && S.dead[id] > g.t; const da = S.dieAt && S.dieAt[id];
+        // погибший сначала доходит до драки и падает там, потом исчезает и возрождается на базе
+        let goal = b; let dying = false; if (deadNow && da && g.t - da.t < 1 && h.position.distanceTo(da.pt) > 1.5 && !h.userData.fell) goal = da.pt; else if (deadNow && da && g.t - da.t < 2 && !h.userData.respawned) { dying = true; h.userData.fell = true; }
+        if (!deadNow) { h.userData.fell = false; h.userData.respawned = false; }
+        if (deadNow && !dying && h.userData.fell && !h.userData.respawned) { h.userData.respawned = true; h.position.copy(b); }
+        const step = goal.clone().sub(h.position).setY(0); const vmax = (dl ? 6.5 : 7) * (1000 / (viz.tickDur || 1000)); if (!dying) { if (step.length() > vmax * dt) step.setLength(vmax * dt); h.position.add(step); } h.position.y = 0;
+        const dead = dying; h.visible = !(deadNow && h.userData.respawned); h.userData.mat.opacity = 1;
         h.scale.setScalar(dead ? 0.95 * Math.max(0.15, 1 - u * 1.5) : 0.95);
         const mv = h.position.distanceTo(prev) / Math.max(dt, 0.001);
         if (h.position.distanceTo(prev) > 0.002) h.rotation.y = Math.atan2(h.position.x - prev.x, h.position.z - prev.z);
-        const act = h.userData.actor; if (act) { const fd = act.userData.fighter; const fighting = S.fightAt && now - S.fightAt.t0 < (viz.tickDur || 600) && S.fightAt.pt && h.position.distanceTo(S.fightAt.pt) < 10;
+        const act = h.userData.actor; if (act) { const fd = act.userData.fighter; const fighting = S.fightAt && now - S.fightAt.t0 < (viz.tickDur || 600) * 2 && S.fightAt.ids && S.fightAt.ids.has(+id) && h.position.distanceTo(S.fightAt.pt) < 5;
           if (dead) fd.play('Death', 0.1); else if (fighting) fd.play(dl ? (mv > 0.5 ? 'Run_Shoot' : 'Gun_Shoot') : 'Run_swordAttack', 0.12); else if (mv > 0.4) fd.play('Run', 0.2, Math.min(1.5, Math.max(0.6, mv / 4))); else fd.play(dl ? 'Idle_Gun_Pointing' : 'Idle', 0.25);
           fd.mixer.update(dt); h.scale.setScalar(1); }
         h.userData.crest.rotation.y += dt * 2;
@@ -155,7 +165,7 @@ export function createMoba(scene, cam, viz) {
       [[cA, 'A'], [cB, 'B']].forEach(([im, side]) => { let k = 0; const front = frontF(g ? g.lead : 0); for (let li = 0; li < 3; li++) for (let w = 0; w < 3; w++) for (let c = 0; c < 4; c++) { const ph = ((now / 9000 + w / 3 + li * 0.13) % 1); const f = side === 'A' ? 0.08 + ph * (front - 0.08) : 0.92 - ph * (0.92 - front); const p = polyPoint(lanes[li], f).add(V((c % 2 - 0.5) * 0.9, (Math.floor(c / 2) - 0.5) * 0.9)); p.y = 0.3; m4.compose(p, q, new THREE.Vector3(1, 1, 1)); im.setMatrixAt(k++, m4); } im.count = k; im.instanceMatrix.needsUpdate = true; });
       S.tracers.update(dt); S.bursts.update(dt);
       // камера: неподвижный вид сверху на всю карту — ничего не летает
-      cam.position.set(0, 72, 33); cam.lookAt(0, 0, 2); S.focus.set(0, 0, 0);
+      cam.position.set(0, 74, 22); cam.lookAt(0, 0, 1.5); S.focus.set(0, 0, 0);
       // данные для мини-карты HUD
       const mm = viz.mm || (viz.mm = { heroes: [], towers: [], fights: [] });
       mm.heroes = Object.entries(S.heroes).map(([id, h]) => ({ id: +id, side: h.userData.side, x: h.position.x, z: h.position.z, dead: !!(S.dead[id] && g && S.dead[id] > g.t) }));

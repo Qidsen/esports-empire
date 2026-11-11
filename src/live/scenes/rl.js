@@ -50,11 +50,18 @@ export function createRl(scene, cam, viz) {
   function kickoffCar(c) { const sgn = c.side === 'A' ? 1 : -1; const spots = [[0, 12], [-8, 18], [8, 22]]; const [x, z] = spots[c.i % 3]; c.p.set(x, 0, sgn * z); c.h = c.side === 'A' ? Math.PI : 0; c.s = 0; }
   const S = { seq: -1, queue: [], script: null, freeze: 0, ang: 0, focus: new THREE.Vector3() };
   function kickoff() { B.p.set(0, 1, 0); B.v.set(0, 0, 0); Object.values(cars).forEach(kickoffCar); }
+  // Сценарий гола/сейва: атакующая машина реально доезжает до мяча и бьёт по воротам; мяч летит по физике
   function startScript(e) {
-    const tgtZ = e.type === 'goal' ? (e.side === 'A' ? -Lh - 1.5 : Lh + 1.5) : (e.side === 'A' ? Lh - 1.2 : -Lh + 1.2);
-    if (e.type === 'goal') { const shooter = cars[e.p]; if (shooter) { B.p.copy(shooter.p).add(new THREE.Vector3(0, 1, e.side === 'A' ? -3 : 3)); } S.script = { type: 'goal', from: B.p.clone(), to: new THREE.Vector3((Math.random() - 0.5) * 6, 1.4 + Math.random() * 1.5, tgtZ), t: 0, dur: 0.9, side: e.side }; }
-    else if (e.type === 'save') { const atkSide = e.side === 'A' ? 'B' : 'A'; const from = new THREE.Vector3((Math.random() - 0.5) * 10, 1, (atkSide === 'A' ? -1 : 1) * -14); S.script = { type: 'save', from, to: new THREE.Vector3((Math.random() - 0.5) * 5, 2, tgtZ), t: 0, dur: 0.7, side: e.side, keeper: e.p }; }
-    else if (e.type === 'demo') { const v = cars[e.v]; if (v && !v.dead) { v.dead = 1.6; bursts.add(v.p.clone().setY(1), '#ff7b2b', 60, 12, 1.1, 0.9); } }
+    if (e.type === 'demo') { const v = cars[e.v]; if (v && !v.dead) { v.dead = 1.6; bursts.add(v.p.clone().setY(1), '#ff7b2b', 60, 12, 1.1, 0.9); } return; }
+    const atk = e.type === 'goal' ? e.side : (e.side === 'A' ? 'B' : 'A');
+    let shooter = e.type === 'goal' ? cars[e.p] : null; if (!shooter) shooter = Object.values(cars).filter(c => c.side === atk && !c.dead).sort((a, b) => a.p.distanceTo(B.p) - b.p.distanceTo(B.p))[0];
+    const goalZ = atk === 'A' ? -Lh : Lh;
+    S.script = { type: e.type, side: e.side, atk, shooter, keeper: e.type === 'save' ? cars[e.p] : null, goalZ, t: 0, shot: false, aim: new THREE.Vector3((Math.random() - 0.5) * (e.type === 'goal' ? 6 : 3), 1.2 + Math.random() * 1.6, goalZ * 1.04) };
+  }
+  function shoot(sc) {
+    const T = Math.max(0.6, Math.min(1.4, B.p.distanceTo(sc.aim) / 28)); const g = 22;
+    B.v.set((sc.aim.x - B.p.x) / T, (sc.aim.y - B.p.y + 0.5 * g * T * T) / T, (sc.aim.z - B.p.z) / T); sc.shot = true; sc.t = 0;
+    bursts.add(B.p.clone(), '#ffffff', 16, 5, 0.4, 0.4);
   }
   return {
     update(dt, now) {
@@ -62,22 +69,33 @@ export function createRl(scene, cam, viz) {
       if (viz.evSeq !== S.seq) { S.seq = viz.evSeq; (viz.events || []).forEach(e => { if (['goal', 'save', 'demo'].includes(e.type)) S.queue.push(e); }); }
       if (!S.script && S.freeze <= 0 && S.queue.length) startScript(S.queue.shift());
       if (S.freeze > 0) { S.freeze -= dt; if (S.freeze <= 0) kickoff(); }
-      // ball
-      if (S.script && (S.script.type === 'goal' || S.script.type === 'save')) {
-        const sc = S.script; sc.t += dt / sc.dur; const k = Math.min(1, sc.t); B.p.lerpVectors(sc.from, sc.to, k); B.p.y = Math.max(1, sc.from.y + (sc.to.y - sc.from.y) * k + Math.sin(k * Math.PI) * 3);
-        if (sc.type === 'save' && sc.keeper && cars[sc.keeper]) { const kc = cars[sc.keeper]; kc.p.lerp(new THREE.Vector3(sc.to.x, 0, sc.to.z + (sc.to.z > 0 ? -1.5 : 1.5)), dt * 4); }
-        if (k >= 1) { if (sc.type === 'goal') { const g = goals[sc.side === 'A' ? 'B' : 'A']; for (let i = 0; i < 3; i++) bursts.add(B.p.clone(), i === 1 ? '#ffffff' : (sc.side === 'A' ? viz.ca : viz.cb), 90, 18, 1.6, 1.1); g.light.intensity = 160; S.freeze = 1.4; S.focus.copy(B.p); } else { B.v.set((Math.random() - 0.5) * 20, 6, sc.to.z > 0 ? -22 : 22); bursts.add(B.p.clone(), '#bfe3ff', 20, 6, 0.5, 0.5); } S.script = null; }
-      } else if (S.freeze <= 0) {
-        B.v.y -= 22 * dt; B.p.addScaledVector(B.v, dt); if (B.p.y < 1) { B.p.y = 1; B.v.y = Math.abs(B.v.y) * 0.55; } B.v.x *= 1 - dt * 0.5; B.v.z *= 1 - dt * 0.5;
-        if (Math.abs(B.p.x) > W - 1) { B.p.x = Math.sign(B.p.x) * (W - 1); B.v.x *= -0.8; } if (Math.abs(B.p.z) > Lh - 1.2) { B.p.z = Math.sign(B.p.z) * (Lh - 1.2); B.v.z *= -0.8; }
+      // мяч: всегда физика; сценарий только направляет машины и удар
+      const sc = S.script;
+      if (sc && (sc.type === 'goal' || sc.type === 'save')) {
+        sc.t += dt;
+        if (!sc.shot && (sc.t > 5 || (sc.shooter && sc.shooter.p.distanceTo(B.p.clone().setY(0)) < 2.6))) { if (sc.shooter) sc.shooter.boostT = 0.4; shoot(sc); }
+        if (sc.shot) {
+          const nearLine = Math.abs(B.p.z) > Lh - 1.6 && Math.sign(B.p.z) === Math.sign(sc.goalZ);
+          if (sc.type === 'save' && sc.keeper && !sc.saved && Math.abs(B.p.z) > Lh - 6 && Math.sign(B.p.z) === Math.sign(sc.goalZ)) { sc.saved = true; B.v.set((Math.random() - 0.5) * 16, 7, -Math.sign(sc.goalZ) * 20); bursts.add(B.p.clone(), '#bfe3ff', 24, 7, 0.5, 0.5); S.script = null; }
+          else if (sc.type === 'goal' && nearLine) { const g = goals[sc.side === 'A' ? 'B' : 'A']; for (let i = 0; i < 3; i++) bursts.add(B.p.clone(), i === 1 ? '#ffffff' : (sc.side === 'A' ? viz.ca : viz.cb), 90, 18, 1.6, 1.1); g.light.intensity = 160; S.freeze = 1.6; viz.vg = viz.vg || { A: 0, B: 0 }; viz.vg[sc.side]++; S.focus.copy(B.p); B.v.set(0, 0, 0); S.script = null; }
+          else if (sc.t > 3) S.script = null;
+        }
       }
+      if (S.freeze <= 0) {
+        B.v.y -= 22 * dt; B.p.addScaledVector(B.v, dt); if (B.p.y < 1) { B.p.y = 1; B.v.y = Math.abs(B.v.y) * 0.55; } B.v.x *= 1 - dt * 0.45; B.v.z *= 1 - dt * 0.45;
+        if (Math.abs(B.p.x) > W - 1) { B.p.x = Math.sign(B.p.x) * (W - 1); B.v.x *= -0.8; }
+        const inMouth = S.script && S.script.shot && S.script.type === 'goal' && Math.abs(B.p.x) < 6;
+        if (!inMouth && Math.abs(B.p.z) > Lh - 1.2) { B.p.z = Math.sign(B.p.z) * (Lh - 1.2); B.v.z *= -0.8; }
+      }
+      viz.busy = !!((S.script && S.script.type !== 'demo') || S.queue.some(e => e.type !== 'demo') || S.freeze > 0);
       ball.position.copy(B.p); ball.rotation.x += B.v.z * dt * 0.5; ball.rotation.z -= B.v.x * dt * 0.5; bglow.position.copy(B.p);
       Object.values(goals).forEach(g => { g.light.intensity += (30 - g.light.intensity) * dt * 2; });
       // cars AI
       Object.values(cars).forEach(c => {
         if (c.dead > 0) { c.dead -= dt; c.m.visible = false; if (c.dead <= 0) { c.m.visible = true; kickoffCar(c); } return; }
         const own = c.side === 'A' ? Lh : -Lh; let tgt;
-        if (S.freeze > 0) tgt = c.p.clone(); else if (c.role === 2) tgt = new THREE.Vector3(B.p.x * 0.5, 0, own * 0.7 + B.p.z * 0.25); else if (c.role === 1) tgt = B.p.clone().add(new THREE.Vector3(c.i % 2 ? 6 : -6, 0, (c.side === 'A' ? 1 : -1) * 6)); else tgt = B.p.clone().add(new THREE.Vector3(0, 0, c.side === 'A' ? 2 : -2));
+        const sc2 = S.script;
+        if (S.freeze > 0) tgt = c.p.clone(); else if (sc2 && !sc2.shot && sc2.shooter === c) { const dir = sc2.aim.clone().sub(B.p).setY(0).normalize(); tgt = B.p.clone().addScaledVector(dir, -1.2); } else if (sc2 && sc2.keeper === c) tgt = new THREE.Vector3(B.p.x * 0.4, 0, sc2.goalZ * 0.9); else if (c.role === 2) tgt = new THREE.Vector3(B.p.x * 0.5, 0, own * 0.7 + B.p.z * 0.25); else if (c.role === 1) tgt = B.p.clone().add(new THREE.Vector3(c.i % 2 ? 6 : -6, 0, (c.side === 'A' ? 1 : -1) * 6)); else tgt = B.p.clone().add(new THREE.Vector3(0, 0, c.side === 'A' ? 2 : -2));
         tgt.y = 0; const to = tgt.clone().sub(c.p); const dist = to.length(); const want = Math.atan2(to.x, to.z); let dh = want - c.h; while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2; c.h += Math.max(-dt * 3.5, Math.min(dt * 3.5, dh));
         const target = dist > 2 ? (dist > 12 ? 20 : 12) : 3; c.s += (target - c.s) * dt * 2; c.p.x += Math.sin(c.h) * c.s * dt; c.p.z += Math.cos(c.h) * c.s * dt; c.p.x = Math.max(-W + 1.2, Math.min(W - 1.2, c.p.x)); c.p.z = Math.max(-Lh + 1.5, Math.min(Lh - 1.5, c.p.z));
         if (!S.script && S.freeze <= 0 && c.p.distanceTo(new THREE.Vector3(B.p.x, 0, B.p.z)) < 2.2 && B.p.y < 3) { const dir = new THREE.Vector3(B.p.x - c.p.x, 0, B.p.z - c.p.z).normalize(); const toGoal = new THREE.Vector3(-B.p.x * 0.3, 0, c.side === 'A' ? -1 : 1).normalize(); dir.lerp(toGoal, 0.4).normalize(); B.v.copy(dir.multiplyScalar(18 + c.s)); B.v.y = 4 + Math.random() * 6; }

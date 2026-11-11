@@ -30,26 +30,62 @@ export function createFc(scene, cam, viz) {
   const team = { A: [], B: [] };
   ['A', 'B'].forEach(side => { for (let i = 0; i < 11; i++) { const g = makeSoldier(i === 0 ? '#e8d23a' : (side === 'A' ? viz.ca : viz.cb), i === 0 ? '#333' : '#f2f2f2'); g.children.forEach(c => { if (c.geometry && c.geometry.type === 'BoxGeometry' && c.geometry.parameters.depth > 0.8) c.visible = false; }); g.scale.setScalar(0.9); scene.add(g); const [fx, fz] = F442[i]; const sgn = side === 'A' ? 1 : -1; team[side].push({ g, home: new THREE.Vector3(fx * PW * 0.9, 0, sgn * fz * (PL - 1)), p: new THREE.Vector3(fx * PW * 0.9, 0, sgn * fz * (PL - 1)) }); } });
   loadModel('cyber').then(gl => { ['A', 'B'].forEach(side => team[side].forEach((x, i) => { const col = i === 0 ? '#e8d23a' : (side === 'A' ? viz.ca : viz.cb); const a = makeActor(gl, { tint: [[/^Main$/, col], [/^Accent$/, i === 0 ? '#333333' : '#f2f2f2'], [/Accent_Dark/, '#1b1f27']], hide: [/^Sword$/, /Cube\.009/], height: 1.85 }); scene.remove(x.g); x.g = a; scene.add(a); a.position.copy(x.p); a.userData.fighter.play('Idle_Neutral', 0); })); }).catch(e => { viz.glError = 'fc models: ' + (e && e.message || e); });
-  const S = { seq: -1, queue: [], poss: 'A', holder: 9, ball: new THREE.Vector3(), pass: null, script: null, freeze: 0, t: 0, ang: 0, focus: new THREE.Vector3() };
+  // Мяч всегда в игре: пасы, ведение, отборы. Голевой момент вырастает из текущего владения — без телепортов.
+  const S = { seq: -1, queue: [], poss: 'A', holder: 9, ball: new THREE.Vector3(), pass: null, shot: null, steal: null, attack: null, freeze: 0, t: 0, hold: 1, focus: new THREE.Vector3() };
   S.ball.copy(team.A[9].p);
-  function nextPass() { const tm = team[S.poss]; if (tm[S.holder]) tm[S.holder].kick = 0.35; const sgn = S.poss === 'A' ? -1 : 1; const cand = tm.map((x, i) => i).filter(i => i !== S.holder && i !== 0); let best = cand[Math.floor(Math.random() * cand.length)]; if (Math.random() < 0.6) { best = cand.sort((a, b) => sgn * (tm[a].p.z - tm[b].p.z))[0 + Math.floor(Math.random() * 3)]; } const from = S.ball.clone(); S.pass = { from, to: tm[best].p.clone().add(new THREE.Vector3(0, 0, sgn * 1)), t: 0, dur: 0.5 + from.distanceTo(tm[best].p) / 30, i: best }; }
-  function startScript(e) {
-    if (e.type === 'goal' || e.type === 'chance') { S.poss = e.side; const sgn = e.side === 'A' ? -1 : 1; const tm = team[e.side]; S.holder = 9 + Math.floor(Math.random() * 2); S.ball.copy(tm[S.holder].p); tm[S.holder].p.set((Math.random() - 0.5) * 12, 0, sgn * (PL - 9)); S.ball.copy(tm[S.holder].p); const goal = e.type === 'goal'; tm[S.holder].kick = 0.45; S.script = { type: e.type, side: e.side, from: S.ball.clone(), to: goal ? new THREE.Vector3((Math.random() - 0.5) * 6, 0.4 + Math.random() * 1.6, sgn * (PL + 0.6)) : new THREE.Vector3((Math.random() - 0.5) * 4, 1, sgn * (PL - 0.8)), t: 0, dur: 0.55, sgn }; S.pass = null; }
+  const atkSgn = side => side === 'A' ? -1 : 1; // направление атаки по z
+  function nearestTo(side, pos, excludeGk = true) { let bi = 1, bd = 1e9; team[side].forEach((x, i) => { if (excludeGk && i === 0) return; const d = x.p.distanceTo(pos); if (d < bd) { bd = d; bi = i; } }); return bi; }
+  function startSteal(side) { S.steal = { side, i: nearestTo(side, S.ball) }; S.pass = null; }
+  function nextPass(forward) {
+    const tm = team[S.poss]; tm[S.holder].kick = 0.35; const sg = atkSgn(S.poss);
+    const cand = tm.map((x, i) => i).filter(i => i !== S.holder && i !== 0);
+    let best;
+    if (forward) best = cand.filter(i => sg * (tm[i].p.z - tm[S.holder].p.z) > 2).sort((a, b) => sg * (tm[b].p.z - tm[a].p.z))[Math.floor(Math.random() * 2)];
+    if (best === undefined) best = cand.sort((a, b) => tm[a].p.distanceTo(S.ball) - tm[b].p.distanceTo(S.ball))[Math.floor(Math.random() * 4)];
+    const to = tm[best].p.clone().add(new THREE.Vector3(0, 0, sg * 1.5));
+    S.pass = { from: S.ball.clone(), to, t: 0, dur: 0.45 + S.ball.distanceTo(to) / 26, i: best };
   }
+  function shoot() {
+    const sg = atkSgn(S.poss); const goal = S.attack && S.attack.type === 'goal';
+    const to = goal ? new THREE.Vector3((Math.random() - 0.5) * 6, 0.4 + Math.random() * 1.6, sg * (PL + 0.6)) : new THREE.Vector3((Math.random() - 0.5) * 3, 1, sg * (PL - 0.8));
+    team[S.poss][S.holder].kick = 0.45;
+    S.shot = { side: S.poss, goal, from: S.ball.clone(), to, t: 0, dur: 0.35 + S.ball.distanceTo(to) / 40 };
+  }
+  function kickoff(side) { ['A', 'B'].forEach(s => team[s].forEach(x => x.p.copy(x.home))); S.poss = side; S.holder = 9; S.ball.set(0, 0, 0); S.pass = null; S.steal = null; S.t = 0; }
   return {
     update(dt, now) {
-      if (viz.evSeq !== S.seq) { S.seq = viz.evSeq; (viz.events || []).forEach(e => { if (e.type === 'goal' || (e.type === 'chance' && Math.random() < 0.5)) S.queue.push(e); }); }
-      if (!S.script && S.freeze <= 0 && S.queue.length) startScript(S.queue.shift());
-      if (S.freeze > 0) { S.freeze -= dt; if (S.freeze <= 0) { ['A', 'B'].forEach(s => team[s].forEach(x => x.p.copy(x.home))); S.poss = S.poss === 'A' ? 'B' : 'A'; S.holder = 9; S.ball.set(0, 0, 0); } }
-      if (S.script) { const sc = S.script; sc.t += dt / sc.dur; const k = Math.min(1, sc.t); S.ball.lerpVectors(sc.from, sc.to, k); S.ball.y = sc.from.y + (sc.to.y - sc.from.y) * k + Math.sin(k * Math.PI) * 1.2; if (k >= 1) { if (sc.type === 'goal') { for (let i = 0; i < 3; i++) bursts.add(S.ball.clone().setY(1.5), i === 1 ? '#ffffff' : (sc.side === 'A' ? viz.ca : viz.cb), 80, 12, 1.4, 0.8); S.freeze = 1.8; S.celebrate = sc.side; } else { S.poss = sc.side === 'A' ? 'B' : 'A'; S.holder = 0; S.ball.copy(team[S.poss][0].p); } S.script = null; } }
-      else if (S.freeze <= 0) {
-        if (!S.pass) { S.t += dt; if (S.t > 0.35) { S.t = 0; if (Math.random() < 0.08) { S.poss = S.poss === 'A' ? 'B' : 'A'; S.holder = 5 + Math.floor(Math.random() * 4); } nextPass(); } else S.ball.lerp(team[S.poss][S.holder].p.clone().setY(0.32), dt * 8); }
-        else { const ps = S.pass; ps.t += dt / ps.dur; const k = Math.min(1, ps.t); S.ball.lerpVectors(ps.from, ps.to, ease(k)); S.ball.y = 0.32 + Math.sin(k * Math.PI) * 0.8; if (k >= 1) { S.holder = ps.i; S.pass = null; } }
+      if (viz.evSeq !== S.seq) { S.seq = viz.evSeq; (viz.events || []).forEach(e => { if (e.type === 'goal' || (e.type === 'chance' && Math.random() < 0.6)) S.queue.push(e); }); }
+      if (!S.attack && S.freeze <= 0 && S.queue.length) { S.attack = S.queue.shift(); S.attack.t0 = now; }
+      if (S.freeze > 0) { S.freeze -= dt; if (S.freeze <= 0) kickoff(S.celebrate === 'A' ? 'B' : 'A'); }
+      else if (S.shot) {
+        const sc = S.shot; sc.t += dt / sc.dur; const k = Math.min(1, sc.t); S.ball.lerpVectors(sc.from, sc.to, k); S.ball.y = sc.from.y + (sc.to.y - sc.from.y) * k + Math.sin(k * Math.PI) * 1.0;
+        if (sc.t >= 1) {
+          if (sc.goal) { for (let i = 0; i < 3; i++) bursts.add(S.ball.clone().setY(1.5), i === 1 ? '#ffffff' : (sc.side === 'A' ? viz.ca : viz.cb), 80, 12, 1.4, 0.8); S.freeze = 2.2; S.celebrate = sc.side; viz.vg = viz.vg || { A: 0, B: 0 }; viz.vg[sc.side]++; }
+          else { S.poss = sc.side === 'A' ? 'B' : 'A'; S.holder = 0; S.ball.copy(team[S.poss][0].p); S.ball.y = 0.32; S.t = -0.6; }
+          S.shot = null; S.attack = null;
+        }
+      } else if (S.pass) {
+        const ps = S.pass; ps.t += dt / ps.dur; const k = Math.min(1, ps.t); S.ball.lerpVectors(ps.from, ps.to, ease(k)); S.ball.y = 0.32 + Math.sin(k * Math.PI) * 0.7; if (k >= 1) { S.holder = ps.i; S.pass = null; S.t = 0; S.hold = 0.7 + Math.random() * 0.9; }
+      } else if (S.steal) {
+        const x = team[S.steal.side][S.steal.i]; if (x.p.distanceTo(S.ball.clone().setY(0)) < 1.3) { S.poss = S.steal.side; S.holder = S.steal.i; S.steal = null; S.t = 0; S.hold = 0.6; }
+      } else {
+        const h = team[S.poss][S.holder]; const sg = atkSgn(S.poss);
+        S.ball.lerp(h.p.clone().add(new THREE.Vector3(0, 0.32, sg * 0.6)), Math.min(1, dt * 10));
+        S.t += dt;
+        if (S.t > S.hold) {
+          S.t = 0; S.hold = 0.8 + Math.random() * 1.0; const a = S.attack;
+          const finalThird = sg * S.ball.z > PL - 18;
+          if (a && S.poss !== a.side) startSteal(a.side);
+          else if (a && (finalThird || now - a.t0 > 12000)) shoot();
+          else if (!a && Math.random() < 0.14) startSteal(S.poss === 'A' ? 'B' : 'A');
+          else nextPass(!!a || Math.random() < 0.45);
+        }
       }
       ball.position.copy(S.ball); ball.position.y = Math.max(0.32, S.ball.y); ball.rotation.x += dt * 8;
       // formation drift with ball
-      ['A', 'B'].forEach(side => { const att = S.poss === side; const sgn = side === 'A' ? -1 : 1; team[side].forEach((x, i) => { let tgt; if (S.celebrate === side && S.freeze > 0 && i > 0) tgt = new THREE.Vector3(S.ball.x + (i % 3 - 1) * 1.5, 0, S.ball.z - sgn * (3 + i * 0.3)); else { tgt = x.home.clone(); if (i > 0) { tgt.z += sgn * (att ? 8 : 2) + (S.ball.z - tgt.z) * 0.25; tgt.x += (S.ball.x - tgt.x) * 0.2; } else tgt.x = S.ball.x * 0.2; if (!att && i > 0 && x.p.distanceTo(S.ball) < 9 && i >= 5) tgt.lerp(S.ball, 0.6); } tgt.y = 0; const prev = x.p.clone(); x.p.lerp(tgt, dt * 1.6); x.g.position.copy(x.p); const v = prev.distanceTo(x.p) / Math.max(dt, 0.001); const look = S.ball.clone().sub(x.p); x.g.rotation.y = Math.atan2(look.x, look.z); const fd = x.g.userData.fighter; if (fd) { if (x.kick > 0) { x.kick -= dt; fd.play('Kick_Right', 0.08); } else if (S.celebrate === side && S.freeze > 0) fd.play('Wave', 0.2); else if (v > 0.5) fd.play('Run', 0.2, Math.min(1.4, Math.max(0.6, v / 4))); else fd.play('Idle_Neutral', 0.25); fd.mixer.update(dt); } else animWalk(x.g, v / 3, now / 1000 + i); }); });
+      ['A', 'B'].forEach(side => { const att = S.poss === side; const sgn = side === 'A' ? -1 : 1; team[side].forEach((x, i) => { let tgt; if (S.celebrate === side && S.freeze > 0 && i > 0) tgt = new THREE.Vector3(S.ball.x + (i % 3 - 1) * 1.5, 0, S.ball.z - sgn * (3 + i * 0.3)); else { tgt = x.home.clone(); if (i > 0) { tgt.z += sgn * (att ? 8 : 2) + (S.ball.z - tgt.z) * 0.25; tgt.x += (S.ball.x - tgt.x) * 0.2; } else tgt.x = S.ball.x * 0.2; if (!att && i > 0 && x.p.distanceTo(S.ball) < 9 && i >= 5) tgt.lerp(S.ball, 0.6); } if (!S.pass && !S.shot && S.freeze <= 0 && side === S.poss && i === S.holder) tgt = x.p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.4, 0, sgn * 5)); if (S.steal && side === S.steal.side && i === S.steal.i) tgt = S.ball.clone(); tgt.x = Math.max(-PW + 1, Math.min(PW - 1, tgt.x)); tgt.z = Math.max(-PL + 1, Math.min(PL - 1, tgt.z)); tgt.y = 0; const prev = x.p.clone(); const step = tgt.clone().sub(x.p); const maxv = (S.steal && side === S.steal.side && i === S.steal.i) ? 8 : 5.5; if (step.length() > maxv * dt) step.setLength(maxv * dt); x.p.add(step); x.g.position.copy(x.p); const v = prev.distanceTo(x.p) / Math.max(dt, 0.001); const look = S.ball.clone().sub(x.p); x.g.rotation.y = Math.atan2(look.x, look.z); const fd = x.g.userData.fighter; if (fd) { if (x.kick > 0) { x.kick -= dt; fd.play('Kick_Right', 0.08); } else if (S.celebrate === side && S.freeze > 0) fd.play('Wave', 0.2); else if (v > 0.5) fd.play('Run', 0.2, Math.min(1.4, Math.max(0.6, v / 4))); else fd.play('Idle_Neutral', 0.25); fd.mixer.update(dt); } else animWalk(x.g, v / 3, now / 1000 + i); }); });
       if (S.freeze <= 0) S.celebrate = null;
+      viz.busy = !!(S.attack || S.queue.length || S.freeze > 0 || S.shot);
       bursts.update(dt);
       S.focus.lerp(new THREE.Vector3(S.ball.x * 0.3, 0, S.ball.z * 0.7), dt * 1.2);
       // ТВ-ракурс с боковой трибуны: камера ходит вдоль бровки за мячом
