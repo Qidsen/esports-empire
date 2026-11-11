@@ -471,6 +471,7 @@ function weeklyGrowth(p, d, isUser) {
   const house = isUser ? S.fac.house : 3;
   const tr = isUser ? S.divs[d].train : 'bal';
   const gap = p.pot - ovr(p); const trt = traitOf(p);
+  if (p.team && p.age <= 24) { const t = T(p.team); const st = t ? starters(t).includes(p) : false; potBump(p, st ? 0.04 : -0.07); }
   let g = 0;
   if (p.age <= 23) g = 0.55; else if (p.age <= 26) g = 0.3; else if (p.age <= 28) g = 0.05; else g = -0.25 + staffSk('fitness') * 0.01;
   g *= (1 + coach * 0.04 + house * 0.04);
@@ -589,6 +590,7 @@ function applyResult(d, m) {
   if (!m.po && !m.wc) { W.rec.w++; L.rec.l++; W.rec.pts += 3; W.rec.md += wm - lm; L.rec.md -= wm - lm; }
   // stats into players
   (r.ps || []).forEach(x => { const p = S.players[x.id]; if (!p) return; ['mp', 'k', 'd', 'a', 'mvp', 'w'].forEach(k => { p.st[k] += x[k] || 0; p.car[k] += x[k] || 0; }); p.st.rt += x.rt || 0; p.car.rt += x.rt || 0; });
+  potFromSeries(d, m, A, B);
   // morale
   starters(W).forEach(p => p.mor = clamp(p.mor + 4, 0, 100)); starters(L).forEach(p => p.mor = clamp(p.mor - 5, 0, 100));
   // user econ
@@ -614,6 +616,21 @@ function applyResult(d, m) {
   if (m.po === 2) { const P = S.world[d].po[m.tier]; P.champ = W.id; if (W.user) { S.trophyQ = (S.trophyQ || []).concat({ d, n: pack(d).leagues[m.tier], s: S.season }); S.trophies.push({ s: S.season, d, n: pack(d).leagues[m.tier] }); news('🏆 Титул! ' + tname(W) + ' выигрывает ' + pack(d).leagues[m.tier] + '!', 'gold'); } }
 }
 
+// ---- динамический потенциал: растёт от сильных выступлений (особенно у молодых и в больших матчах), падает от слабых и сидения на скамейке ----
+function potBump(p, v) {
+  p.potXp = (p.potXp || 0) + v; p.potSeason = (p.potSeason || 0) + v; const mine = isUserPlayer(p);
+  while (p.potXp >= 1.5) { p.potXp -= 1.5; if (p.pot < 99) { p.pot++; if (mine) news('📈 ' + pnick(p) + ' раскрывается: потенциал растёт (' + p.pot + ')', 'good'); } }
+  while (p.potXp <= -1.5) { p.potXp += 1.5; if (p.pot > ovr(p)) { p.pot--; if (mine) news('📉 ' + pnick(p) + ' буксует: потенциал снижается (' + p.pot + ')', 'bad'); } }
+}
+function potFromSeries(d, m, A, B) {
+  const ps = (m.res && m.res.ps || []).filter(x => x.mp > 0); if (!ps.length) return;
+  const per = x => x.rt / x.mp; const mean = ps.reduce((a, x) => a + per(x), 0) / ps.length || 1;
+  const big = m.wc ? 1.8 : m.po ? 1.4 : 1;
+  ps.forEach(x => { const p = S.players[x.id]; if (!p) return; const own = p.team === A.id ? A : B, opp = own === A ? B : A;
+    const rel = clamp((per(x) - mean) / mean, -0.6, 0.6) + (teamOvr(opp) - teamOvr(own)) / 60;
+    const ageF = p.age <= 20 ? 1.6 : p.age <= 23 ? 1.1 : p.age <= 26 ? 0.6 : p.age <= 29 ? 0.25 : 0.1;
+    potBump(p, rel * ageF * big * 1.3); });
+}
 // ---- мета: тренды (архетипы) меняются плавно, раз в сезон — крупный патч, в сезоне — точечные правки ----
 const META_TAGS = { T: 'жирные герои', H: 'урон с руки', M: 'магический бёрст', F: 'тимфайты', G: 'пики и мобильность', P: 'пуш и сплит', S: 'сейвы и сустейн' };
 const HERO_TAGS = {
@@ -678,6 +695,7 @@ function randomEvent() {
 
 function newSeason() {
   fire('season');
+  Object.values(S.players).forEach(p => { if (!p) return; if (p.age <= 22 && (p.potSeason || 0) > 2.5) { const g = ri(2, 3); p.pot = Math.min(99, p.pot + g); if (isUserPlayer(p)) news('🌟 Прорыв сезона: ' + pnick(p) + ' — потенциал +' + g + ' (' + p.pot + ')', 'gold'); } p.potSeason = 0; });
   metaMajor(false);
   // promotion / relegation
   DISC_ORDER.forEach(d => {

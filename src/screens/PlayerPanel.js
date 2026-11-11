@@ -70,7 +70,7 @@ export default function PlayerPanel({ p, compact, back }) {
           <T mu s={11} n={1}>{FAKE[d].roles[p.role]} · {p.age} лет · {t ? tname(t) : 'свободный агент'}</T>
         </View>
         <Row gap={6}>
-          <Mini l="ПОТЕНЦ." v={<Stars lo={lo} hi={hi} />} sub={lo === hi ? String(hi) : lo + '–' + hi} />
+          <Mini l="ПОТЕНЦ." v={<Stars lo={lo} hi={hi} />} sub={(lo === hi ? String(hi) : lo + '–' + hi) + ((p.potXp || 0) > 0.5 ? ' ▲' : (p.potXp || 0) < -0.5 ? ' ▼' : '')} />
           <Mini l="ФОРМА" v={(p.form > 0 ? '+' : '') + p.form} c={p.form >= 0 ? C.good : C.bad} />
           <Mini l="МОРАЛЬ" v={p.mor} c={p.mor >= 60 ? C.good : p.mor >= 35 ? C.gold : C.bad} />
           <Mini l="ЗАРПЛАТА" v={'$' + fmt(p.sal)} />
@@ -88,7 +88,7 @@ export default function PlayerPanel({ p, compact, back }) {
                 {mine && !p.loanOut ? <Btn small title={'+' + upCost(p, a)} disabled={S.tp < upCost(p, a) || (o >= p.pot && p[a] >= p.pot)} onPress={() => { if (doUp(p, a)) { save(); bump(); } }} /> : null}
               </Row>
             ))}
-            {mine ? <T mu s={10.5} style={{ marginTop: 4 }}>Прокачка за очки тренировок. Выше потенциала не растёт.</T> : null}
+            {mine ? <T mu s={10.5} style={{ marginTop: 4 }}>Прокачка за очки тренировок. Выше потенциала не растёт. Потенциал живой: сильные матчи (особенно в плей-офф и у молодых) его поднимают, слабая игра и скамейка — опускают.{(p.potXp || 0) > 0.5 ? ' Сейчас растёт ▲' : (p.potXp || 0) < -0.5 ? ' Сейчас падает ▼' : ''}</T> : null}
           </Panel>
           {p.pool && p.pool.length ? <HeroPool p={p} d={d} mine={mine} /> : null}
         </View>
