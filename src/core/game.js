@@ -381,6 +381,30 @@ function offlineGain() {
 }
 
 // ---- training ----
+// ---- сигнатурные карты и герои ----
+function sigMap(p) { if (FAKE[p.d].kind !== 'fps') return -1; return Math.floor(Math.abs(Math.sin(p.id * 17.31 + 1.7) * 43758.5453) % 1 * 7); }
+function sigHero(p) { if (!p.pool || !p.pool.length) return null; return p.pool.slice().sort((a, b) => b[1] - a[1])[0][0]; }
+// ---- живой трансферный рынок: слухи, переходы между клубами, звонки агентов ----
+function marketWeek() {
+  S.rumors = (S.rumors || []).filter(r => r.s === S.season);
+  // разрешаем созревшие слухи
+  S.rumors.forEach(r => { if (r.done || r.at > S.week) return; r.done = true; const p = S.players[r.pid]; const to = T(r.to); if (!p || !to || !p.team || p.team === r.to || T(p.team).user) { r.res = 'off'; return; }
+    if (rnd() < r.prob) { const from = T(p.team); from.roster = from.roster.filter(i => i !== p.id); const rep = starters(to).filter(x => x.role === p.role).sort((a, b) => ovr(a) - ovr(b))[0];
+      if (rep) { to.roster = to.roster.filter(i => i !== rep.id); rep.team = from.id; from.roster.push(rep.id); } to.roster.push(p.id); p.team = to.id; p.bench = false; r.res = 'yes';
+      S.tlog = [{ d: r.d, pid: p.id, from: from.id, to: to.id, fee: Math.round(valueOf(p) * (1 + rnd() * 0.5)), w: S.week, s: S.season }].concat(S.tlog || []).slice(0, 40);
+      if (S.divs[r.d]) news('🔁 Трансфер: ' + pnick(p) + ' переходит из ' + tname(from) + ' в ' + tname(to)); }
+    else { r.res = 'no'; } });
+  // новые слухи: топ-команды присматриваются к звёздам послабее клубов
+  DISC_ORDER.forEach(d => { if (rnd() > 0.45) return; const W = S.world[d]; const buyer = pick(W.teams.filter(t => !t.user && t.tier <= 1)); if (!buyer) return;
+    const cands = W.teams.filter(t => !t.user && t !== buyer && t.tier >= buyer.tier).flatMap(t => starters(t)).filter(p => ovr(p) >= teamOvr(buyer) - 1).sort((a, b) => ovr(b) - ovr(a)).slice(0, 6); const p = pick(cands); if (!p || S.rumors.some(r => r.pid === p.id && !r.done)) return;
+    const prob = 0.25 + rnd() * 0.55; S.rumors.push({ id: nid(), pid: p.id, to: buyer.id, from: p.team, d, prob, at: S.week + ri(1, 3), s: S.season, w: S.week });
+    if (S.divs[d]) news('📰 Слух: ' + tname(buyer) + ' хотят ' + pnick(p) + ' из ' + tname(T(p.team)) + ' (' + (prob > 0.6 ? 'надёжный источник' : prob > 0.4 ? 'говорят в кулуарах' : 'сомнительный инсайд') + ')'); });
+  // звонок агента: игрок другого клуба хочет к вам — скидка на трансфер на 2 недели
+  S.calls = (S.calls || []).filter(c => c.s === S.season && c.w + 2 >= S.week);
+  if (rnd() < 0.3) { const d = pick(Object.keys(S.divs)); const ut = userTeam(d); const W = S.world[d];
+    const cands = W.teams.filter(t => !t.user).flatMap(t => t.roster.map(i => S.players[i])).filter(p => p && !signDemand(p).refuse && ovr(p) >= teamOvr(ut) - 3 && ovr(p) <= teamOvr(ut) + 6);
+    const p = pick(cands); if (p) { const mul = 0.6 + rnd() * 0.2; p.deal = { s: S.season, w: S.week + 2, mul }; S.calls.push({ pid: p.id, d, s: S.season, w: S.week, mul, why: pick(['мало игрового времени', 'конфликт с тренером', 'хочет сменить обстановку', 'клуб задерживает зарплату', 'мечтает играть за вас']) }); news('📞 Агент ' + pnick(p) + ' (' + tname(T(p.team)) + '): клиент хочет к вам, клуб отдаст со скидкой ' + Math.round((1 - mul) * 100) + '% — 2 недели'); } }
+}
 // ---- характеры и связки игроков ----
 const TRAITS = {
   leader: { n: 'Лидер', i: '👑', d: 'Сплачивает команду: +1 химии в неделю, связки с ним растут быстрее, в матче +сила всем' },
@@ -486,6 +510,7 @@ function finishWeek() {
   Object.values(S.players).forEach(p => { if (p.team) weeklyGrowth(p, p.d, isUserPlayer(p)); });
   weeklyManagement();
   pairsWeekly();
+  marketWeek();
   // practice & chemistry
   Object.keys(S.divs).forEach(d => {
     const t = userTeam(d); const a = staffSk('analyst', d); const dv = S.divs[d];
@@ -564,6 +589,9 @@ function metaShift() {
     const M = {}; for (let k = 0; k < 6; k++) M[ri(0, l.length - 1)] = ri(2, 5); for (let k = 0; k < 4; k++) M[ri(0, l.length - 1)] = -ri(2, 4);
     S.meta[d] = M;
   });
+  // карты CS: одна-две карты становятся «сторона атаки/защиты» сильнее — меняется важность подготовки
+  S.mapMeta = {}; const mi = ri(0, 6); S.mapMeta[mi] = rnd() < 0.5 ? 'ct' : 't';
+  S.patchNew = { s: S.season, w: S.week, v: S.patchOn ? (S.season + 6) + '.' + (10 + Math.floor(S.week / 5)) : S.season + '.' + Math.floor(S.week / 5) };
   const v = S.patchOn ? 'Патч ' + (S.season + 6) + '.' + (10 + Math.floor(S.week / 5)) : 'Обновление баланса ' + S.season + '.' + Math.floor(S.week / 5);
   news('🧪 ' + v + ': сдвиг меты героев в MOBA-дисциплинах');
 }
@@ -643,7 +671,7 @@ function signDemand(p) {
   if (p.team === null && S.world[p.d].academy.includes(p.id)) mult = 1;
   return { sal: Math.round(salaryFor(p) * mult / 10) * 10, refuse: mult > 1.65, mult, need: Math.ceil(Math.max(0, req - 0.65 * 35 - tierBonus)) };
 }
-function feeFor(p) { if (!p.team) return S.world[p.d].academy.includes(p.id) ? Math.round(1500 + p.pot * 40) : 0; return Math.round(valueOf(p) * (T(p.team).tier === 0 ? 1.3 : 1)); }
+function feeFor(p) { if (!p.team) return S.world[p.d].academy.includes(p.id) ? Math.round(1500 + p.pot * 40) : 0; const deal = p.deal && p.deal.s === S.season && p.deal.w >= S.week ? p.deal.mul : 1; return Math.round(valueOf(p) * (T(p.team).tier === 0 ? 1.3 : 1) * deal); }
 function signPlayer(p, years, feeOv, salOv) {
   const d = p.d; const ut = userTeam(d); if (!ut) return 'Нет дивизиона';
   if (ut.roster.length >= 7) return 'Состав полон (макс. 7)';
@@ -730,7 +758,7 @@ class FpsMap {
     if (d === 'valo') { [cA, cB].forEach(c => { const used = new Set(); c.players.forEach(p => { const best = (p.pool || []).filter(x => !used.has(x[0])).sort((a, b) => b[1] - a[1])[0]; if (best) { used.add(best[0]); this.stats[p.id].ag = best[0]; this.stats[p.id].agp = best[1]; } }); }); }
     this.modA = this.teamMod(cA) + gauss() * 3; this.modB = this.teamMod(cB) + gauss() * 3;
   }
-  teamMod(c) { let m = baseMod(c) + ((c.prac[this.map] || 50) - 50) * 0.22; if (this.d === 'valo') { const l = c.players.map(p => this.stats[p.id].agp || 50); m += (l.reduce((a, b) => a + b, 0) / l.length - 60) * 0.06; } return m; }
+  teamMod(c) { let m = baseMod(c) + ((c.prac[this.map] || 50) - 50) * 0.22 + c.players.filter(p => sigMap(p) === this.map).length * 0.9; if (this.d === 'valo') { const l = c.players.map(p => this.stats[p.id].agp || 50); m += (l.reduce((a, b) => a + b, 0) / l.length - 60) * 0.06; } return m; }
   buy(mon, ls, round) { if (round === 0 || round === 12 || (this.otStart !== null && (round - this.otStart) % 6 === 0)) return 'pistol'; if (mon >= 3900) return 'full'; if (mon >= 2000 && (ls >= 2 || round === 11 || round === 23)) return 'force'; if (mon >= 2600 && rnd() < 0.35) return 'force'; return 'eco'; }
   // бонус атаки: раш в стак — провал, раш мимо стака — открытый сайт, дефолт наказывает любой стак
   static tacMod(t, ct) { if (t === 'def') return ct === 'std' ? 0 : 3; if (ct === 'std') return 1; return t === ct ? -6 : 5; }
@@ -766,7 +794,7 @@ class FpsMap {
     const aliveA = cA.players.slice(), aliveB = cB.players.slice();
     const ev = []; let first = true;
     const styleA = cA.style, styleB = cB.style;
-    const sideMod = (isA) => { const ct = isA ? this.ctA : !this.ctA; return ct ? 0.6 : 0; };
+    const mm = S.mapMeta && S.mapMeta[this.map]; const sideMod = (isA) => { const ct = isA ? this.ctA : !this.ctA; return (ct ? 0.6 : 0) + (mm === 'ct' && ct ? 2 : mm === 't' && !ct ? 2 : 0); };
     if (this.dayA === undefined) { this.dayA = gauss() * 4; this.dayB = gauss() * 4; }
     const swing = gauss() * 7;
     const extA = swing + this.dayA + this.modA + BUY[bA] + (this.boostA > 0 ? 3 : 0) + sideMod(true) + (this.opts.liveA || 0) + (tSide === 'A' ? tm : -tm);
@@ -1182,5 +1210,6 @@ export { mediaWeekly, tpWeekly };
 export { leagueWeekly };
 export { leaguePosFactor, weeksToPayday, goalProgress, makeGoal };
 export { raiseTarget };
+export { sigMap, sigHero, marketWeek };
 export { TRAITS, traitOf, pairVal, pairAdd, pairDelta, teamPairs };
 export { ATTRS,BallGame,CC_WEIGHTED,COUNTRIES,CREATOR_TYPES,DISC_ORDER,DRAFT_ORDER_5,DRAFT_ORDER_6,DW,DuelGame,ENTRY_ROLE,EVENTS,FACILITIES,FAKE,FIRST,FLAG,FpsMap,H,KW,LAST,MobaGame,NICK_A,NICK_SUF,NWS,PRIZE,RL_SHOOT,SEASON_WEEKS,SPONSOR_NAMES,STAFF_TYPES,T,TEAM_A,TEAM_B,TEAM_COLORS,acceptCounter,advanceWC,agentDisc,aiDraftChoice,aiTransfer,aiVetoChoice,alignOvr,applyPatchNames,applyResult,autoDraft,autoVeto,avgR,baseMod,bestPlayerFor,buildFac,buildWorld,buyChance,buyDivision,buyWithBid,canUp,clamp,divCost,divRep,doUp,draftApply,draftOrder,draftTaken,draftValue,ensureFive,extendDemand,facCost,fcPair,feeFor,finishWeek,fmt,fpsRating,gauss,genNick,genOffers,genPlayer,genPool,genStaff,genStaffMarket,genTeamName,heroList,heroMeta,heroName,hireCreator,hireStaff,idleTick,isLoanable,isUserPlayer,loanIn,loanInCost,loanOut,loanOutTarget,makeSchedule,mapName,maxDivs,mergeStats,metaShift,mobaRating,moodFactors,negKey,newCareer,newDraft,newPS,newSeason,newStats,news,nid,offlineCapH,offlineGain,ovr,pSkill,pack,passiveRate,pcc,phaseOf,pick,pnick,potView,prof,promoteYouth,quickSeries,randomEvent,refreshAcademy,releasePlayer,releaseYouth,respondOffer,ri,rnd,salaryFor,scaleCurve,scrim,seasonManagement,sellPlayer,seriesBo,seriesFinalize,setupFinals,setupPlayoffs,setupWC,shuffle,sig,signDemand,signPlayer,signYouth,sponsorSlots,staffOf,staffSk,standings,starters,stream,talk,teamColor,teamCtx,teamOf,teamOvr,tname,tpRate,ttag,unlockDivision,upCost,userMatchesThisWeek,userTeam,userTeamIds,validatePatch,valueOf,vetoOrder,weekMatches,weeklyCosts,weeklyGrowth,weeklyManagement,weeklySponsor,wpick };

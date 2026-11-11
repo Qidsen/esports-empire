@@ -11,6 +11,7 @@ import { sfx } from '../ui/audio';
 import { rollPress } from '../core/press';
 import { showPress } from './Press';
 import { showTrophies } from './TrophyShow';
+import { showPatch } from './PatchNotes';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 export function playWeek() {
@@ -32,7 +33,7 @@ export function runQueue() {
         ))}
       </Row>
       {res.length ? res.map((n, i) => <View key={i} style={{ paddingVertical: 4 }}><IconText text={n.t} size={15} iconColor={n.c === 'good' ? C.good : n.c === 'bad' ? C.bad : C.gold} style={{ fontFamily: F.b, fontSize: 12.5, color: n.c === 'good' ? '#c6f7da' : n.c === 'bad' ? '#ffd0d5' : C.gold }} /></View>) : <T mu>На этой неделе твоих матчей не было.</T>}
-      <Btn kind="pri" ac={S.org.c1} title={pendingEvents().length ? 'Дальше · ⚡ событие' : 'Дальше'} onPress={() => showEvents(() => showTrophies())} style={{ marginTop: 12 }} />
+      <Btn kind="pri" ac={S.org.c1} title={pendingEvents().length ? 'Дальше · ⚡ событие' : 'Дальше'} onPress={() => showPatch(() => showEvents(() => showTrophies()))} style={{ marginTop: 12 }} />
     </View>
   ));
   UI.week0 = 0;
