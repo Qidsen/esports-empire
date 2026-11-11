@@ -12,9 +12,11 @@ function rx(lang) {
 }
 export function tr(s, lang = SET.lang) {
   if (typeof s !== 'string' || lang === 'ru' || !DICT[lang] || !/[А-Яа-яЁё]/.test(s)) return s;
+  if (s === 'Н') return lang === 'en' ? 'W' : 'Т'; if (s === 'С') return lang === 'en' ? 'S' : 'С'; if (s === 'Г') return lang === 'en' ? 'G' : 'Г'; if (s === 'П') return lang === 'en' ? 'A' : 'П';
   const C = CACHE[lang]; const hit = C.get(s); if (hit !== undefined) return hit;
-  const dict = DICT[lang];
-  const out = s.replace(rx(lang), (m, off, str) => {
+  const dict = DICT[lang]; const W = lang === 'en' ? 'W' : 'Т', SS = lang === 'en' ? 'S' : 'С';
+  const pre = s.replace(/С(\d+)Н(\d+)/g, SS + '$1' + W + '$2').replace(/(^|[\s·(])Н(\d+)/g, '$1' + W + '$2');
+  const out = pre.replace(rx(lang), (m, off, str) => {
     // границы слова: не переводим кусок внутри другого слова
     if (L.test(m[0]) && off > 0 && L.test(str[off - 1])) return m;
     const end = off + m.length; if (L.test(m[m.length - 1]) && end < str.length && L.test(str[end])) return m;
