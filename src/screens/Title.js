@@ -105,8 +105,6 @@ function SettingsBody() {
         <View style={{ flex: 1 }}><T mu s={11} style={{ marginBottom: 4 }}>Звуки</T><Seg ac="#ff8a1f" value={SET.sfx} onChange={v => { SET.sfx = v; up(); sfx('ui_click'); }} items={[[0, 'Выкл'], [0.45, 'Тихо'], [0.9, 'Норм'], [1.3, 'Громко']]} /></View>
         <View style={{ width: 130 }}><T mu s={11} style={{ marginBottom: 4 }}>Вибрация</T><Seg ac="#ff8a1f" value={SET.haptics ? 1 : 0} onChange={v => { SET.haptics = !!v; up(); buzz('light'); }} items={[[1, 'Вкл'], [0, 'Выкл']]} /></View>
       </Row>
-      <TrackPick label="Музыка в меню" k="trackMenu" up={up} />
-      <TrackPick label="Музыка в штабе" k="trackHub" up={up} />
       <View><T mu s={11} style={{ marginBottom: 4 }}>Скорость матчей по умолчанию</T><Seg ac="#ff8a1f" value={SET.speed} onChange={v => { SET.speed = v; up(); }} items={[[1, '1×'], [2, '2×'], [4, '4×']]} /></View>
       {S ? <Btn title="Показать подсказки снова" onPress={() => { S.tips = {}; S.tipsOff = false; save(); closeModal(); }} /> : null}
       {S ? <Btn title="Патч реальных данных и сохранение" onPress={() => { closeModal(); UI.title = false; UI.tab = 'org'; UI.org = 'set'; bump(); }} /> : null}
