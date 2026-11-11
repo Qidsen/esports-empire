@@ -10,6 +10,7 @@ import { T, H, Panel, Btn, Seg, Chips, Row, Stat, Bar, Ovr, Flag, Tag, GameIcon,
 import { C, F, alpha } from '../ui/theme';
 import { UnlockCard } from './Roster';
 import Staff from './Staff';
+import { Ico } from '../ui/icons';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 async function readUri(asset) { if (Platform.OS === 'web') { if (asset.file) return await asset.file.text(); return await (await fetch(asset.uri)).text(); } const { File } = require('expo-file-system'); return await new File(asset.uri).text(); }
@@ -22,7 +23,7 @@ function StaffRow({ s, hired }) {
   const t = STAFF_TYPES[s.type];
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: C.line }}>
-      <Text style={{ fontSize: 20 }}>{t.i}</Text>
+      <Ico n={t.i} size={22} color={C.gold} />
       <View style={{ flex: 1 }}>
         <Row gap={5}><T h s={13} n={1}>{s.name}</T><Flag cc={s.cc} /></Row>
         <T mu s={10.5} n={1}>{t.n}{s.d ? ' · ' + pack(s.d).game : ''} · ${fmt(s.sal)}/нед</T>
@@ -42,7 +43,7 @@ export default function Org() {
       {sec === 'staff' ? <Staff /> : <ScrollView>
         {sec === 'fac' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{Object.entries(FACILITIES).map(([k, f]) => { const l = S.fac[k] || 0; const c = facCost(k); return (
           <View key={k} style={{ width: '32%', minWidth: 220 }}><Panel ac={k === 'office' ? C.gold : null}>
-            <Row><Text style={{ fontSize: 26 }}>{f.i}</Text><View style={{ flex: 1 }}><T h s={14}>{f.n}</T><T mu s={10.5}>Уровень {l}/10</T></View></Row>
+            <Row><Ico n={f.i} size={28} color={C.gold} /><View style={{ flex: 1 }}><T h s={14}>{f.n}</T><T mu s={10.5}>Уровень {l}/10</T></View></Row>
             <T mu s={10.5} style={{ marginVertical: 6, minHeight: 28 }}>{f.d}</T>
             <Bar v={l * 10} ac={S.org.c1} style={{ marginBottom: 8 }} />
             <Btn kind={S.money >= c ? 'pri' : undefined} ac={S.org.c1} disabled={l >= 10 || S.money < c} title={l >= 10 ? 'MAX' : 'Улучшить · ' + money(c)} onPress={() => { const e = buildFac(k); if (e) toast(e); else save(); bump(); }} />
@@ -53,7 +54,7 @@ export default function Org() {
               <Row><T h s={14} style={{ flex: 1 }}>{s.name}</T><Tag t={'ур. ' + (s.lvl || 1)} c={C.gold} /></Row>
               <T mu s={11}>+${fmt(s.weekly)}/нед · +${fmt(s.win)} за победу · ещё {s.weeks} нед.</T>
               {g ? <View style={{ marginTop: 5, padding: 7, borderRadius: 8, backgroundColor: 'rgba(255,201,77,0.07)', borderWidth: 1, borderColor: 'rgba(255,201,77,0.25)' }}>
-                <Row><T s={11.5} style={{ flex: 1 }}>🎯 {g.t}</T><T mu s={10}>ещё {Math.max(0, g.left)} нед.</T></Row>
+                <Row gap={5}><Ico n="target" size={13} color={C.gold} /><T s={11.5} style={{ flex: 1 }}>{g.t}</T><T mu s={10}>ещё {Math.max(0, g.left)} нед.</T></Row>
                 <Row gap={6} style={{ marginTop: 4 }}><Bar v={pr[1] ? pr[0] / pr[1] * 100 : 0} ac={C.gold} h={5} style={{ flex: 1 }} /><T num s={10.5}>{g.k === 'top' ? (pr[2] ? pr[2] + '-е место' : '') : fmt(pr[0]) + '/' + fmt(pr[1])}</T></Row>
                 <T mu s={10} style={{ marginTop: 3 }}>Награда: ${fmt(Math.round(s.weekly * 3 * (s.lvl || 1) / 50) * 50)} и улучшение контракта на 20%</T>
               </View> : <T mu s={10.5}>Задача появится в конце недели</T>}
@@ -66,7 +67,7 @@ export default function Org() {
         </View> : null}
         {sec === 'divs' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{DISC_ORDER.map(d => <View key={d} style={{ width: '32%', minWidth: 220 }}>{S.divs[d] ? <Panel ac={FAKE[d].color} onPress={() => { UI.d = d; UI.tab = 'roster'; bump(); }}><GameIcon d={d} size={40} /><T h s={16}>{pack(d).game}</T><T mu s={11}>{pack(d).leagues[userTeam(d).tier]} · OVR {teamOvr(userTeam(d))}</T><Tag t="активен" c={C.good} style={{ alignSelf: 'flex-start', marginTop: 6 }} /></Panel> : <UnlockCard d={d} />}</View>)}<T mu s={11} style={{ width: '100%' }}>Дивизионов по офису: {Object.keys(S.divs).length}/{maxDivs()}. Каждые 2 уровня офиса — ещё один слот.</T></View> : null}
         {sec === 'trophy' ? <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}><Panel><H>Трофеи</H>{S.trophies.length ? S.trophies.map((t, i) => <Row key={i} style={{ paddingVertical: 5 }}><Text style={{ fontSize: 20 }}>🏆</Text><View><T h s={13}>{t.n}</T><T mu s={11}>{pack(t.d).game} · сезон {t.s}</T></View></Row>) : <T mu>Витрина пуста. Пора это исправить.</T>}</Panel></View>
+          <View style={{ flex: 1 }}><Panel><H>Трофеи</H>{S.trophies.length ? S.trophies.map((t, i) => <Row key={i} style={{ paddingVertical: 5 }}><Ico n="trophy" size={22} color={C.gold} /><View><T h s={13}>{t.n}</T><T mu s={11}>{pack(t.d).game} · сезон {t.s}</T></View></Row>) : <T mu>Витрина пуста. Пора это исправить.</T>}</Panel></View>
           <View style={{ flex: 1 }}><Panel><H>Статистика</H><Row><Stat label="Победы" value={S.stats.wins} color={C.good} /><Stat label="Поражения" value={S.stats.losses} color={C.bad} /><Stat label="Сезон" value={S.season} /></Row></Panel></View>
         </View> : null}
         {sec === 'set' ? <View style={{ flexDirection: 'row', gap: 10 }}>

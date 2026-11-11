@@ -5,6 +5,7 @@ import { UI, bump, toast, save, openModal, closeModal } from '../ui/store';
 import { T, H, Panel, Btn, Seg, Row, Stat, Bar, Ovr, Flag, Tag, Role, Stars, Sep } from '../ui/kit';
 import { C, F, ovrColor } from '../ui/theme';
 import { openNegotiation } from './Negotiation';
+import { Ico } from '../ui/icons';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 function confirm(text, yes, fn) { openModal(() => <View><T h s={18}>Подтверждение</T><T style={{ marginVertical: 10 }}>{text}</T><Row><Btn style={{ flex: 1 }} title="Отмена" onPress={closeModal} /><Btn style={{ flex: 1 }} kind="pri" ac={S.org.c1} title={yes} onPress={() => { closeModal(); fn(); }} /></Row></View>); }
@@ -32,7 +33,7 @@ export default function PlayerPanel({ p, compact, back }) {
         {back ? <Btn small title={'‹ ' + back} onPress={() => { UI.sel = null; bump(); }} /> : null}
         <Ovr o={o} s={34} style={{ minWidth: 50 }} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Row gap={6}><Flag cc={pcc(p)} s={16} /><T h s={19} n={1} style={{ flexShrink: 1 }}>{pnick(p)}</T><T s={15}>{TRAITS[traitOf(p)].i}</T>{p.youth ? <Tag t="молодёжка" c={C.good} /> : null}{p.loanIn ? <Tag t="аренда" c={C.blue} /> : null}{p.loanOut ? <Tag t="в аренде" c={C.gold} /> : null}{p.transferReq ? <Tag t="хочет уйти" c={C.bad} /> : null}</Row>
+          <Row gap={6}><Flag cc={pcc(p)} s={16} /><T h s={19} n={1} style={{ flexShrink: 1 }}>{pnick(p)}</T><Ico n={TRAITS[traitOf(p)].i} size={18} color={C.gold} />{p.youth ? <Tag t="молодёжка" c={C.good} /> : null}{p.loanIn ? <Tag t="аренда" c={C.blue} /> : null}{p.loanOut ? <Tag t="в аренде" c={C.gold} /> : null}{p.transferReq ? <Tag t="хочет уйти" c={C.bad} /> : null}</Row>
           <T mu s={11} n={1}>{FAKE[d].roles[p.role]} · {p.age} лет · {t ? tname(t) : 'свободный агент'}</T>
         </View>
         <Row gap={6}>
@@ -70,8 +71,8 @@ export default function PlayerPanel({ p, compact, back }) {
               {isLoanable(p) ? <Btn style={{ marginTop: 8 }} title={`Аренда до конца сезона · ${money(loanInCost(p))}`} onPress={() => done(loanIn(p), '🔄 Аренда оформлена')} /> : null}
             </Panel>
           ) : null}
-          <Panel><H>Характер</H><Row gap={8}><T s={22}>{TRAITS[traitOf(p)].i}</T><View style={{ flex: 1 }}><T h s={14}>{TRAITS[traitOf(p)].n}</T><T mu s={11}>{TRAITS[traitOf(p)].d}</T></View></Row>
-            {mine && t ? <><T mu s={9.5} style={{ fontFamily: F.h, letterSpacing: 1.2, marginTop: 8, marginBottom: 3 }}>СВЯЗКИ С ТИММЕЙТАМИ</T>{t.roster.map(i => S.players[i]).filter(x => x && x.id !== p.id).map(x => ({ x, v: pairVal(p, x) })).sort((a, b) => b.v - a.v).map(({ x, v }) => <Row key={x.id} gap={6} style={{ paddingVertical: 2 }}><T s={12}>{TRAITS[traitOf(x)].i}</T><T s={12} n={1} style={{ flex: 1 }}>{pnick(x)}{x.bench ? ' · запас' : ''}</T><View style={{ width: 70, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', flexDirection: 'row' }}><View style={{ flex: 1, alignItems: 'flex-end' }}>{v < 0 ? <View style={{ width: (-v / 20 * 100) + '%', height: 5, backgroundColor: C.bad }} /> : null}</View><View style={{ flex: 1 }}>{v > 0 ? <View style={{ width: (v / 20 * 100) + '%', height: 5, backgroundColor: C.good }} /> : null}</View></View><T num s={11.5} style={{ width: 30, textAlign: 'right', color: v > 2 ? C.good : v < -2 ? C.bad : C.mu }}>{v > 0 ? '+' : ''}{Math.round(v)}</T></Row>)}<T mu s={10} style={{ marginTop: 3 }}>Связки растут, пока игроки вместе в основе. Хорошие связки дают силу команде в матче.</T></> : null}
+          <Panel><H>Характер</H><Row gap={8}><Ico n={TRAITS[traitOf(p)].i} size={30} color={C.gold} /><View style={{ flex: 1 }}><T h s={14}>{TRAITS[traitOf(p)].n}</T><T mu s={11}>{TRAITS[traitOf(p)].d}</T></View></Row>
+            {mine && t ? <><T mu s={9.5} style={{ fontFamily: F.h, letterSpacing: 1.2, marginTop: 8, marginBottom: 3 }}>СВЯЗКИ С ТИММЕЙТАМИ</T>{t.roster.map(i => S.players[i]).filter(x => x && x.id !== p.id).map(x => ({ x, v: pairVal(p, x) })).sort((a, b) => b.v - a.v).map(({ x, v }) => <Row key={x.id} gap={6} style={{ paddingVertical: 2 }}><Ico n={TRAITS[traitOf(x)].i} size={14} color={C.gold} /><T s={12} n={1} style={{ flex: 1 }}>{pnick(x)}{x.bench ? ' · запас' : ''}</T><View style={{ width: 70, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', flexDirection: 'row' }}><View style={{ flex: 1, alignItems: 'flex-end' }}>{v < 0 ? <View style={{ width: (-v / 20 * 100) + '%', height: 5, backgroundColor: C.bad }} /> : null}</View><View style={{ flex: 1 }}>{v > 0 ? <View style={{ width: (v / 20 * 100) + '%', height: 5, backgroundColor: C.good }} /> : null}</View></View><T num s={11.5} style={{ width: 30, textAlign: 'right', color: v > 2 ? C.good : v < -2 ? C.bad : C.mu }}>{v > 0 ? '+' : ''}{Math.round(v)}</T></Row>)}<T mu s={10} style={{ marginTop: 3 }}>Связки растут, пока игроки вместе в основе. Хорошие связки дают силу команде в матче.</T></> : null}
           </Panel>
           {mine ? <Panel><H>Настроение</H>{moodFactors(p).map(([txt, v], i) => <Row key={i} style={{ paddingVertical: 2 }}><T s={12} style={{ width: 18, color: v > 0 ? C.good : v < 0 ? C.bad : C.mu }}>{v > 0 ? '▲' : v < 0 ? '▼' : '•'}</T><T s={12} style={{ flex: 1 }}>{txt}</T></Row>)}</Panel> : null}
           <Panel>

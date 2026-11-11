@@ -6,6 +6,7 @@ import { T, Btn, TeamLogo, Ovr, Row, Panel } from '../ui/kit';
 import { C, F } from '../ui/theme';
 import { rollEvent, pendingEvents } from '../core/events';
 import { showEvents } from './EventCard';
+import { IconText } from '../ui/icons';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 export function playWeek() {
@@ -26,7 +27,7 @@ export function runQueue() {
           <View key={l} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 8, borderWidth: 1, borderColor: C.line }}><T mu s={9.5} style={{ fontFamily: F.hm, letterSpacing: 1 }}>{l.toUpperCase()}</T><T h s={18} style={{ color: c }}>{v}</T></View>
         ))}
       </Row>
-      {res.length ? res.map((n, i) => <T key={i} s={12.5} style={{ color: n.c === 'good' ? '#c6f7da' : n.c === 'bad' ? '#ffd0d5' : C.gold, paddingVertical: 4 }}>{n.t}</T>) : <T mu>На этой неделе твоих матчей не было.</T>}
+      {res.length ? res.map((n, i) => <View key={i} style={{ paddingVertical: 4 }}><IconText text={n.t} size={15} iconColor={n.c === 'good' ? C.good : n.c === 'bad' ? C.bad : C.gold} style={{ fontFamily: F.b, fontSize: 12.5, color: n.c === 'good' ? '#c6f7da' : n.c === 'bad' ? '#ffd0d5' : C.gold }} /></View>) : <T mu>На этой неделе твоих матчей не было.</T>}
       <Btn kind="pri" ac={S.org.c1} title={pendingEvents().length ? 'Дальше · ⚡ событие' : 'Дальше'} onPress={() => showEvents()} style={{ marginTop: 12 }} />
     </View>
   ));

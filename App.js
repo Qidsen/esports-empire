@@ -20,10 +20,11 @@ import Comp from './src/screens/Comp';
 import Org from './src/screens/Org';
 import Live from './src/live/Live';
 import { playWeek } from './src/screens/flow';
+import { Ico, IconText } from './src/ui/icons';
 
 import * as G from './src/core/game';
 if (Platform.OS === 'web') globalThis.__APP = { G, UI, bump: () => bump() };
-const TABS = [['home', '◆', 'Штаб'], ['roster', '◎', 'Состав'], ['market', '⇄', 'Рынок'], ['comp', '♛', 'Турниры'], ['org', '▣', 'Клуб']];
+const TABS = [['home', 'castle', 'Штаб'], ['roster', 'friends', 'Состав'], ['market', 'trade', 'Рынок'], ['comp', 'trophy', 'Турниры'], ['org', 'building', 'Клуб']];
 export const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 
 function TopBar() {
@@ -51,14 +52,14 @@ function SideNav() {
         const on = UI.tab === k;
         return (
           <Pressable key={k} onPress={() => { UI.tab = k; UI.sel = null; UI.neg = null; bump(); }} style={[st.nav, on && { backgroundColor: alpha(S.org.c1, 0.18), borderColor: alpha(S.org.c1, 0.5) }]}>
-            <Text style={{ fontSize: 17, color: on ? S.org.c1 : C.mu }}>{i}</Text>
+            <Ico n={i} size={22} color={on ? S.org.c1 : C.mu} />
             <Text style={{ fontSize: 9.5, color: on ? C.tx : C.mu, fontFamily: F.hm, marginTop: 1 }}>{n}</Text>
           </Pressable>
         );
       })}
       <View style={{ flex: 1 }} />
       <Pressable onPress={openGameMenu} style={st.nav}>
-        <Text style={{ fontSize: 17, color: C.mu }}>☰</Text>
+        <Ico n="menu" size={20} color={C.mu} />
         <Text style={{ fontSize: 9.5, color: C.mu, fontFamily: F.hm, marginTop: 1 }}>Меню</Text>
       </Pressable>
     </View>
@@ -82,7 +83,7 @@ function ModalHost() {
 }
 function Toasts() {
   const list = useToasts();
-  return <View pointerEvents="none" style={{ position: 'absolute', bottom: 14, left: 0, right: 0, alignItems: 'center', gap: 6 }}>{list.map(t => <View key={t.id} style={st.toast}><Text style={{ color: C.tx, fontSize: 12.5 }}>{t.t}</Text></View>)}</View>;
+  return <View pointerEvents="none" style={{ position: 'absolute', bottom: 14, left: 0, right: 0, alignItems: 'center', gap: 6 }}>{list.map(t => <View key={t.id} style={st.toast}><IconText text={t.t} size={14} iconColor={S && S.org ? S.org.c1 : C.gold} style={{ color: C.tx, fontSize: 12.5 }} /></View>)}</View>;
 }
 function Shell() {
   useBump();

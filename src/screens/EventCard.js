@@ -7,6 +7,7 @@ import { eventCtx, optLabel, resolveEvent, pendingEvents } from '../core/events'
 import { openModal, closeModal, save, bump } from '../ui/store';
 import { T, Btn, Row, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
+import { Ico } from '../ui/icons';
 
 function Card({ rec, onDone }) {
   const [res, setRes] = useState(null);
@@ -16,7 +17,7 @@ function Card({ rec, onDone }) {
     <View>
       <LinearGradient colors={[alpha(ac, 0.25), 'rgba(0,0,0,0)']} style={{ position: 'absolute', left: -16, right: -16, top: -16, height: 120 }} />
       <Row gap={10} style={{ marginBottom: 8 }}>
-        <View style={{ width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: alpha(ac, 0.18), borderWidth: 1, borderColor: alpha(ac, 0.5) }}><Text style={{ fontSize: 28 }}>{def.ic}</Text></View>
+        <View style={{ width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: alpha(ac, 0.18), borderWidth: 1, borderColor: alpha(ac, 0.5) }}><Ico n={def.ic} size={32} color={ac} /></View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontFamily: F.h, fontSize: 10, letterSpacing: 1.6, color: C.mu }}>СОБЫТИЕ · {pack(c.d).game.toUpperCase()}</Text>
           <Text style={{ fontFamily: F.hx, fontSize: 21, color: C.tx }}>{def.title}</Text>

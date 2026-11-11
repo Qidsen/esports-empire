@@ -106,7 +106,7 @@ function openAbout() {
     <View style={{ gap: 6 }}>
       <Row gap={12}><GameLogo size={64} /><View style={{ flex: 1 }}><T h s={18}>Esports Empire</T><T mu s={11}>Симулятор киберспортивного менеджера · 5 дисциплин</T></View></Row>
       <T s={12}>CS2, Dota 2, Deadlock, Rocket League и EA SPORTS FC 27: собери организацию, нанимай игроков и персонал, веди переговоры, выигрывай лиги и мейджоры.</T>
-      <T mu s={10.5}>3D-модели: Quaternius (CC0). Логотипы игр и команд принадлежат их владельцам и используются только в патче реальных данных.</T>
+      <T mu s={10.5}>3D-модели: Quaternius (CC0). Иконки: game-icons.net (CC BY 3.0) — Lorc, Delapouite, Skoll, Sbed, Carl Olsen, DarkZaitzev, Zeromancer. Логотипы игр и команд принадлежат их владельцам и используются только в патче реальных данных.</T>
       <Btn kind="pri" ac="#ff8a1f" title="Закрыть" onPress={closeModal} />
     </View>
   ));

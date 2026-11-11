@@ -5,6 +5,7 @@ import { S, STAFF_TYPES, staffOf, hireStaff, pack, fmt, FAKE } from '../core/gam
 import { UI, bump, toast, save, openModal, closeModal } from '../ui/store';
 import { T, H, Panel, Btn, Row, Flag, Tag, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
+import { Ico } from '../ui/icons';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 const lvl = sk => Math.round(sk);
@@ -48,7 +49,7 @@ export default function Staff({ onlyDiv }) {
         <ScrollView>
           {list.map(p => { const st = STAFF_TYPES[p.type]; const h = staffOf(p.type, p.d)[0]; const on = posKey(p) === key; return (
             <Pressable key={posKey(p)} onPress={() => { UI.staffPos = posKey(p); bump(); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 7, borderRadius: 9, backgroundColor: on ? alpha(S.org.c1, 0.16) : 'transparent' }}>
-              <Text style={{ fontSize: 18 }}>{st.i}</Text>
+              <Ico n={st.i} size={20} color={C.gold} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <T h s={12} n={1}>{st.n}{p.d ? '' : ''}</T>
                 <T s={10.5} n={1} style={{ color: h ? C.mu : C.bad }}>{h ? h.name : 'Вакансия'}</T>
@@ -61,7 +62,7 @@ export default function Staff({ onlyDiv }) {
       <ScrollView style={{ flex: 1 }}>
         <Panel ac={S.org.c1}>
           <Row gap={10}>
-            <Text style={{ fontSize: 30 }}>{t.i}</Text>
+            <Ico n={t.i} size={34} color={C.gold} />
             <View style={{ flex: 1 }}><T h s={17}>{t.n}{pos.d ? ' · ' + pack(pos.d).game : ''}</T><T mu s={11.5}>{t.d}</T></View>
           </Row>
           <View style={{ marginTop: 8, padding: 8, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.04)' }}>

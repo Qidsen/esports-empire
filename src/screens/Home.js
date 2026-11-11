@@ -8,6 +8,7 @@ import { T, Btn, Row, TeamLogo, Tag, GameIcon } from '../ui/kit';
 import { C, F, alpha } from '../ui/theme';
 import { pendingEvents } from '../core/events';
 import { showEvents } from './EventCard';
+import { Ico, IconText } from '../ui/icons';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 const Card = ({ children, style, ac }) => <View style={[{ backgroundColor: 'rgba(14,20,34,0.85)', borderRadius: 16, borderWidth: 1, borderColor: ac ? alpha(ac, 0.45) : C.line, padding: 14 }, style]}>{children}</View>;
@@ -46,7 +47,7 @@ function WeekPlan() {
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {PLANS.map(([k, n, ic, dsc]) => { const on = plan === k; return (
           <Pressable key={k} onPress={() => { S.weekPlan = k; save(); bump(); }} style={{ flex: 1, padding: 10, borderRadius: 12, borderWidth: 1.5, borderColor: on ? S.org.c1 : C.line, backgroundColor: on ? alpha(S.org.c1, 0.14) : 'rgba(255,255,255,0.02)' }}>
-            <Row gap={6}><Text style={{ fontSize: 18 }}>{ic}</Text><Text style={{ fontFamily: F.h, fontSize: 13.5, color: on ? C.tx : C.mu }}>{n}</Text></Row>
+            <Row gap={6}><Ico n={ic} size={20} color={on ? S.org.c1 : C.mu} /><Text style={{ fontFamily: F.h, fontSize: 13.5, color: on ? C.tx : C.mu }}>{n}</Text></Row>
             <Text style={{ fontFamily: F.b, fontSize: 10.5, color: C.mu, marginTop: 4 }} numberOfLines={2}>{dsc}</Text>
           </Pressable>); })}
       </View>
@@ -70,14 +71,14 @@ function Finance() {
     </Card>
   );
 }
-function allNews() { openModal(() => <View><T h s={18} style={{ marginBottom: 8 }}>Новости</T>{S.news.slice(0, 40).map((n, i) => <Row key={i} style={{ alignItems: 'flex-start', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: C.line }}><T mu s={10.5} style={{ width: 44 }}>С{n.s}Н{n.w}</T><T s={13} style={{ flex: 1 }}>{n.t}</T></Row>)}<Btn style={{ marginTop: 10 }} title="Закрыть" onPress={closeModal} /></View>); }
+function allNews() { openModal(() => <View><T h s={18} style={{ marginBottom: 8 }}>Новости</T>{S.news.slice(0, 40).map((n, i) => <Row key={i} style={{ alignItems: 'flex-start', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: C.line }}><T mu s={10.5} style={{ width: 44 }}>С{n.s}Н{n.w}</T><View style={{ flex: 1 }}><IconText text={n.t} size={14} iconColor={C.gold} style={{ fontFamily: F.b, fontSize: 13, color: C.tx }} /></View></Row>)}<Btn style={{ marginTop: 10 }} title="Закрыть" onPress={closeModal} /></View>); }
 function News() {
   return (
     <Card style={{ flex: 1 }}>
       <Cap right={<Pressable onPress={allNews}><T s={11} style={{ color: S.org.c1, fontFamily: F.h }}>Все ›</T></Pressable>}>НОВОСТИ</Cap>
-      {pendingEvents().length ? <Pressable onPress={() => showEvents()} style={{ padding: 8, borderRadius: 10, backgroundColor: alpha(S.org.c1, 0.14), borderWidth: 1, borderColor: alpha(S.org.c1, 0.5), marginBottom: 6 }}><T s={12.5} style={{ color: C.tx, fontFamily: F.h }}>⚡ Требует решения: {pendingEvents().length} ›</T></Pressable> : null}
-      {S.tOffers.length ? <Pressable onPress={() => { UI.tab = 'market'; UI.mk = 'offers'; bump(); }} style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(255,201,77,0.1)', borderWidth: 1, borderColor: 'rgba(255,201,77,0.4)', marginBottom: 6 }}><T s={12.5} style={{ color: C.gold, fontFamily: F.h }}>📨 Предложения за игроков: {S.tOffers.length} ›</T></Pressable> : null}
-      {S.news.slice(0, 5).map((n, i) => <Text key={i} numberOfLines={2} style={{ fontFamily: F.b, fontSize: 13, color: n.c === 'good' ? '#c6f7da' : n.c === 'bad' ? '#ffd0d5' : n.c === 'gold' ? C.gold : C.tx, paddingVertical: 4, borderBottomWidth: i < 4 ? 1 : 0, borderBottomColor: C.line }}>{n.t}</Text>)}
+      {pendingEvents().length ? <Pressable onPress={() => showEvents()} style={{ padding: 8, borderRadius: 10, backgroundColor: alpha(S.org.c1, 0.14), borderWidth: 1, borderColor: alpha(S.org.c1, 0.5), marginBottom: 6 }}><Row gap={6}><Ico n="bolt" size={16} color={S.org.c1} /><T s={12.5} style={{ color: C.tx, fontFamily: F.h }}>Требует решения: {pendingEvents().length} ›</T></Row></Pressable> : null}
+      {S.tOffers.length ? <Pressable onPress={() => { UI.tab = 'market'; UI.mk = 'offers'; bump(); }} style={{ padding: 8, borderRadius: 10, backgroundColor: 'rgba(255,201,77,0.1)', borderWidth: 1, borderColor: 'rgba(255,201,77,0.4)', marginBottom: 6 }}><Row gap={6}><Ico n="envelope" size={16} color={C.gold} /><T s={12.5} style={{ color: C.gold, fontFamily: F.h }}>Предложения за игроков: {S.tOffers.length} ›</T></Row></Pressable> : null}
+      {S.news.slice(0, 5).map((n, i) => { const col = n.c === 'good' ? '#c6f7da' : n.c === 'bad' ? '#ffd0d5' : n.c === 'gold' ? C.gold : C.tx; return <View key={i} style={{ paddingVertical: 4, borderBottomWidth: i < 4 ? 1 : 0, borderBottomColor: C.line }}><IconText text={n.t} numberOfLines={2} size={15} iconColor={n.c === 'good' ? C.good : n.c === 'bad' ? C.bad : C.gold} style={{ fontFamily: F.b, fontSize: 13, color: col }} /></View>; })}
     </Card>
   );
 }

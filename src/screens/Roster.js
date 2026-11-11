@@ -7,6 +7,7 @@ import { T, H, Panel, Btn, Seg, Chips, Row, Stat, Bar, Ovr, Flag, Tag, Role, Tea
 import { C, F, alpha, ovrColor } from '../ui/theme';
 import PlayerPanel, { PlayerScreen, swap } from './PlayerPanel';
 import Staff from './Staff';
+import { Ico } from '../ui/icons';
 
 const money = n => (n < 0 ? '−$' : '$') + fmt(Math.abs(n));
 export function DiscChips({ all }) { return <Chips ac={UI.d && FAKE[UI.d].color} value={UI.d} onChange={d => { UI.d = d; UI.sel = null; UI.tier = null; bump(); }} items={DISC_ORDER.filter(d => all || S.divs[d]).map(d => [d, `${pack(d).game}${S.divs[d] ? '' : ' 🔒'}`, !S.divs[d], d])} />; }
@@ -17,7 +18,7 @@ export function PRow({ p, d, right, onPress }) {
       <Role t={FAKE[d].roles[p.role]} />
       <Flag cc={pcc(p)} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Row gap={5}><T h s={13} n={1} style={{ flexShrink: 1 }}>{pnick(p)}</T><T s={11}>{TRAITS[traitOf(p)].i}</T>{p.standin ? <Tag t="стенд-ин" c={C.bad} /> : null}{p.loanIn ? <Tag t="аренда" c={C.blue} /> : null}{p.transferReq ? <Tag t="!" c={C.bad} /> : null}</Row>
+        <Row gap={5}><T h s={13} n={1} style={{ flexShrink: 1 }}>{pnick(p)}</T><Ico n={TRAITS[traitOf(p)].i} size={13} color={C.gold} />{p.standin ? <Tag t="стенд-ин" c={C.bad} /> : null}{p.loanIn ? <Tag t="аренда" c={C.blue} /> : null}{p.transferReq ? <Tag t="!" c={C.bad} /> : null}</Row>
         <T mu s={10} n={1}>{p.age} л. · форма {p.form > 0 ? '+' : ''}{p.form} · мораль {p.mor}</T>
       </View>
       {right}
@@ -109,7 +110,7 @@ function PCard({ p, d, t, canSub }) {
         <LinearGradient colors={[alpha(ac, 0.22), 'rgba(14,20,34,0.92)']} style={{ borderRadius: 12, borderWidth: 1, borderColor: alpha(ac, 0.45), padding: 9 }}>
           <Row gap={6}><Role t={FAKE[d].roles[p.role]} /><View style={{ flex: 1 }} /><Ovr o={o} s={22} /></Row>
           <Row gap={5} style={{ marginTop: 4 }}><Flag cc={pcc(p)} /><T h s={14.5} n={1} style={{ flexShrink: 1 }}>{pnick(p)}</T></Row>
-          <T s={10} n={1} style={{ color: C.gold }}>{TRAITS[traitOf(p)].i} {TRAITS[traitOf(p)].n}</T>
+          <Row gap={4}><Ico n={TRAITS[traitOf(p)].i} size={12} color={C.gold} /><T s={10} n={1} style={{ color: C.gold }}>{TRAITS[traitOf(p)].n}</T></Row>
           <T mu s={10} n={1}>{p.age} л. · рейт. {rt} · {p.st.mp} игр</T>
           <View style={{ marginTop: 6, gap: 2 }}>
             {ATTRS.map(([k]) => <Row key={k} gap={5}><T mu s={8.5} style={{ width: 24, fontFamily: F.h }}>{SHORT_ATTR[k]}</T><Bar v={p[k]} ac={ovrColor(p[k])} h={4} style={{ flex: 1 }} /><T num s={9.5} style={{ width: 18, textAlign: 'right' }}>{p[k]}</T></Row>)}
@@ -171,19 +172,19 @@ function Chem({ t, d, st, bench }) {
   const ac = FAKE[d].color; const avg = teamPairs(t); const cell = 54;
   const col = v => v > 2 ? alpha(C.good, Math.min(0.85, 0.2 + v / 25)) : v < -2 ? alpha(C.bad, Math.min(0.85, 0.2 - v / 25)) : 'rgba(255,255,255,0.05)';
   const pairs = []; for (let i = 0; i < st.length; i++) for (let j = i + 1; j < st.length; j++) pairs.push([st[i], st[j], pairVal(st[i], st[j])]); pairs.sort((a, b) => b[2] - a[2]);
-  const pl = (a, b, v) => <Row key={a.id + '-' + b.id} gap={6} style={{ paddingVertical: 3 }}><T s={12} n={1} style={{ flex: 1 }}>{TRAITS[traitOf(a)].i} {pnick(a)} + {TRAITS[traitOf(b)].i} {pnick(b)}</T><T num s={12} style={{ color: v > 2 ? C.good : v < -2 ? C.bad : C.mu }}>{v > 0 ? '+' : ''}{Math.round(v)}</T></Row>;
+  const pl = (a, b, v) => <Row key={a.id + '-' + b.id} gap={6} style={{ paddingVertical: 3 }}><Row gap={4} style={{ flex: 1 }}><Ico n={TRAITS[traitOf(a)].i} size={13} color={C.gold} /><T s={12} n={1} style={{ flexShrink: 1 }}>{pnick(a)} +</T><Ico n={TRAITS[traitOf(b)].i} size={13} color={C.gold} /><T s={12} n={1} style={{ flexShrink: 1 }}>{pnick(b)}</T></Row><T num s={12} style={{ color: v > 2 ? C.good : v < -2 ? C.bad : C.mu }}>{v > 0 ? '+' : ''}{Math.round(v)}</T></Row>;
   return (
     <ScrollView style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Panel style={{ flex: 1.2 }}>
           <H right={<T s={11} style={{ color: avg >= 0 ? C.good : C.bad, fontFamily: F.h }}>средняя {avg >= 0 ? '+' : ''}{avg.toFixed(1)} · {avg >= 0 ? '+' : ''}{(avg * 0.12).toFixed(1)} к силе</T>}>Связки основы</H>
-          <View style={{ flexDirection: 'row' }}><View style={{ width: 92 }} />{st.map(p => <View key={p.id} style={{ width: cell, alignItems: 'center' }}><T s={14}>{TRAITS[traitOf(p)].i}</T><T s={9.5} n={1} mu>{pnick(p)}</T></View>)}</View>
-          {st.map((a, i) => <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center' }}><T s={11} n={1} style={{ width: 92 }}>{TRAITS[traitOf(a)].i} {pnick(a)}</T>{st.map((b, j) => { const v = i === j ? null : pairVal(a, b); return <View key={b.id} style={{ width: cell - 4, height: 26, margin: 2, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: v === null ? 'transparent' : col(v) }}>{v === null ? <T mu s={10}>—</T> : <T num s={11.5}>{v > 0 ? '+' : ''}{Math.round(v)}</T>}</View>; })}</View>)}
+          <View style={{ flexDirection: 'row' }}><View style={{ width: 92 }} />{st.map(p => <View key={p.id} style={{ width: cell, alignItems: 'center' }}><Ico n={TRAITS[traitOf(p)].i} size={16} color={C.gold} /><T s={9.5} n={1} mu>{pnick(p)}</T></View>)}</View>
+          {st.map((a, i) => <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center' }}><Row gap={4} style={{ width: 92 }}><Ico n={TRAITS[traitOf(a)].i} size={13} color={C.gold} /><T s={11} n={1} style={{ flexShrink: 1 }}>{pnick(a)}</T></Row>{st.map((b, j) => { const v = i === j ? null : pairVal(a, b); return <View key={b.id} style={{ width: cell - 4, height: 26, margin: 2, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: v === null ? 'transparent' : col(v) }}>{v === null ? <T mu s={10}>—</T> : <T num s={11.5}>{v > 0 ? '+' : ''}{Math.round(v)}</T>}</View>; })}</View>)}
           <T mu s={10.5} style={{ marginTop: 6 }}>Каждую неделю в основе пары сыгрываются. Лидер ускоряет, токсик и два вспыльчивых — портят. Земляки ладят чуть лучше.</T>
         </Panel>
         <View style={{ flex: 1, gap: 10 }}>
           <Panel><H>Лучшие и худшие пары</H>{pairs.slice(0, 3).map(x => pl(...x))}{pairs.length > 3 ? <View style={{ height: 1, backgroundColor: C.line, marginVertical: 4 }} /> : null}{pairs.slice(-2).reverse().filter(x => pairs.indexOf(x) >= 3).map(x => pl(...x))}</Panel>
-          <Panel><H>Характеры</H>{Object.entries(TRAITS).map(([k, v]) => <Row key={k} gap={6} style={{ paddingVertical: 2, alignItems: 'flex-start' }}><T s={13}>{v.i}</T><T s={11} style={{ flex: 1 }}><Text style={{ fontFamily: F.h }}>{v.n}</Text> — {v.d}</T></Row>)}</Panel>
+          <Panel><H>Характеры</H>{Object.entries(TRAITS).map(([k, v]) => <Row key={k} gap={6} style={{ paddingVertical: 2, alignItems: 'flex-start' }}><Ico n={v.i} size={16} color={C.gold} style={{ marginTop: 1 }} /><T s={11} style={{ flex: 1 }}><Text style={{ fontFamily: F.h }}>{v.n}</Text> — {v.d}</T></Row>)}</Panel>
         </View>
       </View>
     </ScrollView>
