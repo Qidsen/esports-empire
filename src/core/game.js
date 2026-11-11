@@ -945,22 +945,62 @@ function draftApply(d, dr, cA, cB, h) {
   else { const c = side === 'A' ? cA : cB; const p = bestPlayerFor(c, dr, side, h, d); dr.picks[side].push({ h, pid: p.id }); }
   dr.step++;
 }
+// ---- контрпики: известные пары (A сильно против B) + мягкое правило архетипов ----
+const COUNTERS = {
+  'Anti-Mage': ['Lina', 'Outworld Destroyer', 'Storm Spirit', 'Medusa', 'Leshrac', 'Zeus', 'Skywrath Mage', 'Invoker', 'Death Prophet', 'Puck', 'Keeper of the Light'],
+  'Axe': ['Phantom Lancer', 'Naga Siren', 'Meepo', 'Chaos Knight', 'Broodmother', 'Terrorblade', 'Slark'],
+  'Earthshaker': ['Phantom Lancer', 'Naga Siren', 'Meepo', 'Chaos Knight', 'Broodmother', 'Terrorblade', 'Arc Warden', 'Lone Druid'],
+  'Doom': ['Medusa', 'Bristleback', 'Huskar', 'Lifestealer', 'Alchemist', 'Morphling'],
+  'Silencer': ['Storm Spirit', 'Ember Spirit', 'Puck', 'Invoker', 'Queen of Pain', 'Void Spirit'],
+  'Ancient Apparition': ['Huskar', 'Alchemist', 'Necrophos', 'Abaddon', 'Dazzle', 'Oracle', 'Morphling', 'Phoenix'],
+  'Slardar': ['Phantom Assassin', 'Riki', 'Templar Assassin', 'Clinkz', 'Weaver'],
+  'Bloodseeker': ['Storm Spirit', 'Ember Spirit', 'Queen of Pain', 'Anti-Mage', 'Weaver', 'Slark'],
+  'Nyx Assassin': ['Storm Spirit', 'Lina', 'Zeus', 'Skywrath Mage', 'Invoker', 'Outworld Destroyer', 'Medusa', 'Tinker'],
+  'Spirit Breaker': ['Sniper', 'Drow Ranger', 'Crystal Maiden', 'Lina', 'Zeus', 'Tinker', 'Arc Warden'],
+  'Clockwerk': ['Sniper', 'Drow Ranger', 'Witch Doctor', 'Lich', 'Tinker'],
+  'Viper': ['Huskar', 'Slark', 'Bristleback', 'Phantom Assassin'],
+  'Ember Spirit': ['Phantom Lancer', 'Naga Siren', 'Meepo', 'Arc Warden'],
+  'Leshrac': ['Phantom Lancer', 'Naga Siren', 'Meepo', 'Broodmother'],
+  'Sand King': ['Phantom Lancer', 'Naga Siren', 'Meepo', 'Broodmother'],
+  'Zeus': ['Riki', 'Clinkz', 'Weaver', 'Bounty Hunter'],
+  'Pugna': ['Muerta', 'Leshrac'],
+  'Phantom Assassin': ['Sniper'],
+  'Riki': ['Sniper', 'Crystal Maiden'],
+  'Lion': ['Medusa', 'Wraith King'],
+  'Legion Commander': ['Sniper', 'Drow Ranger', 'Crystal Maiden'],
+  'Winter Wyvern': ['Meepo', 'Troll Warlord', 'Ursa'],
+  'Necrophos': ['Huskar', 'Alchemist'],
+  'Venomancer': ['Huskar'],
+  'Storm Spirit': ['Tinker', 'Sniper'],
+  'Shadow Demon': ['Phantom Lancer', 'Naga Siren'],
+  'Faceless Void': ['Ember Spirit', 'Storm Spirit'],
+  'Troll Warlord': ['Phantom Lancer'],
+  'Disruptor': ['Storm Spirit', 'Ember Spirit', 'Weaver'],
+};
+// архетипы: G (пики) > M (хрупкие маги), T (живучие) > G, H (урон с руки) > T, M > H, S (сейвы) > G
+const ARCH = { G: { M: 0.6 }, T: { G: 0.6 }, H: { T: 0.6 }, M: { H: 0.4 }, S: { G: 0.4 } };
+let CMAP = null;
+function counterMap() { if (CMAP) return CMAP; CMAP = {}; Object.entries(COUNTERS).forEach(([a, l]) => { l.forEach(b => { CMAP[a + '>' + b] = 1; }); }); return CMAP; }
+function counterVal(d, a, b) { const L = heroList(d); const A = L[a], B = L[b]; if (!A || !B) return 0; const M = counterMap(); let v = 0; if (M[A.n + '>' + B.n]) v += 5; if (M[B.n + '>' + A.n]) v -= 5; const ta = heroTags(d, a), tb = heroTags(d, b); for (const x of ta) for (const y of tb) { if (ARCH[x] && ARCH[x][y]) v += ARCH[x][y]; if (ARCH[y] && ARCH[y][x]) v -= ARCH[y][x]; } return v; }
+function counterSum(d, h, enemy) { return enemy.reduce((a, e) => a + counterVal(d, h, e), 0); }
+function counterNames(d, h, enemy) { const L = heroList(d); return enemy.filter(e => counterVal(d, h, e) >= 4).map(e => L[e].n); }
 function aiDraftChoice(d, dr, cA, cB) {
   const [side, kind] = draftOrder(d)[dr.step]; const me = side === 'A' ? cA : cB, op = side === 'A' ? cB : cA; const oside = side === 'A' ? 'B' : 'A';
   const taken = draftTaken(dr); const list = heroList(d); let best = 0, bs = -1e9;
   if (kind === 'ban') {
     const oused = new Set(dr.picks[oside].map(x => x.pid));
-    list.forEach((hr, h) => { if (taken.has(h)) return; let s = -1e9; op.players.forEach(p => { if (oused.has(p.id)) return; s = Math.max(s, (hr.r.includes(p.role) ? 20 : 0) + prof(p, h, d)); }); s += heroMeta(d, h) * 3 + gauss() * 4; if (s > bs) { bs = s; best = h; } });
+    const myP = dr.picks[side].map(x => x.h); list.forEach((hr, h) => { if (taken.has(h)) return; let s = -1e9; op.players.forEach(p => { if (oused.has(p.id)) return; s = Math.max(s, (hr.r.includes(p.role) ? 20 : 0) + prof(p, h, d)); }); s += heroMeta(d, h) * 3 + counterSum(d, h, myP) * 2.5 + gauss() * 4; if (s > bs) { bs = s; best = h; } });
   } else {
     const used = new Set(dr.picks[side].map(x => x.pid));
-    list.forEach((hr, h) => { if (taken.has(h)) return; let s = -1e9; me.players.forEach(p => { if (used.has(p.id)) return; s = Math.max(s, (hr.r.includes(p.role) ? 30 : 0) + prof(p, h, d)); }); s += heroMeta(d, h) * 4 + gauss() * 5 + (me.analyst || 0) * 0.3; if (s > bs) { bs = s; best = h; } });
+    const enP = dr.picks[oside].map(x => x.h); list.forEach((hr, h) => { if (taken.has(h)) return; let s = -1e9; me.players.forEach(p => { if (used.has(p.id)) return; s = Math.max(s, (hr.r.includes(p.role) ? 30 : 0) + prof(p, h, d) * (heroMeta(d, h) < 0 ? 0.92 : 1)); }); s += heroMeta(d, h) * 4 + counterSum(d, h, enP) * (2 + (me.analyst || 0) * 0.08) + gauss() * 5 + (me.analyst || 0) * 0.3; if (s > bs) { bs = s; best = h; } });
   }
   return best;
 }
 function autoDraft(d, cA, cB) { const dr = newDraft(); while (dr.step < draftOrder(d).length) draftApply(d, dr, cA, cB, aiDraftChoice(d, dr, cA, cB)); return dr; }
 function draftValue(d, dr, side, c) {
   let v = 0; const list = heroList(d);
-  dr.picks[side].forEach(({ h, pid }) => { const p = c.players.find(x => x.id === pid); const hr = list[h]; v += (hr.r.includes(p.role) ? 0 : -9) + (prof(p, h, d) - 60) * 0.15 + heroMeta(d, h) * 1.1; });
+  const enemy = dr.picks[side === 'A' ? 'B' : 'A'].map(x => x.h);
+  dr.picks[side].forEach(({ h, pid }) => { const p = c.players.find(x => x.id === pid); const hr = list[h]; const mt = heroMeta(d, h); v += (hr.r.includes(p.role) ? 0 : -9) + (prof(p, h, d) - 60) * 0.15 * (mt < 0 ? 0.6 : 1) + mt * 1.5 + counterSum(d, h, enemy) * 0.5; });
   return v / 5 + (c.analyst || 0) * 0.15;
 }
 function scaleCurve(d, dr, side, t) { let v = 0; const list = heroList(d); dr.picks[side].forEach(({ h }) => { const s = list[h].s || 'm'; if (s === 'e') v += t < 15 ? 1.3 : t > 35 ? -0.9 : 0.2; else if (s === 'l') v += t < 15 ? -0.9 : t > 35 ? 1.5 : 0.1; else v += t >= 14 && t <= 32 ? 0.8 : 0; }); return v; }
@@ -1302,6 +1342,7 @@ export { mediaWeekly, tpWeekly };
 export { leagueWeekly };
 export { leaguePosFactor, weeksToPayday, goalProgress, makeGoal };
 export { raiseTarget };
+export { counterVal, counterSum, counterNames };
 export { META_TAGS, heroTags, trendText, ensureMeta, metaMajor, metaMinor, aiMetaAdapt };
 export { sigMap, sigHero, marketWeek, onHook, migrateHeroRoles, learnCap, learnRate, setLearn, metaComfort };
 export { TRAITS, traitOf, pairVal, pairAdd, pairDelta, teamPairs };

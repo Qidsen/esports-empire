@@ -43,13 +43,16 @@ function HeroPool({ p, d, mine }) {
   );
 }
 function openLearn(p, d) {
-  const L = heroList(d); const ids = L.map((h, i) => i).filter(i => L[i].r.includes(p.role)).sort((a, b) => (heroMeta(d, b) - heroMeta(d, a)) || (L[a].n < L[b].n ? -1 : 1));
+  const L = heroList(d);
+  // ценность варианта: мета, основная ли это позиция героя, сколько уже умеет и сколько можно выжать до потолка
+  const val = h => { const e = (p.pool || []).find(x => x[0] === h); const c = e ? e[1] : Math.max(25, ovr(p) - 22); const cap = learnCap(p, h); return heroMeta(d, h) * 6 + (L[h].r[0] === p.role ? 8 : 0) + (c - 40) * 0.25 + (cap - c > 0 ? 3 : -20); };
+  const ids = L.map((h, i) => i).filter(i => L[i].r.includes(p.role)).sort((a, b) => val(b) - val(a));
   const cur = h => { const e = (p.pool || []).find(x => x[0] === h); return e ? Math.round(e[1]) : null; };
   openModal(() => <View>
     <T h s={17}>Новый герой для {pnick(p)}</T>
-    <T mu s={11} style={{ marginBottom: 8 }}>Герои его позиции, сначала усиленные патчем. Потолок владения — около уровня игрока (+4). Освоение занимает несколько недель.</T>
+    <T mu s={11} style={{ marginBottom: 8 }}>От лучшего варианта к худшему: учитывается мета, основная ли это позиция героя и сколько игрок уже умеет. Потолок владения — около уровня игрока (+4). Освоение занимает несколько недель.</T>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{ids.map(h => { const mt = heroMeta(d, h); const c = cur(h); const cap = learnCap(p, h); const done = c !== null && c >= cap; return (
-      <Btn key={h} small disabled={done} title={L[h].n + (c !== null ? ' ' + c : '') + (mt > 0 ? ' ▲' : mt < 0 ? ' ▼' : '')} onPress={() => { setLearn(p, h); save(); bump(); closeModal(); toast('📚 ' + pnick(p) + ' учит ' + L[h].n); }} />); })}</View>
+      <Btn key={h} small disabled={done} title={L[h].n + (c !== null ? ' ' + c : '') + (mt > 0 ? ' ▲' + mt : mt < 0 ? ' ▼' + Math.abs(mt) : '') + (L[h].r[0] !== p.role ? ' ·гибкий' : '')} onPress={() => { setLearn(p, h); save(); bump(); closeModal(); toast('📚 ' + pnick(p) + ' учит ' + L[h].n); }} />); })}</View>
     <Btn style={{ marginTop: 10 }} title="Закрыть" onPress={closeModal} />
   </View>);
 }
